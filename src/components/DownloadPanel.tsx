@@ -15,6 +15,10 @@ type ReportState = "idle" | "confirming" | "submitting" | "reported" | "error";
 
 export function DownloadPanel({ token }: { token: string }) {
   const [meta, setMeta] = useState<FileMeta | null>(null);
+  const [requiresPassword, setRequiresPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<ReportState>("idle");
 
@@ -23,10 +27,30 @@ export function DownloadPanel({ token }: { token: string }) {
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || "Something went wrong.");
-        setMeta(body);
+        if (body.requiresPassword) setRequiresPassword(true);
+        else setMeta(body);
       })
       .catch((e) => setError(e.message));
   }, [token]);
+
+  function submitPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setUnlocking(true);
+    setUnlockError(null);
+    fetch(`/api/file/${token}/unlock`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password }),
+    })
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || "Incorrect password.");
+        setMeta(body);
+        setRequiresPassword(false);
+      })
+      .catch((e) => setUnlockError(e.message))
+      .finally(() => setUnlocking(false));
+  }
 
   function submitReport() {
     setReportState("submitting");
@@ -47,10 +71,6 @@ export function DownloadPanel({ token }: { token: string }) {
     );
   }
 
-  if (!meta) {
-    return <p className="text-center text-sm text-black/50 dark:text-white/50">Looking up this file…</p>;
-  }
-
   if (reportState === "reported") {
     return (
       <div className="flex flex-col items-center gap-2 text-center">
@@ -58,6 +78,35 @@ export function DownloadPanel({ token }: { token: string }) {
         <p className="text-sm text-black/50 dark:text-white/50">This link has been disabled. Thanks for flagging it.</p>
       </div>
     );
+  }
+
+  if (requiresPassword) {
+    return (
+      <form onSubmit={submitPassword} className="flex flex-col items-center gap-4 text-center">
+        <span className="text-3xl">🔒</span>
+        <p className="text-sm text-black/70 dark:text-white/70">This file is password protected</p>
+        <input
+          type="password"
+          autoFocus
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter password"
+          className="w-56 rounded-lg border border-black/15 bg-transparent px-3 py-2 text-center outline-none focus:border-emerald-500 dark:border-white/15"
+        />
+        {unlockError && <p className="text-sm text-red-600 dark:text-red-400">{unlockError}</p>}
+        <button
+          type="submit"
+          disabled={unlocking}
+          className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {unlocking ? "Checking…" : "Unlock"}
+        </button>
+      </form>
+    );
+  }
+
+  if (!meta) {
+    return <p className="text-center text-sm text-black/50 dark:text-white/50">Looking up this file…</p>;
   }
 
   return (

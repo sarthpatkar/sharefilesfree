@@ -4,11 +4,12 @@
 // small JSON request/response, never the file itself.
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { isR2Configured, writeMetadata, getUploadUrl } from "@/lib/r2";
+import { isR2Configured, writeMetadata, getUploadUrl, hashPassword } from "@/lib/r2";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
 
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
 const DEFAULT_EXPIRY_HOURS = 24;
+const DEFAULT_MAX_EXPIRY_HOURS = 24 * 7; // 7 days — matches what competitors offer free (see the plan's research)
 
 // Room-code generation on the P2P path is naturally rate-limited by the
 // signaling server; this path costs us real storage/bandwidth, so it gets
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const { name, size, mime } = body ?? {};
+  const { name, size, mime, password, burnAfterDownload } = body ?? {};
   if (typeof name !== "string" || typeof size !== "number" || size <= 0) {
     return NextResponse.json({ error: "Missing or invalid file name/size." }, { status: 400 });
   }
@@ -40,11 +41,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `File is too large for link sharing (max ${Math.round(maxBytes / 1e9)}GB).` }, { status: 413 });
   }
 
-  const token = randomBytes(16).toString("hex"); // unguessable — this is the only thing standing between a link and the file
-  const expiryHours = Number(process.env.UPLOAD_EXPIRY_HOURS) || DEFAULT_EXPIRY_HOURS;
+  // The requester can pick a shorter retention window, but never longer than the
+  // deployment's configured ceiling — keeps worst-case storage cost bounded regardless.
+  const maxExpiryHours = Number(process.env.UPLOAD_EXPIRY_HOURS) || DEFAULT_MAX_EXPIRY_HOURS;
+  const requestedHours = Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS;
+  const expiryHours = Math.min(Math.max(requestedHours, 1), maxExpiryHours);
   const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
 
-  await writeMetadata(token, { name, size, mime: typeof mime === "string" ? mime : "application/octet-stream", expiresAt });
+  const token = randomBytes(16).toString("hex"); // unguessable — this is the only thing standing between a link and the file
+  const { hash, salt } = typeof password === "string" && password.length > 0 ? hashPassword(password) : { hash: undefined, salt: undefined };
+
+  await writeMetadata(token, {
+    name,
+    size,
+    mime: typeof mime === "string" ? mime : "application/octet-stream",
+    expiresAt,
+    passwordHash: hash,
+    passwordSalt: salt,
+    burnAfterDownload: Boolean(burnAfterDownload),
+  });
   const uploadUrl = await getUploadUrl(token);
 
   return NextResponse.json({ token, uploadUrl, expiresAt });

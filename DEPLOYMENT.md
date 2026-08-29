@@ -122,7 +122,7 @@ Back in the Cloudflare dashboard, under your domain's **DNS** page, add (all set
 
 1. In Cloudflare: **R2 → Create bucket** → name it e.g. `sendfilesfree-uploads`.
 2. **R2 → Manage API tokens → Create API token**, permission **Object Read & Write**, scoped to that bucket. Save the **Access Key ID** and **Secret Access Key** it shows you (shown once). Your **Account ID** is on the R2 overview page.
-3. On the bucket → **Settings → Object lifecycle rules** → add a rule to delete objects after **1-2 days** (match this to `UPLOAD_EXPIRY_HOURS` below). **Don't skip this step** — without it, expired files sit in the bucket forever and quietly cost you money.
+3. On the bucket → **Settings → Object lifecycle rules** → add a rule to delete objects after **7 days** (match this to the `UPLOAD_EXPIRY_HOURS` ceiling below — senders can choose up to that long a retention window per file, so the lifecycle rule must be at least that long or it'll delete files before their stated expiry). **Don't skip this step** — without it, expired files sit in the bucket forever and quietly cost you money.
 
 ## Phase 8 — Clone the code and configure secrets
 
@@ -145,7 +145,7 @@ R2_ACCESS_KEY_ID=your-r2-access-key-id
 R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
 R2_BUCKET_NAME=sendfilesfree-uploads
 MAX_UPLOAD_BYTES=2147483648
-UPLOAD_EXPIRY_HOURS=24
+UPLOAD_EXPIRY_HOURS=168
 EOF
 ```
 Replace every placeholder value above with your real ones (`nano .env.production` to edit). **`NEXT_PUBLIC_*` values are baked in at build time**, so this file must be correct *before* the build step below — if you ever change one, you need to rebuild.

@@ -1,8 +1,11 @@
-// Looks up a shared-link token's metadata and hands back a fresh presigned
-// download URL. The download itself happens directly between the browser
-// and R2 — this route never streams file bytes.
+// Looks up a shared-link token's metadata. If the link isn't password
+// protected, hands back a fresh presigned download URL directly. If it is,
+// this deliberately withholds the download URL (and the filename) — see
+// /api/file/[token]/unlock, which requires the password first. The download
+// itself always happens directly between the browser and R2; this route
+// never streams file bytes.
 import { NextResponse } from "next/server";
-import { readMetadata, getDownloadUrl, isR2Configured } from "@/lib/r2";
+import { readMetadata, getDownloadUrl, markDownloaded, isR2Configured } from "@/lib/r2";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -24,6 +27,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "This link was reported and has been taken down." }, { status: 410 });
   }
 
+  if (meta.passwordHash) {
+    return NextResponse.json({ requiresPassword: true });
+  }
+
   const downloadUrl = await getDownloadUrl(token, meta.name);
+  if (meta.burnAfterDownload) await markDownloaded(token);
   return NextResponse.json({ name: meta.name, size: meta.size, mime: meta.mime, expiresAt: meta.expiresAt, downloadUrl });
 }

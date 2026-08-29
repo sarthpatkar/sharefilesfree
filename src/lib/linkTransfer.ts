@@ -13,11 +13,28 @@ export interface LinkUploadResult {
   expiresAt: number;
 }
 
-export async function uploadFileForLink(file: File, onProgress?: (p: UploadProgress) => void): Promise<LinkUploadResult> {
+export interface LinkUploadOptions {
+  password?: string;
+  expiryHours?: number;
+  burnAfterDownload?: boolean;
+}
+
+export async function uploadFileForLink(
+  file: File,
+  onProgress?: (p: UploadProgress) => void,
+  options: LinkUploadOptions = {},
+): Promise<LinkUploadResult> {
   const res = await fetch("/api/upload-url", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: file.name, size: file.size, mime: file.type }),
+    body: JSON.stringify({
+      name: file.name,
+      size: file.size,
+      mime: file.type,
+      password: options.password || undefined,
+      expiryHours: options.expiryHours,
+      burnAfterDownload: options.burnAfterDownload,
+    }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string });

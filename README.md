@@ -9,9 +9,10 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 3. A tiny **signaling server** (`/server`) introduces the two browsers to each other and then gets out of the way.
 4. Files stream **directly between browsers** over a WebRTC data channel — encrypted, no server storage, no size limit.
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
-6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path.
+6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer.
+7. Every download page has a **"Report this file"** link that immediately disables the shared link — no review queue, no waiting on the operator.
 
-Phase 1 (pure P2P) and the start of Phase 2 (the link fallback) are both built. Still to come: abuse-reporting UI and ads.
+Phase 1 (pure P2P) and Phase 2 (the link fallback, abuse reporting) are both built. Still to come: malware scanning on the relay path and ads.
 
 ## Running it locally
 
@@ -43,7 +44,7 @@ Open `http://localhost:3000` in two different browser tabs (or two devices on th
 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | frontend (server-side only, **no** `NEXT_PUBLIC_` prefix) | Cloudflare Realtime TURN key, used to mint short-lived credentials per session |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | frontend (server-side only) | Cloudflare R2 access for the link-sharing fallback |
 | `MAX_UPLOAD_BYTES` | frontend | Caps worst-case storage cost per upload (default 2GB) |
-| `UPLOAD_EXPIRY_HOURS` | frontend | How long a shared link stays valid (default 24h) |
+| `UPLOAD_EXPIRY_HOURS` | frontend | Ceiling on how long a shared link can stay valid — the sender picks 1h/1d/3d/7d, capped at this (default 168h/7 days) |
 
 See `.env.local.example` for the full annotated list.
 
@@ -51,7 +52,7 @@ See `.env.local.example` for the full annotated list.
 
 1. In the Cloudflare dashboard: **R2 → Create bucket** (e.g. `sendfilesfree-uploads`).
 2. **R2 → Manage API tokens → Create API token** with Object Read & Write permissions scoped to that bucket. This gives you `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; your Account ID is shown on the R2 overview page.
-3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after your chosen retention window (e.g. 1-2 days, matching `UPLOAD_EXPIRY_HOURS`). The app treats a link as dead once it's past `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
+3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after your `UPLOAD_EXPIRY_HOURS` ceiling (default 7 days) — **not shorter**, since senders can pick up to that long a retention window per file, and a tighter lifecycle rule would delete files out from under a link before its stated expiry. The app treats a link as dead once it's past its own `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
 4. Set the four `R2_*` env vars and redeploy.
 
 Without R2 configured, the app still works fully P2P — the "share a link" button just isn't offered.

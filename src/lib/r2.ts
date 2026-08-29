@@ -19,6 +19,7 @@
 // Actual deletion of expired files is handled by an R2 bucket Object
 // Lifecycle rule (a one-time dashboard/API setup step — see README), not by
 // application code, so cleanup keeps working even if this app is offline.
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -54,6 +55,22 @@ export interface UploadMeta {
   mime: string;
   expiresAt: number; // epoch ms
   blocked?: boolean; // set by the abuse-report flow — see /api/report/[token]
+  passwordHash?: string; // hex — see hashPassword/verifyPassword
+  passwordSalt?: string; // hex
+  burnAfterDownload?: boolean; // "delete after first download" — see markDownloaded
+}
+
+/** scrypt with a per-file random salt — no extra dependency, adequate for gating a casual share link (not a high-value secret store). */
+export function hashPassword(password: string): { hash: string; salt: string } {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return { hash, salt };
+}
+
+export function verifyPassword(password: string, salt: string, expectedHash: string): boolean {
+  const actual = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedHash, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 export async function writeMetadata(token: string, meta: UploadMeta): Promise<void> {
@@ -90,6 +107,18 @@ export async function markReported(token: string): Promise<boolean> {
   if (!meta) return false;
   await writeMetadata(token, { ...meta, blocked: true });
   return true;
+}
+
+/**
+ * Marks a "delete after first download" link as consumed. Fires the moment a download
+ * URL is handed out, not after the transfer actually completes — we have no way to
+ * observe a direct browser-to-R2 download finishing, so "opened the link" is the
+ * closest honest approximation of "downloaded" available without proxying bytes
+ * through our own server (which would undo R2's zero-egress benefit).
+ */
+export async function markDownloaded(token: string): Promise<void> {
+  const meta = await readMetadata(token);
+  if (meta) await writeMetadata(token, { ...meta, blocked: true });
 }
 
 /** Presigned URL the browser PUTs the file to directly — the file bytes never pass through our server. */

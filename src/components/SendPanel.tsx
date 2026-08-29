@@ -36,10 +36,13 @@ export function SendPanel() {
   const startedSendingRef = useRef(false);
 
   // --- Link fallback path (Phase 2: upload to R2, share a link for later) ---
-  const [linkStatus, setLinkStatus] = useState<"uploading" | "ready" | "error">("uploading");
+  const [linkStatus, setLinkStatus] = useState<"configuring" | "uploading" | "ready" | "error">("configuring");
   const [linkProgress, setLinkProgress] = useState<UploadProgress>({ loaded: 0, total: 0 });
   const [linkResult, setLinkResult] = useState<{ token: string; expiresAt: number } | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkPassword, setLinkPassword] = useState("");
+  const [linkExpiryHours, setLinkExpiryHours] = useState(24);
+  const [linkBurnAfterDownload, setLinkBurnAfterDownload] = useState(false);
 
   useEffect(() => {
     const delay = status === "waiting-for-peer" ? LINK_FALLBACK_DELAY_MS : 0;
@@ -78,9 +81,17 @@ export function SendPanel() {
     transferRef.current?.close();
     transferRef.current = null;
     setMode("link");
+    setLinkStatus("configuring");
+  }
+
+  function createLink() {
     setLinkStatus("uploading");
     setLinkError(null);
-    uploadFileForLink(files[0], setLinkProgress)
+    uploadFileForLink(files[0], setLinkProgress, {
+      password: linkPassword,
+      expiryHours: linkExpiryHours,
+      burnAfterDownload: linkBurnAfterDownload,
+    })
       .then((result) => {
         setLinkResult(result);
         setLinkStatus("ready");
@@ -102,6 +113,10 @@ export function SendPanel() {
     setError(null);
     setLinkResult(null);
     setLinkError(null);
+    setLinkStatus("configuring");
+    setLinkPassword("");
+    setLinkExpiryHours(24);
+    setLinkBurnAfterDownload(false);
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -157,6 +172,50 @@ export function SendPanel() {
   if (mode === "link") {
     return (
       <div className="flex flex-col items-center gap-6">
+        {linkStatus === "configuring" && (
+          <div className="flex w-full max-w-sm flex-col gap-4">
+            <p className="text-sm font-medium text-black/70 dark:text-white/70">A few optional protections for this link</p>
+            <label className="flex flex-col gap-1 text-sm">
+              Password (optional)
+              <input
+                type="password"
+                value={linkPassword}
+                onChange={(e) => setLinkPassword(e.target.value)}
+                placeholder="Leave blank for no password"
+                className="rounded-lg border border-black/15 bg-transparent px-3 py-2 outline-none focus:border-emerald-500 dark:border-white/15"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              Link expires after
+              <select
+                value={linkExpiryHours}
+                onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
+                className="rounded-lg border border-black/15 bg-transparent px-3 py-2 outline-none focus:border-emerald-500 dark:border-white/15"
+              >
+                <option value={1}>1 hour</option>
+                <option value={24}>1 day</option>
+                <option value={72}>3 days</option>
+                <option value={168}>7 days</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={linkBurnAfterDownload}
+                onChange={(e) => setLinkBurnAfterDownload(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Delete after first download
+            </label>
+            <button
+              type="button"
+              onClick={createLink}
+              className="mt-2 rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
+            >
+              Create link
+            </button>
+          </div>
+        )}
         {linkStatus === "uploading" && (
           <>
             <p className="text-sm font-medium text-black/70 dark:text-white/70">Uploading so the link works anytime…</p>
