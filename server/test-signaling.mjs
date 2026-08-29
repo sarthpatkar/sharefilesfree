@@ -1,0 +1,77 @@
+// Integration smoke test for the signaling server's pairing/relay protocol,
+// using two plain WebSocket clients to stand in for the sender and receiver
+// browsers (no real WebRTC involved — this only exercises index.js).
+//
+// Run manually:  node index.js & node test-signaling.mjs
+// Run in CI: see ../.github/workflows/ci.yml, which starts/stops the server around this.
+import WebSocket from "ws";
+
+const URL = process.env.SIGNALING_URL || "ws://localhost:8080";
+
+function connect() {
+  return new WebSocket(URL);
+}
+
+function once(ws, predicate) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout waiting for message")), 5000);
+    ws.on("message", function handler(raw) {
+      const msg = JSON.parse(raw.toString());
+      if (predicate(msg)) {
+        clearTimeout(timer);
+        ws.off("message", handler);
+        resolve(msg);
+      }
+    });
+  });
+}
+
+async function main() {
+  const sender = connect();
+  await new Promise((r) => sender.once("open", r));
+  sender.send(JSON.stringify({ type: "create-room" }));
+  const created = await once(sender, (m) => m.type === "room-created");
+  console.log("✅ room-created:", created.code);
+  if (!/^\d{6}$/.test(created.code)) throw new Error("code is not 6 digits");
+
+  const receiver = connect();
+  await new Promise((r) => receiver.once("open", r));
+  receiver.send(JSON.stringify({ type: "join-room", code: created.code }));
+
+  const [senderJoined, receiverJoined] = await Promise.all([
+    once(sender, (m) => m.type === "peer-joined"),
+    once(receiver, (m) => m.type === "peer-joined"),
+  ]);
+  console.log("✅ both sides got peer-joined:", !!senderJoined, !!receiverJoined);
+
+  // Simulate an SDP offer/answer relay.
+  sender.send(JSON.stringify({ type: "signal", data: { kind: "offer", sdp: "FAKE_OFFER" } }));
+  const offerAtReceiver = await once(receiver, (m) => m.type === "signal");
+  console.log("✅ offer relayed to receiver:", offerAtReceiver.data.sdp === "FAKE_OFFER");
+
+  receiver.send(JSON.stringify({ type: "signal", data: { kind: "answer", sdp: "FAKE_ANSWER" } }));
+  const answerAtSender = await once(sender, (m) => m.type === "signal");
+  console.log("✅ answer relayed to sender:", answerAtSender.data.sdp === "FAKE_ANSWER");
+
+  // Wrong/expired code should error, not hang.
+  const stranger = connect();
+  await new Promise((r) => stranger.once("open", r));
+  stranger.send(JSON.stringify({ type: "join-room", code: "000000" }));
+  const err = await once(stranger, (m) => m.type === "error");
+  console.log("✅ invalid code rejected:", err.message);
+
+  // Disconnecting the receiver should notify the sender.
+  receiver.close();
+  const peerLeft = await once(sender, (m) => m.type === "peer-left");
+  console.log("✅ sender notified on receiver disconnect:", peerLeft.type === "peer-left");
+
+  sender.close();
+  stranger.close();
+  console.log("\nAll signaling protocol checks passed.");
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error("❌ FAILED:", err);
+  process.exit(1);
+});

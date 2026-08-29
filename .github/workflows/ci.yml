@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    name: App (lint, build, unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  signaling:
+    name: Signaling server (integration test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - name: Start signaling server
+        run: nohup npm start > server.log 2>&1 &
+      - name: Wait for it to come up
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:8080/healthz && exit 0
+            sleep 1
+          done
+          echo "Server never became healthy"; cat server.log; exit 1
+      - name: Run protocol test
+        run: npm test
+      - name: Show server log on failure
+        if: failure()
+        run: cat server.log

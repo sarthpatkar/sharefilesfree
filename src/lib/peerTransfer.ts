@@ -90,6 +90,15 @@ type SignalData =
   | { kind: "answer"; sdp: RTCSessionDescriptionInit }
   | { kind: "candidate"; candidate: RTCIceCandidateInit };
 
+// A transient blip while opening the signaling connection (flaky wifi, a
+// server restart) shouldn't force the user to manually retry — quietly retry
+// a few times with backoff before surfacing an error. Once a socket has
+// successfully opened at least once, a later close is treated as a real
+// disconnect instead (the server-side room state doesn't survive a
+// reconnect anyway, so there's nothing useful to retry into at that point).
+const MAX_CONNECT_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
 export class PeerTransfer {
   private ws: WebSocket | null = null;
   private pc: RTCPeerConnection | null = null;
@@ -98,6 +107,8 @@ export class PeerTransfer {
   private readonly role: "sender" | "receiver";
   private readonly callbacks: PeerTransferCallbacks;
   private roomCode: string | null = null;
+  private connectAttempt = 0;
+  private closedByUser = false;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -113,28 +124,44 @@ export class PeerTransfer {
   /** Sender: open a socket and request a fresh room code. */
   connectAsSender() {
     this.callbacks.onStatus?.("connecting-signal");
-    this.ws = new WebSocket(signalingUrl());
-    this.ws.onopen = () => this.send({ type: "create-room" });
-    this.wireSignalingHandlers();
+    this.openSocket(() => this.send({ type: "create-room" }));
   }
 
   /** Receiver: open a socket and try to join an existing room by code. */
   connectAsReceiver(code: string) {
     this.callbacks.onStatus?.("connecting-signal");
-    this.ws = new WebSocket(signalingUrl());
-    this.ws.onopen = () => this.send({ type: "join-room", code });
-    this.wireSignalingHandlers();
+    this.openSocket(() => this.send({ type: "join-room", code }));
   }
 
-  private wireSignalingHandlers() {
-    if (!this.ws) return;
-    this.ws.onerror = () => this.callbacks.onError?.("Could not reach the signaling server.");
-    this.ws.onclose = () => {
-      if (this.channel?.readyState !== "open") {
-        this.callbacks.onError?.("Signaling connection closed unexpectedly.");
+  private openSocket(onOpen: () => void) {
+    const ws = new WebSocket(signalingUrl());
+    this.ws = ws;
+    let opened = false;
+
+    ws.onopen = () => {
+      opened = true;
+      this.connectAttempt = 0;
+      onOpen();
+    };
+
+    ws.onclose = () => {
+      if (this.closedByUser) return;
+      if (opened) {
+        if (this.channel?.readyState !== "open") {
+          this.callbacks.onError?.("Signaling connection closed unexpectedly.");
+        }
+        return;
+      }
+      if (this.connectAttempt < MAX_CONNECT_RETRIES) {
+        this.connectAttempt += 1;
+        const delay = RETRY_BASE_DELAY_MS * 2 ** (this.connectAttempt - 1);
+        setTimeout(() => this.openSocket(onOpen), delay);
+      } else {
+        this.callbacks.onError?.("Could not reach the signaling server. Check your connection and try again.");
       }
     };
-    this.ws.onmessage = (event) => {
+
+    ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       switch (msg.type) {
         case "room-created":
@@ -309,6 +336,7 @@ export class PeerTransfer {
   }
 
   close() {
+    this.closedByUser = true; // suppress any in-flight retry from firing after a deliberate close
     this.channel?.close();
     this.pc?.close();
     this.ws?.close();

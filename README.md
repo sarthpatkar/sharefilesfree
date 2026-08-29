@@ -32,6 +32,15 @@ npm run dev         # listens on :3000
 
 Open `http://localhost:3000` in two different browser tabs (or two devices on the same network) to test a transfer end-to-end. TURN and R2 are both optional locally — without them, direct P2P (works fine on a normal home network) and the "share a link" fallback (disabled with a friendly error) respectively.
 
+## Testing
+
+```bash
+npm test              # unit tests (Vitest) — pure logic: hashing, rate limiting, formatting, sanitization
+cd server && npm test  # signaling protocol integration test (needs the server running — see its comment header)
+```
+
+Both run automatically on every push via GitHub Actions (`.github/workflows/ci.yml`), alongside `npm run lint` and `npm run build`.
+
 ## Deploying
 
 **See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the full step-by-step runbook** — buying a domain, setting up a free Google Cloud VM, DNS, R2, TURN, and AdSense. Short version: the Next.js site + signaling server run on one free-tier Google Cloud `e2-micro` instance behind Caddy for free automatic HTTPS, with Cloudflare providing R2 storage and managed TURN relay (both free at this scale) — no self-hosted TURN relay to run or pay for.
@@ -65,21 +74,31 @@ src/
     page.tsx                 Home (/, send tab default)
     receive/page.tsx         /receive?code=123456 — deep link into the receive tab
     download/[token]/page.tsx  Link-fallback download page
+    privacy/, terms/         Legal pages (linked in the footer + sitemap)
+    not-found.tsx, error.tsx  Branded 404 / error boundaries
+    icon.tsx, apple-icon.tsx, opengraph-image.tsx, manifest.ts  Generated in code — no design tool needed
+    robots.ts, sitemap.ts    SEO metadata routes
     api/
       turn-credentials/      Mints short-lived TURN credentials (see comments in route.ts)
       upload-url/            Issues a presigned R2 upload URL + token for the link fallback
-      file/[token]/          Looks up a shared link's metadata + a fresh presigned download URL
+      file/[token]/          Looks up a shared link's metadata + a fresh presigned download URL (or {requiresPassword:true})
+      file/[token]/unlock/   Verifies a password-protected link's password before releasing the download URL
+      report/[token]/        Abuse report — immediately disables a shared link
   components/     UI: SendPanel, ReceivePanel, CodeDisplay, LinkShare, DownloadPanel, ProgressBar, Home
   lib/
-    peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine (no UI deps)
+    peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine, with retry-with-backoff on connect (no UI deps)
     linkTransfer.ts   Browser-side upload-with-progress for the link fallback
-    r2.ts             Cloudflare R2 client (presigned URLs, metadata sidecar objects)
-    rateLimit.ts      Shared in-memory per-IP throttle for the upload/TURN-credential APIs
+    r2.ts             Cloudflare R2 client (presigned URLs, metadata sidecar objects, password hashing)
+    rateLimit.ts      Shared in-memory per-IP throttle for the upload/TURN-credential/report/unlock APIs
+    sanitize.ts       Filename sanitization (prevents header injection in Content-Disposition)
     format.ts         Byte-size formatting helper
+    *.test.ts         Vitest unit tests for the above (run: `npm test`)
 server/
-  index.js        WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only)
+  index.js             WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only)
+  test-signaling.mjs   Integration test for the signaling protocol (run: `npm test` from /server)
 deploy/
   signaling.service  systemd unit for the signaling server
   Caddyfile.example  Reverse proxy + automatic HTTPS config
+.github/workflows/ci.yml  Runs lint, build, and both test suites on every push
 DEPLOYMENT.md    Full step-by-step deployment runbook (domain → VPS → DNS → R2 → TURN → AdSense)
 ```

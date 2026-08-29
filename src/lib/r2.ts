@@ -22,6 +22,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { sanitizeFilename } from "@/lib/sanitize";
 
 export function isR2Configured(): boolean {
   return Boolean(
@@ -134,7 +135,9 @@ export function getDownloadUrl(token: string, filename: string, expiresInSeconds
       Bucket: bucket(),
       Key: token,
       // Forces a real download instead of the browser trying to render the file inline (images, PDFs, etc.).
-      ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, "")}"`,
+      // Sanitized again here (defense-in-depth) even though upload-url already cleans the name on the way in —
+      // this is the actual HTTP header value, so nothing reaches it unsanitized regardless of call site.
+      ResponseContentDisposition: `attachment; filename="${sanitizeFilename(filename)}"`,
     }),
     { expiresIn: expiresInSeconds },
   );
