@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -35,6 +36,11 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+
+# local screenshot dumps — never publish these (may contain dashboard IDs, personal info)
+New Folder With Items*/
+Screenshot*.png
 
 # typescript
 *.tsbuildinfo

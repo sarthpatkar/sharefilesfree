@@ -1,0 +1,14 @@
+# Reverse proxy for the signaling server, with automatic free HTTPS
+# (Let's Encrypt) — this is what turns your plain ws://localhost:8080 into a
+# real wss://signal.sharefilesfree.com the browser will trust.
+#
+# Copy to /etc/caddy/Caddyfile on the VPS, replace the domain, then:
+#   sudo systemctl restart caddy
+#
+# Requires: an A record for this subdomain pointing at the VPS's IP, set to
+# "DNS only" (grey cloud) in Cloudflare — NOT proxied — so Caddy can complete
+# its own Let's Encrypt certificate challenge directly.
+
+signal.sharefilesfree.com {
+	reverse_proxy localhost:8080
+}
