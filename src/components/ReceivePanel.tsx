@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes } from "@/lib/format";
 import { ProgressBar } from "./ProgressBar";
+import { Button } from "./Button";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
@@ -68,7 +69,7 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
         }}
         className="flex flex-col items-center gap-4"
       >
-        <label htmlFor="code-input" className="text-sm text-black/60 dark:text-white/60">
+        <label htmlFor="code-input" className="text-sm text-muted">
           Enter the 6-digit code from the sender
         </label>
         <input
@@ -78,29 +79,24 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
-          className="w-48 rounded-xl border border-black/15 bg-transparent px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:border-emerald-500 dark:border-white/15"
+          className="w-48 rounded-xl border border-border bg-transparent px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] text-foreground outline-none placeholder:text-muted/50 focus:border-accent"
         />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-        <button
-          type="submit"
-          className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
-        >
-          Connect
-        </button>
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <Button type="submit">Connect</Button>
       </form>
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm font-medium text-black/70 dark:text-white/70">{STATUS_LABEL[status] ?? status}</p>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <p className="text-sm font-medium text-foreground">{STATUS_LABEL[status] ?? status}</p>
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {status === "transferring" && progress && (
         <div className="w-full max-w-md">
-          <p className="mb-1 truncate text-sm">{progress.name}</p>
+          <p className="mb-1 truncate text-sm text-foreground">{progress.name}</p>
           <ProgressBar fraction={progress.size ? progress.sent / progress.size : 0} />
-          <p className="mt-2 text-center text-sm text-black/50 dark:text-white/50">
+          <p className="mt-2 text-center text-sm text-muted">
             {formatBytes(progress.sent)} / {formatBytes(progress.size)}
           </p>
         </div>
@@ -111,13 +107,13 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
           {received.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-black/10 p-3 text-sm dark:border-white/10"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 text-sm"
             >
-              <span className="truncate">{f.name}</span>
+              <span className="truncate text-foreground">{f.name}</span>
               <a
                 href={URL.createObjectURL(f.blob)}
                 download={f.name}
-                className="shrink-0 rounded-full bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-500"
+                className="shrink-0 rounded-lg bg-accent px-3 py-1 text-accent-foreground hover:bg-accent-hover"
               >
                 Save
               </a>
@@ -126,19 +122,11 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
         </ul>
       )}
 
-      {status === "done" && (
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
-        >
-          Receive more files
-        </button>
-      )}
+      {status === "done" && <Button onClick={reset}>Receive more files</Button>}
       {status !== "done" && (
-        <button type="button" onClick={reset} className="text-sm text-black/50 hover:underline dark:text-white/50">
+        <Button variant="ghost" onClick={reset}>
           Cancel
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -7,6 +7,8 @@ import { formatBytes } from "@/lib/format";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { LinkShare } from "./LinkShare";
+import { Button } from "./Button";
+import { IconUpload } from "./icons";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
@@ -127,16 +129,16 @@ export function SendPanel() {
       <div className="flex flex-col gap-4">
         <label
           htmlFor="file-input"
-          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-black/15 p-12 text-center transition hover:border-emerald-500 hover:bg-emerald-500/5 dark:border-white/15"
+          className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-12 text-center transition hover:border-accent hover:bg-accent/[.04]"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
             pickFiles(e.dataTransfer.files);
           }}
         >
-          <span className="text-3xl">📁</span>
-          <span className="font-medium">Drop files here, or click to choose</span>
-          <span className="text-sm text-black/50 dark:text-white/50">No size limit games. No account.</span>
+          <IconUpload className="h-7 w-7 text-muted transition group-hover:text-accent" />
+          <span className="font-medium text-foreground">Drop a file here, or click to choose</span>
+          <span className="text-sm text-muted">No size limit games. No account.</span>
           <input
             id="file-input"
             type="file"
@@ -147,22 +149,18 @@ export function SendPanel() {
         </label>
 
         {files.length > 0 && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-black/10 p-4 dark:border-white/10">
+          <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
             <ul className="flex flex-col gap-1 text-sm">
               {files.map((f) => (
-                <li key={f.name} className="flex justify-between">
+                <li key={f.name} className="flex justify-between gap-3">
                   <span className="truncate">{f.name}</span>
-                  <span className="text-black/50 dark:text-white/50">{formatBytes(f.size)}</span>
+                  <span className="shrink-0 text-muted">{formatBytes(f.size)}</span>
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              onClick={startSending}
-              className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
-            >
+            <Button onClick={startSending} className="self-start">
               Get a code to share
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -174,23 +172,23 @@ export function SendPanel() {
       <div className="flex flex-col items-center gap-6">
         {linkStatus === "configuring" && (
           <div className="flex w-full max-w-sm flex-col gap-4">
-            <p className="text-sm font-medium text-black/70 dark:text-white/70">A few optional protections for this link</p>
-            <label className="flex flex-col gap-1 text-sm">
+            <p className="text-sm font-medium text-foreground">A few optional protections for this link</p>
+            <label className="flex flex-col gap-1.5 text-sm text-muted">
               Password (optional)
               <input
                 type="password"
                 value={linkPassword}
                 onChange={(e) => setLinkPassword(e.target.value)}
                 placeholder="Leave blank for no password"
-                className="rounded-lg border border-black/15 bg-transparent px-3 py-2 outline-none focus:border-emerald-500 dark:border-white/15"
+                className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none placeholder:text-muted/70 focus:border-accent"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1.5 text-sm text-muted">
               Link expires after
               <select
                 value={linkExpiryHours}
                 onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
-                className="rounded-lg border border-black/15 bg-transparent px-3 py-2 outline-none focus:border-emerald-500 dark:border-white/15"
+                className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
               >
                 <option value={1}>1 hour</option>
                 <option value={24}>1 day</option>
@@ -198,40 +196,36 @@ export function SendPanel() {
                 <option value={168}>7 days</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
                 checked={linkBurnAfterDownload}
                 onChange={(e) => setLinkBurnAfterDownload(e.target.checked)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-accent"
               />
               Delete after first download
             </label>
-            <button
-              type="button"
-              onClick={createLink}
-              className="mt-2 rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
-            >
+            <Button onClick={createLink} className="mt-2 self-start">
               Create link
-            </button>
+            </Button>
           </div>
         )}
         {linkStatus === "uploading" && (
           <>
-            <p className="text-sm font-medium text-black/70 dark:text-white/70">Uploading so the link works anytime…</p>
+            <p className="text-sm font-medium text-foreground">Uploading so the link works anytime…</p>
             <div className="w-full max-w-md">
               <ProgressBar fraction={linkProgress.total ? linkProgress.loaded / linkProgress.total : 0} />
-              <p className="mt-2 text-center text-sm text-black/50 dark:text-white/50">
+              <p className="mt-2 text-center text-sm text-muted">
                 {formatBytes(linkProgress.loaded)} / {formatBytes(linkProgress.total)}
               </p>
             </div>
           </>
         )}
-        {linkStatus === "error" && <p className="text-sm text-red-600 dark:text-red-400">{linkError}</p>}
+        {linkStatus === "error" && <p className="text-sm text-danger">{linkError}</p>}
         {linkStatus === "ready" && linkResult && <LinkShare token={linkResult.token} expiresAt={linkResult.expiresAt} />}
-        <button type="button" onClick={reset} className="text-sm text-black/50 hover:underline dark:text-white/50">
+        <Button variant="ghost" onClick={reset}>
           {linkStatus === "ready" ? "Send another file" : "Cancel"}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -239,43 +233,35 @@ export function SendPanel() {
   if (status === "done") {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-lg font-medium">✅ Sent {files.length} file{files.length === 1 ? "" : "s"}.</p>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500"
-        >
-          Send more files
-        </button>
+        <p className="text-lg font-medium text-foreground">
+          Sent {files.length} file{files.length === 1 ? "" : "s"}.
+        </p>
+        <Button onClick={reset}>Send more files</Button>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm font-medium text-black/70 dark:text-white/70">{STATUS_LABEL[status] ?? status}</p>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <p className="text-sm font-medium text-foreground">{STATUS_LABEL[status] ?? status}</p>
+      {error && <p className="text-sm text-danger">{error}</p>}
       {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} />}
       {(status === "transferring" || status === "connected") && (
         <div className="w-full max-w-md">
           <ProgressBar fraction={totalSize ? totalSent / totalSize : 0} />
-          <p className="mt-2 text-center text-sm text-black/50 dark:text-white/50">
+          <p className="mt-2 text-center text-sm text-muted">
             {formatBytes(totalSent)} / {formatBytes(totalSize)}
           </p>
         </div>
       )}
       {showLinkOffer && status === "waiting-for-peer" && files.length === 1 && (
-        <button
-          type="button"
-          onClick={switchToLinkFallback}
-          className="text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400"
-        >
+        <Button variant="ghost" onClick={switchToLinkFallback} className="text-accent hover:text-accent-hover">
           Receiver not online? Get a shareable link instead
-        </button>
+        </Button>
       )}
-      <button type="button" onClick={reset} className="text-sm text-black/50 hover:underline dark:text-white/50">
+      <Button variant="ghost" onClick={reset}>
         Cancel
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — a real palette, not Tailwind's defaults. The brand color is
+ * a specific deep pine green (not Tailwind's emerald-600), paired with warm
+ * cream/charcoal neutrals instead of pure white/black, and a terracotta
+ * (not stock red-600) for destructive actions. Small deliberate choices like
+ * this are most of what separates a designed interface from a default one.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #faf8f3;
+  --card: #ffffff;
+  --foreground: #14231d;
+  --muted: #5b6b64;
+  --border: #e4e0d6;
+  --accent: #0b6e4f;
+  --accent-hover: #0a5f44;
+  --accent-foreground: #ffffff;
+  --danger: #c8452a;
+  --danger-hover: #ad3b23;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0e1512;
+    --card: #16201b;
+    --foreground: #edefe9;
+    --muted: #8a9992;
+    --border: #253029;
+    --accent: #34c28c;
+    --accent-hover: #4dd39d;
+    --accent-foreground: #06140f;
+    --danger: #ff7a5c;
+    --danger-hover: #ff9276;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* A faint grain over the flat background — the single cheapest trick for
+   making a solid color field feel like paper instead of a default div. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -18,13 +18,13 @@ export default function OpengraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0a0a0a",
-          color: "#fff",
+          background: "#0e1512",
+          color: "#edefe9",
           fontFamily: "sans-serif",
         }}
       >
         <div style={{ fontSize: 96, fontWeight: 700, display: "flex" }}>ShareFilesFree</div>
-        <div style={{ fontSize: 36, color: "#6ee7b7", marginTop: 24, display: "flex" }}>
+        <div style={{ fontSize: 36, color: "#34c28c", marginTop: 24, display: "flex" }}>
           Send large files free — no signup, no login
         </div>
       </div>

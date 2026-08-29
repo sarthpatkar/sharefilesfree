@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/lib/format";
+import { Button } from "./Button";
+import { IconWarning, IconBlocked, IconLock, IconPackage } from "./icons";
 
 interface FileMeta {
   name: string;
@@ -65,8 +67,9 @@ export function DownloadPanel({ token }: { token: string }) {
   if (error) {
     return (
       <div className="flex flex-col items-center gap-2 text-center">
-        <p className="text-lg font-medium">⚠️ {error}</p>
-        <p className="text-sm text-black/50 dark:text-white/50">Ask the sender for a fresh link.</p>
+        <IconWarning className="h-7 w-7 text-danger" />
+        <p className="text-lg font-medium text-foreground">{error}</p>
+        <p className="text-sm text-muted">Ask the sender for a fresh link.</p>
       </div>
     );
   }
@@ -74,8 +77,9 @@ export function DownloadPanel({ token }: { token: string }) {
   if (reportState === "reported") {
     return (
       <div className="flex flex-col items-center gap-2 text-center">
-        <p className="text-lg font-medium">🚫 Reported</p>
-        <p className="text-sm text-black/50 dark:text-white/50">This link has been disabled. Thanks for flagging it.</p>
+        <IconBlocked className="h-7 w-7 text-danger" />
+        <p className="text-lg font-medium text-foreground">Reported</p>
+        <p className="text-sm text-muted">This link has been disabled. Thanks for flagging it.</p>
       </div>
     );
   }
@@ -83,68 +87,60 @@ export function DownloadPanel({ token }: { token: string }) {
   if (requiresPassword) {
     return (
       <form onSubmit={submitPassword} className="flex flex-col items-center gap-4 text-center">
-        <span className="text-3xl">🔒</span>
-        <p className="text-sm text-black/70 dark:text-white/70">This file is password protected</p>
+        <IconLock className="h-7 w-7 text-muted" />
+        <p className="text-sm text-foreground">This file is password protected</p>
         <input
           type="password"
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter password"
-          className="w-56 rounded-lg border border-black/15 bg-transparent px-3 py-2 text-center outline-none focus:border-emerald-500 dark:border-white/15"
+          className="w-56 rounded-lg border border-border bg-transparent px-3 py-2 text-center text-foreground outline-none placeholder:text-muted/70 focus:border-accent"
         />
-        {unlockError && <p className="text-sm text-red-600 dark:text-red-400">{unlockError}</p>}
-        <button
-          type="submit"
-          disabled={unlocking}
-          className="rounded-full bg-emerald-600 px-5 py-2 font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-        >
+        {unlockError && <p className="text-sm text-danger">{unlockError}</p>}
+        <Button type="submit" disabled={unlocking}>
           {unlocking ? "Checking…" : "Unlock"}
-        </button>
+        </Button>
       </form>
     );
   }
 
   if (!meta) {
-    return <p className="text-center text-sm text-black/50 dark:text-white/50">Looking up this file…</p>;
+    return <p className="text-center text-sm text-muted">Looking up this file…</p>;
   }
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <span className="text-3xl">📦</span>
-      <p className="max-w-xs truncate text-lg font-medium">{meta.name}</p>
-      <p className="text-sm text-black/50 dark:text-white/50">{formatBytes(meta.size)}</p>
+      <IconPackage className="h-8 w-8 text-accent" />
+      <p className="max-w-xs truncate text-lg font-medium text-foreground">{meta.name}</p>
+      <p className="text-sm text-muted">{formatBytes(meta.size)}</p>
       <a
         href={meta.downloadUrl}
-        className="rounded-full bg-emerald-600 px-6 py-2 font-medium text-white hover:bg-emerald-500"
+        className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground shadow-[0_1px_2px_rgba(11,110,79,0.25)] transition hover:bg-accent-hover active:scale-[0.98]"
       >
         Download
       </a>
 
       {reportState === "idle" && (
-        <button
-          type="button"
-          onClick={() => setReportState("confirming")}
-          className="text-xs text-black/40 hover:underline dark:text-white/40"
-        >
+        <button type="button" onClick={() => setReportState("confirming")} className="text-xs text-muted hover:text-foreground hover:underline">
           Report this file
         </button>
       )}
       {reportState === "confirming" && (
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xs text-black/50 dark:text-white/50">Disable this link for everyone? This can&apos;t be undone.</p>
+          <p className="text-xs text-muted">Disable this link for everyone? This can&apos;t be undone.</p>
           <div className="flex gap-3">
-            <button type="button" onClick={submitReport} className="text-xs font-medium text-red-600 hover:underline dark:text-red-400">
+            <button type="button" onClick={submitReport} className="text-xs font-medium text-danger hover:underline">
               Yes, report it
             </button>
-            <button type="button" onClick={() => setReportState("idle")} className="text-xs text-black/40 hover:underline dark:text-white/40">
+            <button type="button" onClick={() => setReportState("idle")} className="text-xs text-muted hover:underline">
               Cancel
             </button>
           </div>
         </div>
       )}
-      {reportState === "submitting" && <p className="text-xs text-black/40 dark:text-white/40">Reporting…</p>}
-      {reportState === "error" && <p className="text-xs text-red-600 dark:text-red-400">Couldn&apos;t submit the report — try again.</p>}
+      {reportState === "submitting" && <p className="text-xs text-muted">Reporting…</p>}
+      {reportState === "error" && <p className="text-xs text-danger">Couldn&apos;t submit the report — try again.</p>}
     </div>
   );
 }

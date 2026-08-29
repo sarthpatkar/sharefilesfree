@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { IconArrowLeft } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — ShareFilesFree",
@@ -11,20 +12,20 @@ const LAST_UPDATED = "August 29, 2026";
 export default function PrivacyPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-16">
-      <Link href="/" className="text-sm text-emerald-600 hover:underline dark:text-emerald-400">
-        ← Back to ShareFilesFree
+      <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-hover hover:underline">
+        <IconArrowLeft className="h-4 w-4" /> Back to ShareFilesFree
       </Link>
-      <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
-      <p className="text-sm text-black/50 dark:text-white/50">Last updated: {LAST_UPDATED}</p>
+      <h1 className="font-display text-3xl font-medium tracking-tight text-foreground">Privacy Policy</h1>
+      <p className="text-sm text-muted">Last updated: {LAST_UPDATED}</p>
 
-      <div className="flex flex-col gap-6 text-sm leading-relaxed text-black/80 dark:text-white/80">
+      <div className="flex flex-col gap-6 text-sm leading-relaxed text-foreground">
         <p>
           ShareFilesFree (“we”, “the service”) is built around a simple idea: you shouldn’t need an
           account to send a file. This policy explains what little data we do handle, and why.
         </p>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">No accounts, no personal profiles</h2>
+          <h2 className="text-lg font-semibold text-foreground">No accounts, no personal profiles</h2>
           <p>
             You never create an account, log in, or give us your name or email to use ShareFilesFree.
             We have no user database, no login credentials to leak, and nothing tying a transfer to your
@@ -33,7 +34,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Direct (peer-to-peer) transfers</h2>
+          <h2 className="text-lg font-semibold text-foreground">Direct (peer-to-peer) transfers</h2>
           <p>
             When both the sender and receiver are online at the same time, your file travels directly
             between your browsers using WebRTC, encrypted in transit. It never touches our servers or
@@ -49,7 +50,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">“Share a link” transfers</h2>
+          <h2 className="text-lg font-semibold text-foreground">“Share a link” transfers</h2>
           <p>
             If you choose to generate a shareable link instead (for a receiver who isn’t online right
             now), your file is uploaded once to Cloudflare R2 storage. It is:
@@ -63,7 +64,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">What we log</h2>
+          <h2 className="text-lg font-semibold text-foreground">What we log</h2>
           <p>
             To prevent abuse (e.g. someone trying to flood the service with uploads), we temporarily
             track IP addresses against simple rate limits in server memory. This data is not persisted
@@ -74,14 +75,14 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Advertising & analytics</h2>
+          <h2 className="text-lg font-semibold text-foreground">Advertising & analytics</h2>
           <p>
             ShareFilesFree is free to use and supported by advertising rather than charging users
             directly. When ads are active, our ad partner (Google AdSense) may use cookies or similar
             technology to serve and measure ads — see{" "}
             <a
               href="https://policies.google.com/technologies/partner-sites"
-              className="text-emerald-600 hover:underline dark:text-emerald-400"
+              className="text-accent hover:text-accent-hover hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -93,12 +94,12 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Children’s privacy</h2>
+          <h2 className="text-lg font-semibold text-foreground">Children’s privacy</h2>
           <p>ShareFilesFree isn’t directed at children, and we don’t knowingly collect data from them.</p>
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Changes to this policy</h2>
+          <h2 className="text-lg font-semibold text-foreground">Changes to this policy</h2>
           <p>
             We may update this policy as the service evolves. Meaningful changes will update the “Last
             updated” date above.
@@ -106,7 +107,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-black dark:text-white">Contact</h2>
+          <h2 className="text-lg font-semibold text-foreground">Contact</h2>
           <p>
             Questions about this policy or a data request: <span className="font-mono">privacy@sharefilesfree.com</span>.
           </p>
