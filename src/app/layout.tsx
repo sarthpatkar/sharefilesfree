@@ -12,10 +12,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const title = "ShareFilesFree — Send large files free, no signup, no login";
+const description =
+  "Share files instantly between devices with a 6-digit code. No account, no app install, no size limit games. Fast peer-to-peer transfer, right in your browser.";
+
 export const metadata: Metadata = {
-  title: "ShareFilesFree — Send large files free, no signup, no login",
-  description:
-    "Share files instantly between devices with a 6-digit code. No account, no app install, no size limit games. Fast peer-to-peer transfer, right in your browser.",
+  metadataBase: new URL("https://sharefilesfree.com"),
+  title,
+  description,
+  keywords: ["send large files free", "file sharing no signup", "wetransfer alternative", "peer to peer file transfer"],
+  openGraph: {
+    title,
+    description,
+    url: "/",
+    siteName: "ShareFilesFree",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

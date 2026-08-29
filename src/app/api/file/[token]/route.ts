@@ -20,6 +20,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     // treat it as gone from the moment it's past its stated expiry regardless.
     return NextResponse.json({ error: "This link has expired." }, { status: 410 });
   }
+  if (meta.blocked) {
+    return NextResponse.json({ error: "This link was reported and has been taken down." }, { status: 410 });
+  }
 
   const downloadUrl = await getDownloadUrl(token, meta.name);
   return NextResponse.json({ name: meta.name, size: meta.size, mime: meta.mime, expiresAt: meta.expiresAt, downloadUrl });

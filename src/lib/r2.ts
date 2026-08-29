@@ -53,6 +53,7 @@ export interface UploadMeta {
   size: number;
   mime: string;
   expiresAt: number; // epoch ms
+  blocked?: boolean; // set by the abuse-report flow — see /api/report/[token]
 }
 
 export async function writeMetadata(token: string, meta: UploadMeta): Promise<void> {
@@ -74,6 +75,21 @@ export async function readMetadata(token: string): Promise<UploadMeta | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Immediately disables a shared link's download. We deliberately don't wait for human
+ * review before taking effect — for an anonymous, no-login product, a fast/automatic
+ * takedown on the first report matters more than protecting against the rare bad-faith
+ * report, especially since reporting requires already having the (unguessable) token,
+ * the same bar as downloading it. This is the safeguard the plan calls out as
+ * non-negotiable from day one (see the Firefox Send case study).
+ */
+export async function markReported(token: string): Promise<boolean> {
+  const meta = await readMetadata(token);
+  if (!meta) return false;
+  await writeMetadata(token, { ...meta, blocked: true });
+  return true;
 }
 
 /** Presigned URL the browser PUTs the file to directly — the file bytes never pass through our server. */
