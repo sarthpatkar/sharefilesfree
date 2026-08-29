@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { SendPanel } from "./SendPanel";
 import { ReceivePanel } from "./ReceivePanel";
 
@@ -36,9 +37,17 @@ export function Home({ initialTab = "send", initialCode }: { initialTab?: "send"
         {tab === "send" ? <SendPanel /> : <ReceivePanel initialCode={initialCode} />}
       </section>
 
-      <footer className="mt-auto flex flex-col items-center gap-1 pt-8 text-center text-xs text-black/40 dark:text-white/40">
+      <footer className="mt-auto flex flex-col items-center gap-2 pt-8 text-center text-xs text-black/40 dark:text-white/40">
         <p>Files transfer directly between browsers — we never store or see them.</p>
         <p>Free, forever, no login required.</p>
+        <nav className="flex gap-4">
+          <Link href="/privacy" className="hover:underline">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:underline">
+            Terms
+          </Link>
+        </nav>
       </footer>
     </main>
   );
