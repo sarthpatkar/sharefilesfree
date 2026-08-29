@@ -20,16 +20,23 @@ const PORT = process.env.PORT || 8080;
 const ROOM_TTL_MS = 10 * 60 * 1000; // 10 minutes, matches Send Anywhere's key lifetime.
 
 // Basic per-IP abuse throttle: cap how many rooms one IP can open per window.
-// This is a cheap first line of defense; Phase 2 adds proper rate limiting
-// and abuse reporting on the relay/storage path.
 const ROOM_CREATE_LIMIT = 30;
 const ROOM_CREATE_WINDOW_MS = 60 * 1000;
+
+// Codes are only 6 digits (1,000,000 combinations) — without a throttle here,
+// an attacker could brute-force an active stranger's room code by just
+// guessing rapidly. This limit is generous enough for a human mistyping a
+// code a few times, but makes guessing impractical: even with only one room
+// open at a time, 20 guesses/minute needs tens of thousands of minutes for a
+// realistic chance, far outside a code's 10-minute lifetime.
+const JOIN_ATTEMPT_LIMIT = 20;
+const JOIN_ATTEMPT_WINDOW_MS = 60 * 1000;
 
 /** @type {Map<string, { sender: import("ws").WebSocket, receiver: import("ws").WebSocket | null, createdAt: number }>} */
 const rooms = new Map();
 
 /** @type {Map<string, { count: number, windowStart: number }>} */
-const creationCounts = new Map();
+const rateLimitBuckets = new Map();
 
 function clientIp(req) {
   const fwd = req.headers["x-forwarded-for"];
@@ -37,15 +44,15 @@ function clientIp(req) {
   return req.socket.remoteAddress || "unknown";
 }
 
-function isRateLimited(ip) {
+function isRateLimited(key, limit, windowMs) {
   const now = Date.now();
-  const entry = creationCounts.get(ip);
-  if (!entry || now - entry.windowStart > ROOM_CREATE_WINDOW_MS) {
-    creationCounts.set(ip, { count: 1, windowStart: now });
+  const entry = rateLimitBuckets.get(key);
+  if (!entry || now - entry.windowStart > windowMs) {
+    rateLimitBuckets.set(key, { count: 1, windowStart: now });
     return false;
   }
   entry.count += 1;
-  return entry.count > ROOM_CREATE_LIMIT;
+  return entry.count > limit;
 }
 
 function generateRoomCode() {
@@ -111,7 +118,7 @@ wss.on("connection", (ws, req) => {
 
     switch (msg.type) {
       case "create-room": {
-        if (isRateLimited(ip)) {
+        if (isRateLimited(`create:${ip}`, ROOM_CREATE_LIMIT, ROOM_CREATE_WINDOW_MS)) {
           return send(ws, { type: "error", message: "Too many rooms created. Try again in a minute." });
         }
         const code = generateRoomCode();
@@ -122,6 +129,9 @@ wss.on("connection", (ws, req) => {
       }
 
       case "join-room": {
+        if (isRateLimited(`join:${ip}`, JOIN_ATTEMPT_LIMIT, JOIN_ATTEMPT_WINDOW_MS)) {
+          return send(ws, { type: "error", message: "Too many attempts. Try again in a minute." });
+        }
         const room = rooms.get(msg.code);
         if (!room) {
           return send(ws, { type: "error", message: "That code is invalid or has expired." });

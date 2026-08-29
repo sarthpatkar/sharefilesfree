@@ -65,8 +65,22 @@ async function main() {
   const peerLeft = await once(sender, (m) => m.type === "peer-left");
   console.log("✅ sender notified on receiver disconnect:", peerLeft.type === "peer-left");
 
+  // Rapid-fire join attempts (guarding against room-code brute-forcing) should
+  // eventually get throttled rather than being processed indefinitely.
+  const flooder = connect();
+  await new Promise((r) => flooder.once("open", r));
+  let sawRateLimitError = false;
+  for (let i = 0; i < 25 && !sawRateLimitError; i++) {
+    flooder.send(JSON.stringify({ type: "join-room", code: "111111" }));
+    const reply = await once(flooder, (m) => m.type === "error");
+    if (reply.message.includes("Too many attempts")) sawRateLimitError = true;
+  }
+  console.log("✅ join-room brute-force attempts get rate limited:", sawRateLimitError);
+  if (!sawRateLimitError) throw new Error("expected join-room flooding to eventually be rate limited");
+
   sender.close();
   stranger.close();
+  flooder.close();
   console.log("\nAll signaling protocol checks passed.");
   process.exit(0);
 }
