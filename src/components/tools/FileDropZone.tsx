@@ -38,7 +38,7 @@ export function FileDropZone({
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       className={`sff-nudge sff-block flex cursor-pointer flex-col items-center justify-center gap-2 px-6 py-14 text-center ${
-        dragging ? "bg-red" : "bg-lime"
+        dragging ? "bg-red" : "bg-y-max"
       }`}
     >
       <IconUpload className={`h-7 w-7 ${dragging ? "text-lime" : "text-red"}`} />

@@ -25,13 +25,13 @@ const PILLARS = [
 
 export function WhyFree() {
   return (
-    <section id="why" className="scroll-mt-20 bg-yellow">
+    <section id="why" className="scroll-mt-20 bg-y-soft">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           Why it&apos;s free
         </p>
 
-        <h2 className="mt-8 max-w-3xl font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red">
+        <h2 className="mt-8 max-w-3xl font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright">
           Free, and here&apos;s exactly how.
         </h2>
 

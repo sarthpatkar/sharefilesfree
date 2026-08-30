@@ -47,7 +47,7 @@ export function ToolsShowcase() {
         </p>
 
         <div className="mt-8 grid gap-x-14 gap-y-6 lg:grid-cols-12">
-          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red lg:col-span-7">
+          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright lg:col-span-7">
             Fix the file before you send it.
           </h2>
           <div className="flex flex-col justify-end lg:col-span-5">

@@ -7,14 +7,14 @@ export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="scroll-mt-20 bg-lime">
+    <section id="faq" className="scroll-mt-20 bg-y-mid">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           Straight answers
         </p>
 
         <div className="mt-8 grid gap-x-16 gap-y-10 lg:grid-cols-12">
-          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red lg:col-span-4">
+          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright lg:col-span-4">
             The questions worth answering.
           </h2>
 

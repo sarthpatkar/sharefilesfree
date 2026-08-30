@@ -36,7 +36,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
               <span className="inline-flex h-14 w-14 items-center justify-center bg-pink text-red">
                 <tool.icon className="h-8 w-8" />
               </span>
-              <h1 className="mt-5 font-display text-[clamp(2.2rem,4.8vw,3.6rem)] leading-[1.0] text-red">
+              <h1 className="mt-5 font-display text-[clamp(2.2rem,4.8vw,3.6rem)] leading-[1.0] text-red-bright">
                 {tool.title}
               </h1>
               {tool.caveat && (

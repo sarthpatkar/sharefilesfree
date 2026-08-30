@@ -68,7 +68,7 @@ export function SiteHeader() {
       <header className="sticky top-0 z-50 bg-red">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
           <Link href="/" className="sff-nudge flex items-center gap-3" aria-label="ShareFilesFree home">
-            <span className="flex h-9 w-9 items-center justify-center bg-lime text-red">
+            <span className="flex h-9 w-9 items-center justify-center bg-y-max text-red">
               <IconSend className="h-5 w-5" />
             </span>
             <span className="font-display text-[19px] leading-none text-yellow">ShareFilesFree</span>

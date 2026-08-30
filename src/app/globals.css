@@ -19,13 +19,26 @@
 :root {
   color-scheme: light;
 
-  /* The six. Nothing else may be introduced. */
-  --red:    #d50000;
-  --lime:   #c3ff17;
-  --yellow: #ffff17;
-  --pink:   #ff69b4;
-  --blush:  #e9a4cb;
-  --gold:   #ffde21;
+  /* The palette. Nothing outside this list may be introduced.
+     Four yellows form a ladder from ground to punch — measured, the pale end
+     is actually *higher* contrast with red than the saturated end (5.35 vs
+     5.11), so calming the page ground improved legibility rather than
+     costing it. */
+  --red:        #d50000;  /* body ink, and any red field that carries text */
+  --red-bright: #ed1f1f;  /* large display type and shapes only — 4.25 on the
+                             palest yellow, which clears AA large but not body */
+  --y-pale:     #ffffd2;  /* page ground */
+  --y-soft:     #ffffa3;  /* second field */
+  --y-mid:      #ffff74;  /* third field */
+  --y-max:      #ffff17;  /* punch: type on red, badges, the logo mark */
+  --lime:       #c3ff17;
+  --pink:       #ff69b4;
+  --blush:      #e9a4cb;
+  --gold:       #ffde21;
+
+  /* `yellow` resolves to the pale ground, since that's the field almost every
+     surface wants; the louder yellows are opted into by name. */
+  --yellow: var(--y-pale);
 
   /* Roles. Only red/yellow/lime combinations ever carry running text —
      measured, they're the pairings that clear WCAG AA. Pink, blush and gold
@@ -55,8 +68,13 @@
 
 @theme inline {
   --color-red: var(--red);
+  --color-red-bright: var(--red-bright);
   --color-lime: var(--lime);
   --color-yellow: var(--yellow);
+  --color-y-pale: var(--y-pale);
+  --color-y-soft: var(--y-soft);
+  --color-y-mid: var(--y-mid);
+  --color-y-max: var(--y-max);
   --color-pink: var(--pink);
   --color-blush: var(--blush);
   --color-gold: var(--gold);

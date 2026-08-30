@@ -57,7 +57,7 @@ export function Hero() {
             </p>
 
             <h1
-              className="sff-stamp mt-6 font-display text-[clamp(2.9rem,7vw,6rem)] leading-[1.0] text-red"
+              className="sff-stamp mt-6 font-display text-[clamp(2.9rem,7vw,6rem)] leading-[1.0] text-red-bright"
               style={{ "--i": 1 } as React.CSSProperties}
             >
               <span className="block">Send files,</span>

@@ -27,7 +27,7 @@ export function HowItWorks() {
         </p>
 
         <div className="mt-8 grid items-center gap-x-14 gap-y-10 lg:grid-cols-12">
-          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red lg:col-span-6">
+          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright lg:col-span-6">
             Faster than attaching it to an email.
           </h2>
 
@@ -39,13 +39,14 @@ export function HowItWorks() {
           </div>
         </div>
 
-        {/* Three blocks. The colour change between them is the divider. */}
+        {/* Three blocks stepping down the yellow ladder — the shift from one
+            tone to the next is the divider, and it reads as a sequence. */}
         <ol className="mt-14 grid gap-5 md:grid-cols-3">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="sff-block-sm bg-yellow p-6">
+          {["bg-y-max", "bg-y-soft", "bg-y-pale"].map((field, i) => (
+            <li key={STEPS[i].title} className={`sff-block-sm p-6 ${field}`}>
               <span className="font-display text-[44px] leading-none text-pink">0{i + 1}</span>
-              <h3 className="mt-3 font-display text-[26px] leading-none text-red">{step.title}</h3>
-              <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{step.body}</p>
+              <h3 className="mt-3 font-display text-[26px] leading-none text-red-bright">{STEPS[i].title}</h3>
+              <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{STEPS[i].body}</p>
             </li>
           ))}
         </ol>
