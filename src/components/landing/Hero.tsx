@@ -64,13 +64,18 @@ export function Hero() {
         </div>
 
         {/*
-          Headline and the product itself, side by side from lg up. The pitch
-          and the thing it's pitching now share the first screen, so the scan
-          path (BRAND.md §4) runs headline → action with nothing in between.
-          Below lg they stack, words first then drop zone.
+          Headline and the product itself, side by side. The pitch and the
+          thing it's pitching share the first screen, so the scan path
+          (BRAND.md §4) runs headline → action with nothing in between.
+
+          Switches at 900px rather than Tailwind's lg (1024px): a laptop
+          window with devtools open, or a browser that isn't maximised, sits
+          right in the 900–1023 gap and was stacking when it had ample room
+          for two columns. Below 900 they stack, words first then drop zone —
+          on a phone the drop zone is what the visitor came for.
         */}
-        <div className="grid gap-x-14 gap-y-12 pt-10 sm:pt-14 lg:grid-cols-12 lg:gap-y-0">
-          <div className="lg:col-span-7">
+        <div className="grid gap-x-10 gap-y-12 pt-10 sm:pt-14 min-[900px]:grid-cols-12 min-[900px]:gap-y-0 lg:gap-x-14">
+          <div className="min-[900px]:col-span-7">
             <h1 className="font-display text-[clamp(2.8rem,6.2vw,5.4rem)] font-black leading-[0.85] tracking-[-0.03em] text-ink">
               {/* Each line gets its own overflow-hidden box so the type wipes
                   up from behind a hard edge instead of fading in. */}
@@ -105,7 +110,7 @@ export function Hero() {
 
           <div
             id="send"
-            className="sff-enter scroll-mt-24 lg:col-span-5 lg:border-l lg:border-rule lg:pl-14"
+            className="sff-enter scroll-mt-24 min-[900px]:col-span-5 min-[900px]:border-l min-[900px]:border-rule min-[900px]:pl-9 lg:pl-14"
             style={{ "--i": 5 } as React.CSSProperties}
           >
             <div className="mb-6 flex items-baseline justify-between gap-4">
