@@ -2,12 +2,20 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export async function excelToPdf(file: File): Promise<File> {
+export interface ExcelToPdfOptions {
+  orientation: "landscape" | "portrait";
+  /** Empty/omitted = every sheet. */
+  sheetNames?: string[];
+}
+
+export async function excelToPdf(file: File, options: ExcelToPdfOptions = { orientation: "landscape" }): Promise<File> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
-  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pdf = new jsPDF({ orientation: options.orientation, unit: "pt", format: "a4" });
+  const sheetsToInclude = options.sheetNames?.length ? workbook.SheetNames.filter((n) => options.sheetNames!.includes(n)) : workbook.SheetNames;
+  if (sheetsToInclude.length === 0) throw new Error("Pick at least one sheet to include.");
 
-  workbook.SheetNames.forEach((sheetName, i) => {
+  sheetsToInclude.forEach((sheetName, i) => {
     const sheet = workbook.Sheets[sheetName];
     const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
     if (i > 0) pdf.addPage();

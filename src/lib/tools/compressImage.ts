@@ -9,7 +9,7 @@ export interface CompressOptions {
   /** 0-1. Ignored for "png" (canvas encodes PNG losslessly regardless). */
   quality: number;
   format: CompressFormat;
-  /** Downscale if wider than this, preserving aspect ratio. */
+  /** Downscale if the longest side exceeds this, preserving aspect ratio. */
   maxWidth?: number;
 }
 
@@ -17,9 +17,11 @@ export async function compressImage(file: File, { quality, format, maxWidth }: C
   const bitmap = await createImageBitmap(file);
   let width = bitmap.width;
   let height = bitmap.height;
-  if (maxWidth && width > maxWidth) {
-    height = Math.round((height * maxWidth) / width);
-    width = maxWidth;
+  const longestSide = Math.max(width, height);
+  if (maxWidth && longestSide > maxWidth) {
+    const scale = maxWidth / longestSide;
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
   }
 
   const canvas = document.createElement("canvas");

@@ -266,7 +266,7 @@ export const TOOLS: ToolDef[] = [
     group: "Utilities",
     icon: IconTextScan,
     caveat: "Experimental",
-    canSend: false,
+    canSend: true,
     Component: OcrTool,
   },
 ];

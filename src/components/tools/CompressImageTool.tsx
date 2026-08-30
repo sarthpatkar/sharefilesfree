@@ -1,96 +1,72 @@
 "use client";
 
 import { useState } from "react";
-import { compressImage, type CompressFormat } from "@/lib/tools/compressImage";
-import { FileDropZone } from "./FileDropZone";
-import { ToolResultCard } from "./ToolResultCard";
-import { Button } from "../Button";
+import { compressImage, type CompressOptions } from "@/lib/tools/compressImage";
+import { SimpleConversionTool } from "./SimpleConversionTool";
+
+const DEFAULTS: CompressOptions = { quality: 0.7, format: "jpeg", maxWidth: 2400 };
 
 export function CompressImageTool({ onSend }: { onSend?: (file: File) => void }) {
-  const [original, setOriginal] = useState<File | null>(null);
-  const [quality, setQuality] = useState(0.7);
-  const [format, setFormat] = useState<CompressFormat>("jpeg");
-  const [status, setStatus] = useState<"idle" | "picked" | "processing" | "done" | "error">("idle");
-  const [result, setResult] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function run() {
-    if (!original) return;
-    setStatus("processing");
-    setError(null);
-    try {
-      const out = await compressImage(original, { quality, format, maxWidth: 2400 });
-      setResult(out);
-      setStatus("done");
-    } catch (e) {
-      setError((e as Error).message);
-      setStatus("error");
-    }
-  }
-
-  function reset() {
-    setOriginal(null);
-    setResult(null);
-    setStatus("idle");
-    setError(null);
-  }
-
-  if (status === "done" && result) {
-    return <ToolResultCard file={result} originalSize={original?.size} onSend={onSend} onReset={reset} />;
-  }
-
-  if (!original) {
-    return (
-      <FileDropZone
-        onFiles={(files) => {
-          setOriginal(files[0]);
-          setStatus("picked");
-        }}
-        accept="image/*"
-        multiple={false}
-        label="Drop an image here, or click to choose"
-        hint="JPG, PNG, or WebP"
-      />
-    );
-  }
+  const [options, setOptions] = useState<CompressOptions>(DEFAULTS);
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="truncate text-sm text-foreground">{original.name}</p>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">
-        Output format
-        <select
-          value={format}
-          onChange={(e) => setFormat(e.target.value as CompressFormat)}
-          className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
-        >
-          <option value="jpeg">JPEG — smallest, no transparency</option>
-          <option value="webp">WebP — small, keeps transparency</option>
-          <option value="png">PNG — lossless, resize only</option>
-        </select>
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">
-        Quality ({Math.round(quality * 100)}%)
-        <input
-          type="range"
-          min={0.2}
-          max={0.95}
-          step={0.05}
-          value={quality}
-          disabled={format === "png"}
-          onChange={(e) => setQuality(Number(e.target.value))}
-          className="accent-accent disabled:opacity-40"
-        />
-      </label>
-      {error && <p className="text-sm text-danger">{error}</p>}
-      <div className="flex gap-3">
-        <Button onClick={run} disabled={status === "processing"}>
-          {status === "processing" ? "Compressing…" : "Compress"}
-        </Button>
-        <Button variant="ghost" onClick={reset}>
-          Cancel
-        </Button>
-      </div>
-    </div>
+    <SimpleConversionTool
+      accept="image/*"
+      allowBatch
+      dropLabel="Drop one or more images here, or click to choose"
+      dropHint="JPG, PNG, or WebP"
+      convertOne={(file, opts) => compressImage(file, opts)}
+      options={options}
+      setOptions={setOptions}
+      convertLabel="Compress"
+      compareSize
+      onSend={onSend}
+      renderOptions={(value, set) => (
+        <div className="flex flex-col gap-3 text-sm text-muted">
+          <label className="flex flex-col gap-1.5">
+            Output format
+            <select
+              value={value.format}
+              onChange={(e) => set({ ...value, format: e.target.value as CompressOptions["format"] })}
+              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+            >
+              <option value="jpeg">JPEG — smallest, no transparency</option>
+              <option value="webp">WebP — small, keeps transparency</option>
+              <option value="png">PNG — lossless, resize only</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            Quality ({Math.round(value.quality * 100)}%)
+            <input
+              type="range"
+              min={0.2}
+              max={0.95}
+              step={0.05}
+              value={value.quality}
+              disabled={value.format === "png"}
+              onChange={(e) => set({ ...value, quality: Number(e.target.value) })}
+              className="accent-accent disabled:opacity-40"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            Max dimension ({value.maxWidth ?? 2400}px on the longest side)
+            <input
+              type="range"
+              min={400}
+              max={4000}
+              step={100}
+              value={value.maxWidth ?? 2400}
+              onChange={(e) => set({ ...value, maxWidth: Number(e.target.value) })}
+              className="accent-accent"
+            />
+            <span className="text-xs">Downscales large photos before re-encoding — usually the biggest single win for file size.</span>
+          </label>
+          <p className="text-xs text-muted">
+            Re-encoding through the canvas also strips EXIF metadata (camera model, GPS location, timestamps) from the output — a
+            privacy side benefit, not just smaller file size.
+          </p>
+        </div>
+      )}
+    />
   );
 }

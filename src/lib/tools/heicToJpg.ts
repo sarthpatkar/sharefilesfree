@@ -7,9 +7,19 @@
 // Next.js's server-side prerendering, which evaluates this module graph in
 // Node (no `window`) even though the function itself only ever runs
 // client-side, triggered by a user action.
-export async function heicToJpg(file: File, quality = 0.9): Promise<File> {
+export type HeicOutputFormat = "jpeg" | "png";
+
+export interface HeicToJpgOptions {
+  format: HeicOutputFormat;
+  /** 0-1. Ignored for PNG (lossless regardless). */
+  quality: number;
+}
+
+export async function heicToJpg(file: File, options: HeicToJpgOptions = { format: "jpeg", quality: 0.9 }): Promise<File> {
   const heic2any = (await import("heic2any")).default;
-  const result = await heic2any({ blob: file, toType: "image/jpeg", quality });
+  const mimeType = options.format === "png" ? "image/png" : "image/jpeg";
+  const result = await heic2any({ blob: file, toType: mimeType, quality: options.quality });
   const blob = (Array.isArray(result) ? result[0] : result) as Blob;
-  return new File([blob], `${file.name.replace(/\.[^.]+$/i, "")}.jpg`, { type: "image/jpeg" });
+  const ext = options.format === "png" ? "png" : "jpg";
+  return new File([blob], `${file.name.replace(/\.[^.]+$/i, "")}.${ext}`, { type: mimeType });
 }

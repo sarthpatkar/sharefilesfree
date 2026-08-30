@@ -8,9 +8,13 @@ import { ToolResultCard } from "./ToolResultCard";
 import { Button } from "../Button";
 
 interface PageState extends PageEntry {
+  /** Unique per on-screen entry (not the original page index) — lets a duplicated page get its own React key. */
+  id: number;
   thumb: string;
   deleted: boolean;
 }
+
+let nextPageStateId = 0;
 
 export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
@@ -27,7 +31,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
       const loaded: PageState[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         const { dataUrl } = await renderPageToDataUrl(pdf, i, 0.35);
-        loaded.push({ originalIndex: i - 1, addRotation: 0, thumb: dataUrl, deleted: false });
+        loaded.push({ id: nextPageStateId++, originalIndex: i - 1, addRotation: 0, thumb: dataUrl, deleted: false });
       }
       setPages(loaded);
       setStatus("ready");
@@ -69,6 +73,14 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
 
   function toggleDelete(index: number) {
     setPages((prev) => prev.map((p, i) => (i === index ? { ...p, deleted: !p.deleted } : p)));
+  }
+
+  function duplicate(index: number) {
+    setPages((prev) => {
+      const next = [...prev];
+      next.splice(index + 1, 0, { ...prev[index], id: nextPageStateId++ });
+      return next;
+    });
   }
 
   async function run() {
@@ -127,7 +139,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {pages.map((page, i) => (
           <div
-            key={page.originalIndex}
+            key={page.id}
             draggable
             onDragStart={() => setDragIndex(i)}
             onDragOver={(e) => e.preventDefault()}
@@ -171,6 +183,14 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
               >
                 ⟳
+              </button>
+              <button
+                type="button"
+                onClick={() => duplicate(i)}
+                aria-label={`Duplicate page ${page.originalIndex + 1}`}
+                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
+              >
+                Duplicate
               </button>
               <button
                 type="button"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loadPdf, renderPageToDataUrl } from "@/lib/tools/pdfjs";
-import { splitPdfRange, splitPdfEveryPage } from "@/lib/tools/splitPdf";
+import { splitPdfRange, splitPdfEveryPage, splitPdfEveryNPages, splitPdfCustomRanges } from "@/lib/tools/splitPdf";
 import { FileDropZone } from "./FileDropZone";
 import { ToolResultCard } from "./ToolResultCard";
 import { Button } from "../Button";
@@ -10,9 +10,11 @@ import { Button } from "../Button";
 export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [thumbs, setThumbs] = useState<string[]>([]);
-  const [mode, setMode] = useState<"range" | "every-page">("range");
+  const [mode, setMode] = useState<"range" | "every-page" | "every-n" | "custom-ranges">("range");
   const [from, setFrom] = useState(1);
   const [to, setTo] = useState(1);
+  const [chunkSize, setChunkSize] = useState(1);
+  const [customRanges, setCustomRanges] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "processing" | "done" | "error">("idle");
   const [result, setResult] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,14 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     setStatus("processing");
     setError(null);
     try {
-      const out = mode === "range" ? await splitPdfRange(file, from, to) : await splitPdfEveryPage(file);
+      const out =
+        mode === "range"
+          ? await splitPdfRange(file, from, to)
+          : mode === "every-n"
+            ? await splitPdfEveryNPages(file, chunkSize)
+            : mode === "custom-ranges"
+              ? await splitPdfCustomRanges(file, customRanges)
+              : await splitPdfEveryPage(file);
       setResult(out);
       setStatus("done");
     } catch (e) {
@@ -113,6 +122,38 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               onChange={(e) => setTo(Number(e.target.value))}
               className="w-16 rounded-lg border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
             />
+          </div>
+        )}
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={mode === "every-n"} onChange={() => setMode("every-n")} className="accent-accent" />
+          Split into fixed-size chunks
+        </label>
+        {mode === "every-n" && (
+          <div className="flex items-center gap-2 pl-6 text-foreground">
+            <input
+              type="number"
+              min={1}
+              max={thumbs.length}
+              value={chunkSize}
+              onChange={(e) => setChunkSize(Number(e.target.value))}
+              className="w-16 rounded-lg border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
+            />
+            <span className="text-muted">pages per file (downloads a .zip)</span>
+          </div>
+        )}
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={mode === "custom-ranges"} onChange={() => setMode("custom-ranges")} className="accent-accent" />
+          Extract several ranges at once
+        </label>
+        {mode === "custom-ranges" && (
+          <div className="pl-6">
+            <input
+              value={customRanges}
+              onChange={(e) => setCustomRanges(e.target.value)}
+              placeholder="e.g. 1-3, 5, 8-10"
+              className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 text-foreground outline-none focus:border-accent"
+            />
+            <p className="mt-1 text-xs">Each group becomes its own PDF, bundled into one .zip.</p>
           </div>
         )}
         <label className="flex items-center gap-2">

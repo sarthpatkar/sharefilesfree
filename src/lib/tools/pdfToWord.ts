@@ -8,7 +8,16 @@
 import { Document, Packer, Paragraph, HeadingLevel } from "docx";
 import { loadPdf, extractPageLines } from "./pdfjs";
 
-export async function pdfToWordBasic(file: File, onProgress?: (current: number, total: number) => void): Promise<File> {
+export interface PdfToWordOptions {
+  /** How much larger than body text a line's font must be, relative to the document's largest font, to count as a heading. Lower = more lines get flagged as headings. */
+  headingSensitivity: number;
+}
+
+export async function pdfToWordBasic(
+  file: File,
+  options: PdfToWordOptions = { headingSensitivity: 0.85 },
+  onProgress?: (current: number, total: number) => void,
+): Promise<File> {
   const pdf = await loadPdf(file);
   const allLines: { text: string; fontSize: number }[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -22,7 +31,7 @@ export async function pdfToWordBasic(file: File, onProgress?: (current: number, 
     (line) =>
       new Paragraph({
         text: line.text,
-        heading: line.fontSize >= maxFont * 0.85 && line.fontSize > 13 ? HeadingLevel.HEADING_1 : undefined,
+        heading: line.fontSize >= maxFont * options.headingSensitivity && line.fontSize > 13 ? HeadingLevel.HEADING_1 : undefined,
       }),
   );
 

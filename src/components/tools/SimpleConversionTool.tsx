@@ -37,7 +37,8 @@ export function SimpleConversionTool<Options>({
   convertOne: (file: File, options: Options, onProgress?: (current: number, total: number) => void) => Promise<File>;
   options: Options;
   setOptions: (o: Options) => void;
-  renderOptions?: (options: Options, setOptions: (o: Options) => void) => ReactNode;
+  /** `files` is passed through mainly so an options panel can read the first file's own properties (e.g. an image's native dimensions) — most tools ignore it. */
+  renderOptions?: (options: Options, setOptions: (o: Options) => void, files: File[]) => ReactNode;
   convertLabel: string;
   /** Only meaningful for actual compression tools — shows a size-change badge on the result. */
   compareSize?: boolean;
@@ -107,7 +108,7 @@ export function SimpleConversionTool<Options>({
       {allowBatch && files.length > 1 && (
         <p className="text-xs text-muted">{files.length} files will be processed and zipped together into one download.</p>
       )}
-      {renderOptions?.(options, setOptions)}
+      {renderOptions?.(options, setOptions, files)}
       {progress && (
         <div>
           <ProgressBar fraction={progress.fraction} />

@@ -6,7 +6,20 @@ import { loadPdf, renderPageToBlob } from "./pdfjs";
 
 export type CompressLevel = "light" | "strong";
 
-export async function compressPdf(file: File, level: CompressLevel, onProgress?: (current: number, total: number) => void): Promise<File> {
+export interface CompressPdfOptions {
+  level: CompressLevel;
+  /** Strong mode only: JPEG quality 0-1 for the rasterized pages. */
+  imageQuality: number;
+  /** Strong mode only: render scale — lower means smaller file but blurrier text/images. */
+  renderScale: number;
+}
+
+export async function compressPdf(
+  file: File,
+  options: CompressPdfOptions,
+  onProgress?: (current: number, total: number) => void,
+): Promise<File> {
+  const { level, imageQuality, renderScale } = options;
   if (level === "light") {
     // Lossless: re-serializes with object streams, which typically saves a
     // modest amount (often 5-20%) with zero quality loss — text stays text,
@@ -26,7 +39,7 @@ export async function compressPdf(file: File, level: CompressLevel, onProgress?:
   const pdf = await loadPdf(file);
   const doc = await PDFDocument.create();
   for (let i = 1; i <= pdf.numPages; i++) {
-    const { blob, width, height } = await renderPageToBlob(pdf, i, 1.5, 0.5);
+    const { blob, width, height } = await renderPageToBlob(pdf, i, renderScale, imageQuality);
     const bytes = await blob.arrayBuffer();
     const image = await doc.embedJpg(bytes);
     const page = doc.addPage([width, height]);

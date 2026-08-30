@@ -1,14 +1,23 @@
 // Combines multiple PDFs into one, in the order given — client-side, via pdf-lib.
 import { PDFDocument } from "pdf-lib";
+import { parsePageRange } from "./pageRange";
 
-export async function mergePdfs(files: File[]): Promise<File> {
-  if (files.length < 2) throw new Error("Pick at least two PDFs to merge.");
+export interface MergeInput {
+  file: File;
+  /** Blank = every page of this file. Otherwise e.g. "1,3-5". */
+  pageRange?: string;
+}
+
+export async function mergePdfs(inputs: (File | MergeInput)[]): Promise<File> {
+  if (inputs.length < 2) throw new Error("Pick at least two PDFs to merge.");
 
   const merged = await PDFDocument.create();
-  for (const file of files) {
+  for (const input of inputs) {
+    const { file, pageRange } = "file" in input ? input : { file: input, pageRange: undefined };
     const bytes = await file.arrayBuffer();
     const doc = await PDFDocument.load(bytes);
-    const copiedPages = await merged.copyPages(doc, doc.getPageIndices());
+    const indices = pageRange?.trim() ? parsePageRange(pageRange, doc.getPageCount()) : doc.getPageIndices();
+    const copiedPages = await merged.copyPages(doc, indices);
     copiedPages.forEach((page) => merged.addPage(page));
   }
 
