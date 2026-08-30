@@ -6,6 +6,7 @@ import { SendPanel } from "./SendPanel";
 import { ReceivePanel } from "./ReceivePanel";
 import { ToolsPanel } from "./ToolsPanel";
 import { takeHandoffFile } from "@/lib/handoff";
+import { DonateLink } from "./DonateLink";
 
 const TABS = ["send", "receive", "tools"] as const;
 type Tab = (typeof TABS)[number];
@@ -74,6 +75,7 @@ export function Home({ initialTab = "send", initialCode }: { initialTab?: "send"
           <Link href="/terms" className="hover:text-foreground hover:underline">
             Terms
           </Link>
+          <DonateLink />
         </nav>
       </footer>
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type DragEvent } from "react";
 import { mergePdfs } from "@/lib/tools/mergePdfs";
 import { formatBytes } from "@/lib/format";
 import { FileDropZone } from "./FileDropZone";
@@ -9,6 +9,7 @@ import { Button } from "../Button";
 
 export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
   const [files, setFiles] = useState<File[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
   const [result, setResult] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,8 +24,24 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
     });
   }
 
+  function moveTo(from: number, to: number) {
+    setFiles((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
   function remove(index: number) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function onDrop(e: DragEvent<HTMLLIElement>, index: number) {
+    e.preventDefault();
+    if (dragIndex !== null) moveTo(dragIndex, index);
+    setDragIndex(null);
   }
 
   async function run() {
@@ -57,24 +74,51 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
         onFiles={(picked) => setFiles((prev) => [...prev, ...picked])}
         accept="application/pdf"
         label="Drop PDFs here, or click to choose"
-        hint="Reorder below — merged top to bottom"
+        hint="Drag to reorder below — merged top to bottom"
       />
       {files.length > 0 && (
         <ul className="flex flex-col gap-1.5 text-sm">
           {files.map((f, i) => (
-            <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+            <li
+              key={`${f.name}-${i}`}
+              draggable
+              onDragStart={() => setDragIndex(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => onDrop(e, i)}
+              onDragEnd={() => setDragIndex(null)}
+              className={`flex cursor-grab items-center justify-between gap-3 rounded-lg border px-3 py-2 active:cursor-grabbing ${
+                dragIndex === i ? "border-accent opacity-50" : "border-border"
+              }`}
+            >
               <span className="truncate text-foreground">
                 {i + 1}. {f.name}
               </span>
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-muted">{formatBytes(f.size)}</span>
-                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+                <button
+                  type="button"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                  aria-label={`Move ${f.name} up`}
+                  className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                >
                   ↑
                 </button>
-                <button type="button" onClick={() => move(i, 1)} disabled={i === files.length - 1} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  disabled={i === files.length - 1}
+                  aria-label={`Move ${f.name} down`}
+                  className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                >
                   ↓
                 </button>
-                <button type="button" onClick={() => remove(i)} className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline">
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  aria-label={`Remove ${f.name}`}
+                  className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
+                >
                   Remove
                 </button>
               </div>
@@ -82,7 +126,11 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
           ))}
         </ul>
       )}
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       {files.length > 1 && (
         <div className="flex gap-3">
           <Button onClick={run} disabled={status === "processing"}>

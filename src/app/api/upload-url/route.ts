@@ -4,7 +4,15 @@
 // small JSON request/response, never the file itself.
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { isR2Configured, writeMetadata, getUploadUrl, hashPassword } from "@/lib/r2";
+import {
+  isR2Configured,
+  writeMetadata,
+  getUploadUrl,
+  hashPassword,
+  createMultipartUpload,
+  MULTIPART_PART_SIZE,
+  MULTIPART_THRESHOLD,
+} from "@/lib/r2";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
 import { sanitizeFilename } from "@/lib/sanitize";
 
@@ -72,7 +80,22 @@ export async function POST(request: Request) {
     passwordSalt: salt,
     burnAfterDownload: Boolean(burnAfterDownload),
   });
-  const uploadUrl = await getUploadUrl(token);
+  // Large files use multipart upload (resumable within the session — a
+  // dropped connection only costs the failed part, not the whole transfer)
+  // via /api/upload-part-url and /api/upload-complete. Smaller files use a
+  // single presigned PUT, which is simpler and just as fast for them.
+  if (size > MULTIPART_THRESHOLD) {
+    const uploadId = await createMultipartUpload(token);
+    return NextResponse.json({
+      token,
+      expiresAt,
+      mode: "multipart",
+      uploadId,
+      partSize: MULTIPART_PART_SIZE,
+      totalParts: Math.ceil(size / MULTIPART_PART_SIZE),
+    });
+  }
 
-  return NextResponse.json({ token, uploadUrl, expiresAt });
+  const uploadUrl = await getUploadUrl(token);
+  return NextResponse.json({ token, expiresAt, mode: "single", uploadUrl });
 }

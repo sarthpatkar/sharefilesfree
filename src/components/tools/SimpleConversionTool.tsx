@@ -111,10 +111,16 @@ export function SimpleConversionTool<Options>({
       {progress && (
         <div>
           <ProgressBar fraction={progress.fraction} />
-          <p className="mt-1 text-xs text-muted">{progress.label}</p>
+          <p role="status" aria-live="polite" className="mt-1 text-xs text-muted">
+            {progress.label}
+          </p>
         </div>
       )}
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       <div className="flex gap-3">
         <Button onClick={run} disabled={status === "processing"}>
           {status === "processing" ? "Working…" : convertLabel}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getToolBySlug, TOOLS } from "./registry";
 import { setHandoffFile } from "@/lib/handoff";
 import { IconArrowLeft } from "../icons";
+import { DonateLink } from "../DonateLink";
 
 /** Client wrapper so the actual tool component (and its onSend→handoff wiring) can run interactively, while the route itself stays a Server Component for metadata/generateStaticParams. */
 export function ToolPageClient({ slug }: { slug: string }) {
@@ -64,6 +65,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
           <Link href="/terms" className="hover:text-foreground hover:underline">
             Terms
           </Link>
+          <DonateLink />
         </nav>
       </footer>
     </main>

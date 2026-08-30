@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { zipSync } from "fflate";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
 import { uploadFileForLink, type UploadProgress } from "@/lib/linkTransfer";
 import { formatBytes } from "@/lib/format";
@@ -55,6 +56,9 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [linkPassword, setLinkPassword] = useState("");
   const [linkExpiryHours, setLinkExpiryHours] = useState(24);
   const [linkBurnAfterDownload, setLinkBurnAfterDownload] = useState(false);
+  // Multi-file link sharing only works if the files are bundled into one zip
+  // first — deliberately opt-in, unchecked by default, never automatic.
+  const [linkZipFiles, setLinkZipFiles] = useState(false);
 
   useEffect(() => {
     const delay = status === "waiting-for-peer" ? LINK_FALLBACK_DELAY_MS : 0;
@@ -96,22 +100,33 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setLinkStatus("configuring");
   }
 
-  function createLink() {
+  async function buildLinkFile(): Promise<File> {
+    if (files.length === 1) return files[0];
+    // Multiple files, bundled by explicit user choice (see the checkbox below) —
+    // zipping is the only way multi-file link sharing works today, but it's
+    // never applied automatically.
+    const entries: Record<string, Uint8Array> = {};
+    for (const f of files) entries[f.name] = new Uint8Array(await f.arrayBuffer());
+    const zipped = zipSync(entries);
+    return new File([zipped as BlobPart], "files.zip", { type: "application/zip" });
+  }
+
+  async function createLink() {
     setLinkStatus("uploading");
     setLinkError(null);
-    uploadFileForLink(files[0], setLinkProgress, {
-      password: linkPassword,
-      expiryHours: linkExpiryHours,
-      burnAfterDownload: linkBurnAfterDownload,
-    })
-      .then((result) => {
-        setLinkResult(result);
-        setLinkStatus("ready");
-      })
-      .catch((e) => {
-        setLinkError(e.message);
-        setLinkStatus("error");
+    try {
+      const fileToUpload = await buildLinkFile();
+      const result = await uploadFileForLink(fileToUpload, setLinkProgress, {
+        password: linkPassword,
+        expiryHours: linkExpiryHours,
+        burnAfterDownload: linkBurnAfterDownload,
       });
+      setLinkResult(result);
+      setLinkStatus("ready");
+    } catch (e) {
+      setLinkError((e as Error).message);
+      setLinkStatus("error");
+    }
   }
 
   function reset() {
@@ -129,6 +144,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setLinkPassword("");
     setLinkExpiryHours(24);
     setLinkBurnAfterDownload(false);
+    setLinkZipFiles(false);
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -183,6 +199,25 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
         {linkStatus === "configuring" && (
           <div className="flex w-full max-w-sm flex-col gap-4">
             <p className="text-sm font-medium text-foreground">A few optional protections for this link</p>
+            {files.length > 1 && (
+              <div className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm text-muted">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={linkZipFiles}
+                    onChange={(e) => setLinkZipFiles(e.target.checked)}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  Bundle these {files.length} files into one .zip
+                </label>
+                {!linkZipFiles && (
+                  <p className="text-xs text-muted">
+                    A shareable link needs a single file — check the box above to bundle them, or go back and send
+                    them one at a time via a code instead.
+                  </p>
+                )}
+              </div>
+            )}
             <label className="flex flex-col gap-1.5 text-sm text-muted">
               Password (optional)
               <input
@@ -215,7 +250,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
               />
               Delete after first download
             </label>
-            <Button onClick={createLink} className="mt-2 self-start">
+            <Button onClick={createLink} disabled={files.length > 1 && !linkZipFiles} className="mt-2 self-start">
               Create link
             </Button>
           </div>
@@ -253,8 +288,14 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm font-medium text-foreground">{STATUS_LABEL[status] ?? status}</p>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">
+        {STATUS_LABEL[status] ?? status}
+      </p>
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} />}
       {(status === "transferring" || status === "connected") && (
         <div className="w-full max-w-md">
@@ -264,7 +305,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           </p>
         </div>
       )}
-      {showLinkOffer && status === "waiting-for-peer" && files.length === 1 && (
+      {showLinkOffer && status === "waiting-for-peer" && (
         <Button variant="ghost" onClick={switchToLinkFallback} className="text-accent hover:text-accent-hover">
           Receiver not online? Get a shareable link instead
         </Button>

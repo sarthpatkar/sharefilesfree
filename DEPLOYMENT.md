@@ -123,6 +123,7 @@ Back in the Cloudflare dashboard, under your domain's **DNS** page, add (all set
 1. In Cloudflare: **R2 → Create bucket** → name it e.g. `sendfilesfree-uploads`.
 2. **R2 → Manage API tokens → Create API token**, permission **Object Read & Write**, scoped to that bucket. Save the **Access Key ID** and **Secret Access Key** it shows you (shown once). Your **Account ID** is on the R2 overview page.
 3. On the bucket → **Settings → Object lifecycle rules** → add a rule to delete objects after **7 days** (match this to the `UPLOAD_EXPIRY_HOURS` ceiling below — senders can choose up to that long a retention window per file, so the lifecycle rule must be at least that long or it'll delete files before their stated expiry). **Don't skip this step** — without it, expired files sit in the bucket forever and quietly cost you money.
+4. On the bucket → **Settings → CORS Policy** → add a rule allowing `PUT` from `https://sharefilesfree.com` with `ExposeHeaders: ["ETag"]`. **This is required for large-file uploads** (anything over 10MB uses R2's multipart upload API, which needs the browser to read back each part's ETag) — without it, large uploads will fail at the final "complete" step. See the README's R2 section for the exact JSON. This hasn't been tested against a live bucket yet (none existed during development) — verify it in Phase 12's testing.
 
 ## Phase 8 — Clone the code and configure secrets
 
@@ -216,6 +217,8 @@ Caddy fetches and auto-renews Let's Encrypt certificates for both hostnames the 
 - Open it on two devices on **different networks** (e.g. your phone on cellular data + your laptop on wifi) — this is the case that actually exercises the TURN relay, not just STUN.
 - Send a file from one to the other using the 6-digit code.
 - Wait ~20 seconds without entering the code anywhere to confirm the "share a link instead" button appears, click it, and confirm the resulting `/download/...` link works from a third device.
+- **Upload something over 10MB via a link** to actually exercise the multipart path — this is the one thing that couldn't be tested before real R2 infra existed. If it fails at the finalize step, double check the bucket's CORS policy exposes `ETag` (Phase 7, step 4).
+- Visit a couple of `/tools/[slug]` pages directly (not through the homepage) to confirm they're truly standalone and indexable — check the page `<title>` matches the tool.
 - `sudo journalctl -u sendfilesfree -f` and `-u signaling -f` are your two log streams on the VM if anything doesn't work. For TURN, check usage/errors in the Cloudflare dashboard under **Calls/Realtime**.
 
 ## Phase 13 — Updating the app later

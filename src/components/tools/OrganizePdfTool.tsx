@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { loadPdf, renderPageToDataUrl } from "@/lib/tools/pdfjs";
 import { organizePdf, type PageEntry } from "@/lib/tools/organizePdf";
 import { FileDropZone } from "./FileDropZone";
@@ -15,6 +15,7 @@ interface PageState extends PageEntry {
 export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [pages, setPages] = useState<PageState[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "processing" | "done" | "error">("idle");
   const [result, setResult] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,22 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+  }
+
+  function moveTo(from: number, to: number) {
+    setPages((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  function onDrop(e: DragEvent<HTMLDivElement>, index: number) {
+    e.preventDefault();
+    if (dragIndex !== null) moveTo(dragIndex, index);
+    setDragIndex(null);
   }
 
   function rotate(index: number) {
@@ -96,7 +113,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
         accept="application/pdf"
         multiple={false}
         label="Drop a PDF here, or click to choose"
-        hint="Reorder, rotate, or delete pages"
+        hint="Drag to reorder, rotate, or delete pages"
       />
     );
   }
@@ -109,7 +126,17 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {pages.map((page, i) => (
-          <div key={page.originalIndex} className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 ${page.deleted ? "border-border opacity-30" : "border-border"}`}>
+          <div
+            key={page.originalIndex}
+            draggable
+            onDragStart={() => setDragIndex(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => onDrop(e, i)}
+            onDragEnd={() => setDragIndex(null)}
+            className={`flex cursor-grab flex-col items-center gap-1 rounded-lg border p-1.5 active:cursor-grabbing ${
+              page.deleted ? "opacity-30" : ""
+            } ${dragIndex === i ? "border-accent" : "border-border"}`}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={page.thumb}
@@ -119,16 +146,38 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
             />
             <span className="text-xs text-muted">#{page.originalIndex + 1}</span>
             <div className="flex flex-wrap justify-center gap-1">
-              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                aria-label={`Move page ${page.originalIndex + 1} earlier`}
+                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+              >
                 ↑
               </button>
-              <button type="button" onClick={() => move(i, 1)} disabled={i === pages.length - 1} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === pages.length - 1}
+                aria-label={`Move page ${page.originalIndex + 1} later`}
+                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+              >
                 ↓
               </button>
-              <button type="button" onClick={() => rotate(i)} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => rotate(i)}
+                aria-label={`Rotate page ${page.originalIndex + 1}`}
+                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
+              >
                 ⟳
               </button>
-              <button type="button" onClick={() => toggleDelete(i)} className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline">
+              <button
+                type="button"
+                onClick={() => toggleDelete(i)}
+                aria-label={`${page.deleted ? "Restore" : "Delete"} page ${page.originalIndex + 1}`}
+                className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
+              >
                 {page.deleted ? "Undo" : "Delete"}
               </button>
             </div>
@@ -136,7 +185,11 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
         ))}
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       <div className="flex gap-3">
         <Button onClick={run} disabled={status === "processing"}>
           {status === "processing" ? "Saving…" : "Save changes"}

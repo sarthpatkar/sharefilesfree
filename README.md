@@ -9,9 +9,10 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 3. A tiny **signaling server** (`/server`) introduces the two browsers to each other and then gets out of the way.
 4. Files stream **directly between browsers** over a WebRTC data channel — encrypted, no server storage, no size limit.
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
-6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer.
+6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer. Files over 10MB use **resumable multipart upload** (a dropped connection only costs the failed part, not the whole file). Multiple files can be shared via one link too, but **only if you explicitly opt in** to bundling them into a `.zip` first — never automatic.
 7. Every download page has a **"Report this file"** link that immediately disables the shared link — no review queue, no waiting on the operator.
-8. A **Tools** tab offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, and conversions to/from Word, Excel, PowerPoint, and Markdown — running **entirely client-side**. No upload, no server cost, works even before picking a transfer method. A result can be downloaded directly or handed straight to the Send tab.
+8. A **Tools** section offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, conversions to/from Word/Excel/PowerPoint/Markdown, plus image tools, a QR generator, and OCR — running **entirely client-side**, no upload, no server cost. Every tool lives on its **own indexable URL** (`/tools/merge-pdf`, etc.) for real SEO, not just hidden behind an in-app tab. Most tools support batch processing (multiple files in, one zip out) with a progress bar. A result can be downloaded directly or handed straight to the Send tab.
+9. The site works **offline after a first visit** via a small hand-rolled service worker (cache-as-you-go) — the Tools are 100% client-side already, so this makes them usable with no internet at all once cached.
 
 Phase 1 (pure P2P) and Phase 2 (the link fallback, abuse reporting) are both built. Still to come: malware scanning on the relay path and ads.
 
@@ -91,9 +92,25 @@ See `.env.local.example` for the full annotated list.
 1. In the Cloudflare dashboard: **R2 → Create bucket** (e.g. `sendfilesfree-uploads`).
 2. **R2 → Manage API tokens → Create API token** with Object Read & Write permissions scoped to that bucket. This gives you `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; your Account ID is shown on the R2 overview page.
 3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after your `UPLOAD_EXPIRY_HOURS` ceiling (default 7 days) — **not shorter**, since senders can pick up to that long a retention window per file, and a tighter lifecycle rule would delete files out from under a link before its stated expiry. The app treats a link as dead once it's past its own `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
-4. Set the four `R2_*` env vars and redeploy.
+4. **Required for large-file (multipart) uploads to work — set the bucket's CORS policy** to expose the `ETag` header, or every multipart upload will fail at the "complete" step with a CORS error. In the bucket's Settings → CORS Policy, add:
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://sharefilesfree.com"],
+       "AllowedMethods": ["PUT"],
+       "AllowedHeaders": ["*"],
+       "ExposeHeaders": ["ETag"]
+     }
+   ]
+   ```
+   Without `ExposeHeaders: ["ETag"]`, the browser's XHR can't read the ETag each part upload needs to report back — R2 accepts the upload but our client-side code can't complete it. **This specific requirement has not been tested against a live R2 bucket** (none exists yet in development) — verify it once real infra is up; the multipart logic itself (`src/lib/r2.ts`, `src/lib/linkTransfer.ts`) follows the standard S3-compatible multipart API and was reviewed carefully, but flagging this honestly rather than claiming full verification it didn't get.
+5. Set the four `R2_*` env vars and redeploy.
 
 Without R2 configured, the app still works fully P2P — the "share a link" button just isn't offered.
+
+### A note on large-file uploads (resumable within a session)
+
+Files over 10MB use R2/S3's multipart upload API instead of a single PUT — each ~8MB part uploads (and retries, up to 4 times with backoff) independently, so a dropped connection only costs the one failed part, not the whole file. **Scope**: this recovers from a mid-session network blip, not a fully closed tab reopened days later (that would need persisting the upload ID and re-selecting the identical file from disk — a materially bigger feature, not attempted here).
 
 ## Project layout
 

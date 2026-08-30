@@ -81,7 +81,11 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
           placeholder="000000"
           className="w-48 rounded-xl border border-border bg-transparent px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] text-foreground outline-none placeholder:text-muted/50 focus:border-accent"
         />
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
         <Button type="submit">Connect</Button>
       </form>
     );
@@ -89,8 +93,14 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="text-sm font-medium text-foreground">{STATUS_LABEL[status] ?? status}</p>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">
+        {STATUS_LABEL[status] ?? status}
+      </p>
+      {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
 
       {status === "transferring" && progress && (
         <div className="w-full max-w-md">
