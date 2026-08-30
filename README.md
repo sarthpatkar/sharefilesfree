@@ -11,23 +11,37 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
 6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer.
 7. Every download page has a **"Report this file"** link that immediately disables the shared link — no review queue, no waiting on the operator.
-8. A **Tools** tab offers image compression and PDF utilities (compress an image, combine images into a PDF, merge PDFs) that run **entirely client-side** — no upload, no server cost, works even before picking a transfer method. A result can be downloaded directly or handed straight to the Send tab.
+8. A **Tools** tab offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, and conversions to/from Word, Excel, PowerPoint, and Markdown — running **entirely client-side**. No upload, no server cost, works even before picking a transfer method. A result can be downloaded directly or handed straight to the Send tab.
 
 Phase 1 (pure P2P) and Phase 2 (the link fallback, abuse reporting) are both built. Still to come: malware scanning on the relay path and ads.
 
 ## Tools (client-side compress/convert)
 
-All under `src/lib/tools/` (pure logic, browser APIs only) + `src/components/tools/` (UI):
+All under `src/lib/tools/` (pure logic, browser APIs only) + `src/components/tools/` (UI). Every tool runs in the visitor's own browser — files never leave it for these operations, and it costs us nothing regardless of usage volume.
 
 | Tool | How | Notes |
 |---|---|---|
-| Compress image | Canvas API (`drawImage` + `toBlob`) | JPEG/WebP/PNG output, quality slider; honestly reports when a file doesn't shrink (e.g. already-compressed input) rather than showing a false "smaller" badge |
-| Images → PDF | `pdf-lib` | One page per image, sized to the image's own dimensions |
-| Merge PDFs | `pdf-lib` | Joins in the order files are added |
+| Merge PDF | `pdf-lib` | Reorderable before merging |
+| Split PDF | `pdf-lib` + `pdfjs-dist` (thumbnails) | Extract a range, or every page as a `.zip` |
+| Organize PDF | `pdf-lib` + `pdfjs-dist` | Reorder, rotate, delete pages via a thumbnail grid |
+| Compress PDF | `pdf-lib` (light) / `pdfjs-dist` rasterize (strong) | "Light" is lossless (~5-20% typical); "strong" rasterizes pages to JPEG for much bigger savings on image-heavy PDFs, **at the cost of selectable/searchable text** — stated plainly in the UI, not hidden |
+| Watermark | `pdf-lib` | Configurable text, opacity, size, rotation |
+| Page numbers | `pdf-lib` | 6 positions, custom start number |
+| Images → PDF | `pdf-lib` | One page per image |
+| Word → PDF | `mammoth` + `jspdf` (html2canvas) | Good for straightforward documents; very complex layouts may not paginate perfectly |
+| Excel → PDF | `xlsx` (SheetJS) + `jspdf-autotable` | One page per sheet |
+| PDF → PowerPoint | `pdfjs-dist` + `pptxgenjs` | Each page becomes a slide **image** — visually accurate, not editable text (no reliable client-side engine reconstructs editable slides from a PDF) |
+| PDF → Word | `pdfjs-dist` + `docx` | Labeled "basic" in the UI: recovers text with rough heading detection, **not layout/columns/images** |
+| PDF → Excel | `pdfjs-dist` + `xlsx` | Labeled "basic": text-per-line extraction, **not real table/column detection** (a PDF has no concept of cells) |
+| PDF → Markdown | `pdfjs-dist` | Headings/bullets guessed from font size — works well on simply-formatted docs |
+| Compress image | Canvas API | JPEG/WebP/PNG output; honestly reports when a file doesn't shrink instead of showing a false "smaller" badge |
 
-Verified end-to-end with a real headless browser (Playwright, temporary — not a project dependency) driving actual file uploads through each tool, not just by reading the code.
+**Deliberately not built** — see the plan file for the full reasoning:
+- **HTML → PDF (URL to PDF)**: requires fetching and rendering an arbitrary live webpage, which needs a real server-side headless browser (cost + CORS make this impossible client-side). Revisit once real infra exists.
+- **PDF → PDF/A**: no client-side library actually produces ISO 19005-compliant output; shipping a fake "PDF/A" would be dishonest.
+- **PowerPoint → PDF**: no reliable pure-JS PPTX rendering engine exists; a broken/inaccurate result would be worse than not offering it. The real fix, once server infra exists, is running LibreOffice headless — a well-established technique, not a hack.
 
-**Feature ideas not built yet** (see the plan file for the fuller list and feasibility notes): PDF ↔ image page rendering/splitting, DOCX → PDF, resize-only image tool, video/audio compression. PDF → DOCX specifically is flagged as low-quality if done client-side (no real client-side layout-preserving engine exists) rather than promised and under-delivered.
+Verified end-to-end with a real headless browser (Playwright, temporary — not a project dependency) driving actual file uploads through all 14 tools plus the send-handoff. One honest limitation of that verification: Chromium's headless mode can't hand back `blob:`-URL download bytes to test tooling (a known Playwright/Chromium limitation, confirmed — not a product issue), so verification confirms every tool completes without error and produces a correctly-named/typed file with no console errors, rather than byte-for-byte output inspection for every format.
 
 ## Running it locally
 
@@ -100,7 +114,8 @@ src/
       file/[token]/unlock/   Verifies a password-protected link's password before releasing the download URL
       report/[token]/        Abuse report — immediately disables a shared link
   components/     UI: SendPanel, ReceivePanel, CodeDisplay, LinkShare, DownloadPanel, ProgressBar, ToolsPanel, Button, icons.tsx, Home
-    tools/          Per-tool UI: CompressImageTool, ImagesToPdfTool, MergePdfsTool, FileDropZone, ToolResultCard
+    tools/          Per-tool UI — 14 tools, see the Tools table above; most use the shared SimpleConversionTool
+                    shell (FileDropZone → options → ToolResultCard), Organize/Split have bespoke thumbnail UIs
   lib/
     peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine, with retry-with-backoff on connect (no UI deps)
     linkTransfer.ts   Browser-side upload-with-progress for the link fallback
@@ -108,8 +123,11 @@ src/
     rateLimit.ts      Shared in-memory per-IP throttle for the upload/TURN-credential/report/unlock APIs
     sanitize.ts       Filename sanitization (prevents header injection in Content-Disposition)
     format.ts         Byte-size formatting helper
-    tools/            Compress/convert logic (compressImage, imagesToPdf, mergePdfs) — pure browser-API functions, no UI
+    tools/            All 14 conversion/compression functions — pure browser-API logic, no UI (see the Tools table above)
     *.test.ts         Vitest unit tests for the above (run: `npm test`)
+scripts/
+  copy-pdf-worker.mjs  Copies pdf.js's worker file into public/ on every install (see package.json's postinstall) —
+                       a static file is more predictable across bundlers than bundler-specific worker-asset resolution
 server/
   index.js             WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only)
   test-signaling.mjs   Integration test for the signaling protocol (run: `npm test` from /server)
@@ -119,3 +137,8 @@ deploy/
 .github/workflows/ci.yml  Runs lint, build, and both test suites on every push
 DEPLOYMENT.md    Full step-by-step deployment runbook (domain → VPS → DNS → R2 → TURN → AdSense)
 ```
+
+### A couple of dependency notes worth knowing about
+
+- **`xlsx`** is installed from SheetJS's own CDN (`https://cdn.sheetjs.com/...`), not the npm registry — the npm-published version has known unpatched vulnerabilities (prototype pollution, ReDoS) that SheetJS fixes only in their own distribution.
+- **`pptxgenjs`**'s `image-size` dependency has an open DoS advisory (infinite loop on malformed ICNS/JXL/HEIF files) with no fix released yet. Checked and confirmed: `image-size` never appears in pptxgenjs's browser bundle at all (it's a Node.js-only code path), so this app's client-side usage never reaches the vulnerable code — worth re-checking on any pptxgenjs upgrade.

@@ -13,6 +13,20 @@ export function MergePdfsTool({ onSend }: { onSend: (file: File) => void }) {
   const [result, setResult] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function move(index: number, dir: -1 | 1) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function remove(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function run() {
     setStatus("processing");
     setError(null);
@@ -43,16 +57,27 @@ export function MergePdfsTool({ onSend }: { onSend: (file: File) => void }) {
         onFiles={(picked) => setFiles((prev) => [...prev, ...picked])}
         accept="application/pdf"
         label="Drop PDFs here, or click to choose"
-        hint="Joined in the order added"
+        hint="Reorder below — merged top to bottom"
       />
       {files.length > 0 && (
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1.5 text-sm">
           {files.map((f, i) => (
-            <li key={`${f.name}-${i}`} className="flex justify-between gap-3">
+            <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
               <span className="truncate text-foreground">
                 {i + 1}. {f.name}
               </span>
-              <span className="shrink-0 text-muted">{formatBytes(f.size)}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-muted">{formatBytes(f.size)}</span>
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+                  ↑
+                </button>
+                <button type="button" onClick={() => move(i, 1)} disabled={i === files.length - 1} className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30">
+                  ↓
+                </button>
+                <button type="button" onClick={() => remove(i)} className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline">
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ul>

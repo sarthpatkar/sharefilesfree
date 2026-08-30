@@ -154,3 +154,79 @@ export function IconTool(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconScissors(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="6" cy="18" r="2.5" />
+      <path d="M8.5 8 20 19M8.5 16 20 5" />
+    </svg>
+  );
+}
+
+export function IconLayers(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 3 8 4.5-8 4.5-8-4.5Z" />
+      <path d="m4 12 8 4.5 8-4.5" />
+      <path d="m4 16.5 8 4.5 8-4.5" />
+    </svg>
+  );
+}
+
+export function IconStamp(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 4h6l1 5H8Z" />
+      <path d="M9 9v3a3 3 0 0 0 6 0V9" />
+      <path d="M6 20v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
+      <path d="M3 20h18" />
+    </svg>
+  );
+}
+
+export function IconHash(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 9h14M5 15h14M9 4 7 20M17 4l-2 16" />
+    </svg>
+  );
+}
+
+export function IconFileText(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M14 3v4h4" />
+      <path d="M8.5 13h7M8.5 16.5h7" />
+    </svg>
+  );
+}
+
+export function IconGrid(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" />
+      <path d="M3.5 9.5h17M3.5 15.5h17M9.5 3.5v17M15.5 3.5v17" />
+    </svg>
+  );
+}
+
+export function IconPresentation(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="12" rx="1.5" />
+      <path d="M12 16v4M8 20h8" />
+    </svg>
+  );
+}
+
+export function IconMarkdown(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="18" height="14" rx="1.5" />
+      <path d="M6 15V9l3 3.5L12 9v6M15 9v4m0 0 2-2m-2 2-2-2" />
+    </svg>
+  );
+}
