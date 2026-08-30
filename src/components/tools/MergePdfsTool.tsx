@@ -7,7 +7,7 @@ import { FileDropZone } from "./FileDropZone";
 import { ToolResultCard } from "./ToolResultCard";
 import { Button } from "../Button";
 
-export function MergePdfsTool({ onSend }: { onSend: (file: File) => void }) {
+export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
   const [result, setResult] = useState<File | null>(null);

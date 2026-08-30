@@ -7,7 +7,7 @@ import { FileDropZone } from "./FileDropZone";
 import { ToolResultCard } from "./ToolResultCard";
 import { Button } from "../Button";
 
-export function SplitPdfTool({ onSend }: { onSend: (file: File) => void }) {
+export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [mode, setMode] = useState<"range" | "every-page">("range");

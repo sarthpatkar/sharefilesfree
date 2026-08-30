@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SendPanel } from "./SendPanel";
 import { ReceivePanel } from "./ReceivePanel";
 import { ToolsPanel } from "./ToolsPanel";
+import { takeHandoffFile } from "@/lib/handoff";
 
 const TABS = ["send", "receive", "tools"] as const;
 type Tab = (typeof TABS)[number];
@@ -12,14 +13,20 @@ const TAB_LABEL: Record<Tab, string> = { send: "Send", receive: "Receive", tools
 
 export function Home({ initialTab = "send", initialCode }: { initialTab?: "send" | "receive"; initialCode?: string }) {
   const [tab, setTab] = useState<Tab>(initialTab);
-  // A file produced by a Tool (compressed image, converted PDF, …), handed to
-  // the Send tab when the user clicks "Send this file" — see ToolsPanel.
+  // A file produced by a standalone /tools/[slug] page and handed here via
+  // "Send this file" — see src/lib/handoff.ts and ToolPageClient.
   const [handoffFile, setHandoffFile] = useState<File | null>(null);
 
-  function sendFromTools(file: File) {
-    setHandoffFile(file);
-    setTab("send");
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const file = takeHandoffFile();
+      if (file) {
+        setHandoffFile(file);
+        setTab("send");
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-4 py-14 sm:py-24">
@@ -54,7 +61,7 @@ export function Home({ initialTab = "send", initialCode }: { initialTab?: "send"
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(20,35,29,0.04)] sm:p-10">
           {tab === "send" && <SendPanel initialFile={handoffFile} />}
           {tab === "receive" && <ReceivePanel initialCode={initialCode} />}
-          {tab === "tools" && <ToolsPanel onSendFile={sendFromTools} />}
+          {tab === "tools" && <ToolsPanel />}
         </section>
       </div>
 

@@ -7,7 +7,7 @@
 import PptxGenJS from "pptxgenjs";
 import { loadPdf, renderPageToDataUrl } from "./pdfjs";
 
-export async function pdfToPowerPoint(file: File): Promise<File> {
+export async function pdfToPowerPoint(file: File, onProgress?: (current: number, total: number) => void): Promise<File> {
   const pdf = await loadPdf(file);
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "PDF_LAYOUT", width: 10, height: 7.5 });
@@ -17,6 +17,7 @@ export async function pdfToPowerPoint(file: File): Promise<File> {
     const { dataUrl } = await renderPageToDataUrl(pdf, i, 2);
     const slide = pptx.addSlide();
     slide.addImage({ data: dataUrl, x: 0, y: 0, w: 10, h: 7.5 });
+    onProgress?.(i, pdf.numPages);
   }
 
   const blob = (await pptx.write({ outputType: "blob" })) as Blob;

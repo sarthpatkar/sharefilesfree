@@ -13,7 +13,7 @@ export function ToolResultCard({
 }: {
   file: File;
   originalSize?: number;
-  onSend: (file: File) => void;
+  onSend?: (file: File) => void;
   onReset: () => void;
 }) {
   const url = useMemo(() => URL.createObjectURL(file), [file]);
@@ -46,13 +46,15 @@ export function ToolResultCard({
         >
           <IconDownload className="h-4 w-4" /> Download
         </a>
-        <button
-          type="button"
-          onClick={() => onSend(file)}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover hover:underline"
-        >
-          <IconSend className="h-4 w-4" /> Send this file
-        </button>
+        {onSend && (
+          <button
+            type="button"
+            onClick={() => onSend(file)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover hover:underline"
+          >
+            <IconSend className="h-4 w-4" /> Send this file
+          </button>
+        )}
       </div>
       <button type="button" onClick={onReset} className="text-xs text-muted hover:underline">
         Start over

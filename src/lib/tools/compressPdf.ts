@@ -6,7 +6,7 @@ import { loadPdf, renderPageToBlob } from "./pdfjs";
 
 export type CompressLevel = "light" | "strong";
 
-export async function compressPdf(file: File, level: CompressLevel): Promise<File> {
+export async function compressPdf(file: File, level: CompressLevel, onProgress?: (current: number, total: number) => void): Promise<File> {
   if (level === "light") {
     // Lossless: re-serializes with object streams, which typically saves a
     // modest amount (often 5-20%) with zero quality loss — text stays text,
@@ -31,6 +31,7 @@ export async function compressPdf(file: File, level: CompressLevel): Promise<Fil
     const image = await doc.embedJpg(bytes);
     const page = doc.addPage([width, height]);
     page.drawImage(image, { x: 0, y: 0, width, height });
+    onProgress?.(i, pdf.numPages);
   }
   const out = await doc.save();
   return new File([out as BlobPart], file.name, { type: "application/pdf" });

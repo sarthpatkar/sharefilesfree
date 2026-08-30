@@ -230,3 +230,33 @@ export function IconMarkdown(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconQrCode(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1" />
+      <path d="M14 14h3v3h-3zM19 14h1.5v1.5H19zM14 19h1.5v1.5H14zM19 19h1.5v1.5H19z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconImage(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9.5" r="1.5" />
+      <path d="m4 17 5-5 4 4 3-3 4 4" />
+    </svg>
+  );
+}
+
+export function IconTextScan(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16" />
+      <path d="M7.5 9.5h9M7.5 12.5h9M7.5 15.5h5" />
+    </svg>
+  );
+}

@@ -6,7 +6,7 @@ import { FileDropZone } from "./FileDropZone";
 import { ToolResultCard } from "./ToolResultCard";
 import { Button } from "../Button";
 
-export function CompressImageTool({ onSend }: { onSend: (file: File) => void }) {
+export function CompressImageTool({ onSend }: { onSend?: (file: File) => void }) {
   const [original, setOriginal] = useState<File | null>(null);
   const [quality, setQuality] = useState(0.7);
   const [format, setFormat] = useState<CompressFormat>("jpeg");

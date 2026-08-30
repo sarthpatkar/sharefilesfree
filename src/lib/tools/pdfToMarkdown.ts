@@ -11,11 +11,12 @@ function median(nums: number[]): number {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-export async function pdfToMarkdown(file: File): Promise<File> {
+export async function pdfToMarkdown(file: File, onProgress?: (current: number, total: number) => void): Promise<File> {
   const pdf = await loadPdf(file);
   const allLines: PageTextLine[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     allLines.push(...(await extractPageLines(pdf, i)));
+    onProgress?.(i, pdf.numPages);
   }
   if (allLines.length === 0) throw new Error("Couldn't find any text in this PDF (it may be a scanned image).");
 

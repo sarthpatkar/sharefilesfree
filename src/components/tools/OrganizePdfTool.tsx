@@ -12,7 +12,7 @@ interface PageState extends PageEntry {
   deleted: boolean;
 }
 
-export function OrganizePdfTool({ onSend }: { onSend: (file: File) => void }) {
+export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [pages, setPages] = useState<PageState[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "processing" | "done" | "error">("idle");

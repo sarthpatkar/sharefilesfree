@@ -18,13 +18,14 @@ const POSITIONS: { value: NumberPosition; label: string }[] = [
   { value: "top-left", label: "Top left" },
 ];
 
-export function PageNumbersTool({ onSend }: { onSend: (file: File) => void }) {
+export function PageNumbersTool({ onSend }: { onSend?: (file: File) => void }) {
   const [options, setOptions] = useState<Options>({ position: "bottom-center", startAt: 1 });
   return (
     <SimpleConversionTool
       accept="application/pdf"
-      dropLabel="Drop a PDF here, or click to choose"
-      convert={(files, opts) => addPageNumbers(files[0], opts.position, opts.startAt)}
+      allowBatch
+      dropLabel="Drop one or more PDFs here, or click to choose"
+      convertOne={(file, opts) => addPageNumbers(file, opts.position, opts.startAt)}
       options={options}
       setOptions={setOptions}
       convertLabel="Add page numbers"

@@ -7,17 +7,19 @@
 import * as XLSX from "xlsx";
 import { loadPdf, extractPageLines } from "./pdfjs";
 
-export async function pdfToExcelBasic(file: File): Promise<File> {
+export async function pdfToExcelBasic(file: File, onProgress?: (current: number, total: number) => void): Promise<File> {
   const pdf = await loadPdf(file);
   const wb = XLSX.utils.book_new();
   let wroteAnySheet = false;
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const lines = await extractPageLines(pdf, i);
-    if (lines.length === 0) continue;
-    const ws = XLSX.utils.aoa_to_sheet(lines.map((l) => [l.text]));
-    XLSX.utils.book_append_sheet(wb, ws, `Page ${i}`.slice(0, 31));
-    wroteAnySheet = true;
+    if (lines.length > 0) {
+      const ws = XLSX.utils.aoa_to_sheet(lines.map((l) => [l.text]));
+      XLSX.utils.book_append_sheet(wb, ws, `Page ${i}`.slice(0, 31));
+      wroteAnySheet = true;
+    }
+    onProgress?.(i, pdf.numPages);
   }
   if (!wroteAnySheet) throw new Error("Couldn't find any text in this PDF (it may be a scanned image).");
 

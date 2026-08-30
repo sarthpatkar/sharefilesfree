@@ -6,13 +6,14 @@ import { SimpleConversionTool } from "./SimpleConversionTool";
 
 const DEFAULTS: WatermarkOptions = { text: "CONFIDENTIAL", opacity: 0.3, fontSize: 48, rotationDeg: 45 };
 
-export function WatermarkTool({ onSend }: { onSend: (file: File) => void }) {
+export function WatermarkTool({ onSend }: { onSend?: (file: File) => void }) {
   const [options, setOptions] = useState<WatermarkOptions>(DEFAULTS);
   return (
     <SimpleConversionTool
       accept="application/pdf"
-      dropLabel="Drop a PDF here, or click to choose"
-      convert={(files, opts) => watermarkPdf(files[0], opts)}
+      allowBatch
+      dropLabel="Drop one or more PDFs here, or click to choose"
+      convertOne={(file, opts) => watermarkPdf(file, opts)}
       options={options}
       setOptions={setOptions}
       convertLabel="Add watermark"

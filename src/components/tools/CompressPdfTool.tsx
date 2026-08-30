@@ -4,13 +4,14 @@ import { useState } from "react";
 import { compressPdf, type CompressLevel } from "@/lib/tools/compressPdf";
 import { SimpleConversionTool } from "./SimpleConversionTool";
 
-export function CompressPdfTool({ onSend }: { onSend: (file: File) => void }) {
+export function CompressPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [level, setLevel] = useState<CompressLevel>("light");
   return (
     <SimpleConversionTool
       accept="application/pdf"
-      dropLabel="Drop a PDF here, or click to choose"
-      convert={(files) => compressPdf(files[0], level)}
+      allowBatch
+      dropLabel="Drop one or more PDFs here, or click to choose"
+      convertOne={(file, opts, onProgress) => compressPdf(file, opts, onProgress)}
       options={level}
       setOptions={setLevel}
       compareSize
