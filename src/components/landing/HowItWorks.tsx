@@ -2,18 +2,23 @@
 
 import { Reveal, SectionLabel } from "./Reveal";
 
+/*
+ * Each step leads with what the person gets out of it, with the mechanism as
+ * the supporting clause — BRAND.md §1. "Nothing uploads yet" is the reassuring
+ * outcome; "the file stays on your device" is why.
+ */
 const STEPS = [
   {
-    title: "Drop your file",
-    body: "Any size, any type, as many as you like. Nothing uploads yet — the file stays on your device while it waits for the other side.",
+    title: "Drop it. Nothing uploads.",
+    body: "The file stays on your machine while it waits — so there's no progress bar to watch and nothing sitting on a server if the other person never shows up.",
   },
   {
-    title: "Share the 6-digit code",
-    body: "Read it out, text it, or let them scan the QR. Works across networks, operating systems, and phone-to-laptop in either direction.",
+    title: "Say six digits out loud.",
+    body: "That's the whole handoff. Read it across the room, text it, or let them scan the QR — it works phone to laptop, Windows to Mac, across any two networks.",
   },
   {
-    title: "It lands, directly",
-    body: "The two browsers open an encrypted connection and the bytes flow peer to peer. Receiver offline? Switch to a shareable link instead.",
+    title: "It's already on their device.",
+    body: "The two browsers connect directly and the file moves at whatever your network can do, encrypted the whole way. If they're not online, you get a link instead.",
   },
 ];
 
@@ -27,7 +32,7 @@ export function HowItWorks() {
 
         <Reveal delay={90}>
           <h2 className="mt-10 max-w-3xl font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
-            Three steps. No account anywhere in them.
+            Faster than attaching it to an email.
           </h2>
         </Reveal>
 

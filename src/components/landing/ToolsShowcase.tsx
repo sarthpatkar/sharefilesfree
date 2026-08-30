@@ -56,13 +56,14 @@ export function ToolsShowcase() {
         <div className="mt-10 grid gap-x-12 gap-y-8 lg:grid-cols-12">
           <Reveal delay={90} className="lg:col-span-7">
             <h2 className="font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
-              {TOOLS.length} file tools that never see your files.
+              Fix the file before you send it.
             </h2>
           </Reveal>
           <Reveal delay={160} className="flex flex-col justify-end lg:col-span-5">
             <p className="max-w-md text-[16px] leading-[1.7] text-ink-soft">
-              Merge, split, compress, convert, OCR. Every one runs inside your browser — no upload queue, no
-              watermark, no daily limit, and genuinely nothing for us to leak.
+              <span className="text-ink">Too big for email? Wrong format? Scanned instead of typed?</span> Merge, split,
+              compress, convert and OCR — {TOOLS.length} tools that run on your own machine, so the contract you just
+              signed never gets uploaded to anyone&apos;s server to be processed. No watermark, no daily cap.
             </p>
             <Link href="/tools" className="sff-underline mt-5 w-fit text-sm font-medium text-ink">
               Browse all {TOOLS.length} tools

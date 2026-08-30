@@ -12,15 +12,19 @@ export function ClosingCta() {
       <div className="relative mx-auto w-full max-w-[1400px] px-5 py-24 sm:px-8 sm:py-32">
         <Reveal>
           <h2 className="max-w-4xl font-display text-[clamp(2.4rem,7vw,5.5rem)] font-medium leading-[1.04] tracking-[-0.015em] text-ink">
-            Your file is one
+            Nothing to lose.
             <br />
-            drop away.
+            Literally nothing.
           </h2>
         </Reveal>
 
         <Reveal delay={100}>
-          <p className="mt-8 max-w-md text-[17px] leading-[1.65] text-ink-soft">
-            No account to make, nothing to install, and no upsell waiting at the end of it.
+          {/* Risk reversal, stated as things that cannot happen to you — the
+              honest version of a guarantee for a product with no account and
+              no price. BRAND.md §3. */}
+          <p className="mt-8 max-w-lg text-[17px] leading-[1.65] text-ink-soft">
+            No account to abandon later. No card to cancel. No file of yours sitting on a server you forgot about.
+            Close the tab and there is nothing left behind.
           </p>
         </Reveal>
 

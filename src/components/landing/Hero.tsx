@@ -7,11 +7,17 @@ import { takeHandoffFile } from "@/lib/handoff";
 import { TransferAnimation } from "./TransferAnimation";
 import { GridBackdrop } from "./GridBackdrop";
 
+/*
+ * Benefit-framed, not feature-framed — see BRAND.md §1. "None on P2P" is a
+ * spec; "Send the whole 4GB video" is the thing the person actually wanted.
+ * These four are also the scan path (§4): someone who reads only the headline
+ * and this rail should still understand the entire offer.
+ */
 const FACTS = [
-  { k: "Size limit", v: "None on P2P" },
-  { k: "Accounts", v: "Zero, ever" },
-  { k: "Encryption", v: "End to end" },
-  { k: "Free tools", v: "19 included" },
+  { k: "File size", v: "Send the whole 4GB video" },
+  { k: "Sign-up", v: "There isn't one" },
+  { k: "Who can read it", v: "You two, nobody else" },
+  { k: "Also included", v: "19 tools, no watermark" },
 ];
 
 export function Hero() {
@@ -67,16 +73,20 @@ export function Hero() {
           </h1>
 
           <div className="col-span-full mt-7 lg:col-span-5 lg:col-start-1">
+            {/* Pacing (BRAND.md §5): a short declarative line, then a longer
+                one, then short again — a paragraph of same-length sentences
+                reads as filler and the eye slides off it. */}
             <p
               className="sff-enter max-w-lg text-pretty text-[17px] leading-[1.65] text-ink-soft sm:text-lg"
               style={{ "--i": 4 } as React.CSSProperties}
             >
-              Drop a file, read out a 6-digit code, and it lands on the other device — straight from one browser to
-              the other. No account, no upload queue, no size-limit games. Plus{" "}
+              <span className="text-ink">Your file lands on their device while you&apos;re still reading out the code.</span>{" "}
+              It goes browser to browser, so there&apos;s no upload to sit through and no ceiling on how big it can be
+              — the thing WeTransfer stops at 2GB for. Then it&apos;s gone. Nothing kept, nothing to sign up for, and{" "}
               <Link href="/tools" className="sff-underline font-medium text-ink">
-                19 free file tools
+                19 file tools
               </Link>{" "}
-              that never send your files anywhere.
+              that work the same way.
             </p>
           </div>
         </div>
@@ -106,6 +116,23 @@ export function Hero() {
               </Link>
             </div>
             <SendPanel initialFile={handoffFile} />
+
+            {/* Shrink the downside (BRAND.md §3). The hesitation before handing
+                over a file is "is this safe / will it work / what's the catch",
+                and it happens *here*, at the drop zone — not in a trust section
+                below the fold. Answered plainly, including the catch. */}
+            <dl className="mt-8 grid gap-x-6 gap-y-4 border-t border-rule pt-6 text-[13px] leading-[1.55] sm:grid-cols-3">
+              {[
+                ["Is it safe?", "Encrypted end to end by your browser. We never get a copy."],
+                ["Will it work?", "Any browser, any OS, phone to laptop. Nothing to install."],
+                ["What's the catch?", "Ads pay for it, later. Never your file size or your wallet."],
+              ].map(([q, a]) => (
+                <div key={q}>
+                  <dt className="font-medium text-ink">{q}</dt>
+                  <dd className="mt-1 text-ink-soft">{a}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
           {/* Deliberately after the send panel in DOM order: on a phone the
