@@ -1,6 +1,7 @@
 "use client";
 
 import { Reveal, SectionLabel } from "./Reveal";
+import { TransferAnimation } from "./TransferAnimation";
 
 /*
  * Each step leads with what the person gets out of it, with the mechanism as
@@ -30,11 +31,21 @@ export function HowItWorks() {
           <SectionLabel index="01">How it works</SectionLabel>
         </Reveal>
 
-        <Reveal delay={90}>
-          <h2 className="mt-10 max-w-3xl font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
-            Faster than attaching it to an email.
-          </h2>
-        </Reveal>
+        <div className="mt-10 grid items-center gap-x-14 gap-y-10 lg:grid-cols-12">
+          <Reveal delay={90} className="lg:col-span-6">
+            <h2 className="max-w-2xl font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
+              Faster than attaching it to an email.
+            </h2>
+          </Reveal>
+
+          {/* The illustration lives here rather than in the hero: it shows a
+              file crossing directly from laptop to phone, which is precisely
+              what the three steps below describe. Beside the words it explains
+              them; in the hero it was only decorating. */}
+          <Reveal delay={170} className="lg:col-span-6">
+            <TransferAnimation />
+          </Reveal>
+        </div>
 
         {/* Ruled columns sharing hairlines, rather than three bordered cards. */}
         <ol className="mt-16 grid border-t border-ink md:grid-cols-3">
