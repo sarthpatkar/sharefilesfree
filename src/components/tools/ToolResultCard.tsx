@@ -41,10 +41,10 @@ export function ToolResultCard({
     // a box inside a box is the nested-card look we avoid site-wide.
     <div className="flex flex-col gap-6 border-t-2 border-ink pt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <p className="min-w-0 flex-1 truncate font-display text-xl font-bold tracking-[-0.015em] text-ink">
+        <p className="min-w-0 flex-1 truncate font-display text-xl font-bold tracking-[-0.015em] text-red">
           {file.name}
         </p>
-        <p className="font-mono text-xs tabular-nums text-ink-soft">
+        <p className="font-mono text-xs tabular-nums text-red">
           {formatBytes(file.size)}
           {savedPct !== null && savedPct > 0 && <span className="ml-2 text-accent">−{savedPct}%</span>}
         </p>
@@ -55,7 +55,7 @@ export function ToolResultCard({
           re-encoding — say so plainly instead of silently showing nothing,
           which reads as broken rather than as an honest result. */}
       {savedPct !== null && savedPct <= 0 && (
-        <p className="border-l-2 border-rule-strong pl-3 text-sm text-ink-soft">
+        <p className="border-l-2 border-rule-strong pl-3 text-sm text-red">
           Not smaller this time — this file may already be efficiently compressed. Try a lower quality, or a
           different output format.
         </p>
@@ -76,12 +76,12 @@ export function ToolResultCard({
           <button
             type="button"
             onClick={() => onSend(file)}
-            className="sff-underline inline-flex items-center gap-2 py-1 text-sm font-medium text-ink"
+            className="link inline-flex items-center gap-2 py-1 text-sm font-medium text-red"
           >
             <IconSend className="h-4 w-4" /> Send this file
           </button>
         )}
-        <button type="button" onClick={onReset} className="sff-underline py-1 text-sm text-ink-soft">
+        <button type="button" onClick={onReset} className="link py-1 text-sm text-red">
           Start over
         </button>
       </div>

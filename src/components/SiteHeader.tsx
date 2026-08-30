@@ -12,40 +12,25 @@ const NAV = [
   { href: "/#faq", label: "FAQ" },
 ];
 
+/**
+ * A solid red band across the top. No hairline, no blur-on-scroll, and no
+ * colour shift under the cursor — the band is simply always there, and hover
+ * feedback is a nudge rather than a recolour.
+ */
 export function SiteHeader() {
-  const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
-  // Scroll state drives two things: the header's hairline/backdrop, and the
-  // reading-progress rule pinned to the very top of the viewport.
-  useEffect(() => {
-    function onScroll() {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setScrolled(window.scrollY > 8);
-      setProgress(max > 0 ? Math.min(1, window.scrollY / max) : 0);
-    }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
-
-  // Close the menu on navigation — without this, tapping a link that only
-  // changes the hash leaves the overlay covering the thing you jumped to.
+  // Close on navigation — otherwise a hash link leaves the overlay covering
+  // the very thing it jumped to.
   useEffect(() => {
     const timer = setTimeout(() => setMenuOpen(false), 0);
     return () => clearTimeout(timer);
   }, [pathname]);
 
-  // While the overlay is open: lock the page behind it, close on Escape, and
-  // keep Tab inside the panel so focus can't wander into the hidden page.
+  // While open: lock the page behind it, close on Escape, keep Tab inside.
   useEffect(() => {
     if (!menuOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -80,57 +65,35 @@ export function SiteHeader() {
 
   return (
     <>
-      {/* Reading progress — a single hairline, scaled. Costs one transform. */}
-      <div
-        aria-hidden
-        className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-left bg-accent"
-        style={{ transform: `scaleX(${progress})`, transition: "transform 90ms linear" }}
-      />
-
-      <header
-        className={`sticky top-0 z-50 transition-colors duration-300 ${
-          scrolled ? "border-b border-rule bg-paper/95 backdrop-blur-md" : "border-b border-transparent"
-        }`}
-      >
-        <div className="mx-auto flex w-full max-w-[1400px] items-stretch justify-between px-5 sm:px-8">
-          <Link href="/" className="group flex items-center gap-3 py-4" aria-label="ShareFilesFree home">
-            <span className="flex h-8 w-8 items-center justify-center bg-accent text-on-accent transition-transform duration-500 group-hover:rotate-[-10deg]">
-              <IconSend className="h-4 w-4" />
+      <header className="sticky top-0 z-50 bg-red">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
+          <Link href="/" className="sff-nudge flex items-center gap-3" aria-label="ShareFilesFree home">
+            <span className="flex h-9 w-9 items-center justify-center bg-lime text-red">
+              <IconSend className="h-5 w-5" />
             </span>
-            <span className="font-display text-[19px] font-bold leading-none tracking-[-0.02em] text-ink">
-              ShareFilesFree
-            </span>
+            <span className="font-display text-[19px] leading-none text-yellow">ShareFilesFree</span>
           </Link>
 
-          <nav className="hidden items-center gap-9 md:flex" aria-label="Main">
+          <nav className="hidden items-center gap-8 md:flex" aria-label="Main">
             {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                data-active={pathname === item.href}
-                className="sff-underline py-4 text-[14px] text-ink-soft transition-colors hover:text-ink"
-              >
+              <Link key={item.href} href={item.href} className="sff-nudge text-[15px] font-semibold text-yellow">
                 {item.label}
               </Link>
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/receive"
-              className="sff-underline hidden py-4 text-[14px] text-ink-soft transition-colors hover:text-ink sm:block"
-            >
+          <div className="flex items-center gap-3">
+            <Link href="/receive" className="sff-nudge hidden text-[15px] font-semibold text-yellow sm:block">
               Receive
             </Link>
             <Link
               href="/#send"
-              className="sff-press my-2.5 hidden bg-ink px-5 text-[14px] font-medium leading-none text-paper hover:bg-accent sm:flex sm:items-center"
+              className="sff-nudge hidden bg-lime px-5 py-2.5 font-display text-[15px] leading-none text-red sm:block"
             >
               Send a file
             </Link>
 
-            {/* Hamburger: two hairlines that cross into an X. 48px square, so
-                it clears the 44px minimum touch target on every phone. */}
+            {/* 48px square — clears the 44px minimum on every phone. */}
             <button
               ref={toggleRef}
               type="button"
@@ -138,16 +101,16 @@ export function SiteHeader() {
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="relative -mr-3 flex h-12 w-12 items-center justify-center md:hidden"
+              className="relative -mr-2 flex h-12 w-12 items-center justify-center md:hidden"
             >
               <span
-                className={`absolute h-[1.5px] w-6 bg-ink transition-transform duration-400 ease-[cubic-bezier(0.19,1,0.22,1)] ${
-                  menuOpen ? "rotate-45" : "-translate-y-[5px]"
+                className={`absolute h-[3px] w-7 bg-yellow transition-transform duration-300 ${
+                  menuOpen ? "rotate-45" : "-translate-y-[6px]"
                 }`}
               />
               <span
-                className={`absolute h-[1.5px] w-6 bg-ink transition-transform duration-400 ease-[cubic-bezier(0.19,1,0.22,1)] ${
-                  menuOpen ? "-rotate-45" : "translate-y-[5px]"
+                className={`absolute h-[3px] w-7 bg-yellow transition-transform duration-300 ${
+                  menuOpen ? "-rotate-45" : "translate-y-[6px]"
                 }`}
               />
             </button>
@@ -155,41 +118,34 @@ export function SiteHeader() {
         </div>
       </header>
 
-      {/* Full-screen mobile menu. Solid paper, ruled rows, oversized type —
-          the same editorial language as the page, not a floating panel. */}
+      {/* Full-screen red field, wiped open from the button corner. */}
       <div
         id="mobile-menu"
         ref={panelRef}
         aria-hidden={!menuOpen}
-        className={`fixed inset-0 z-40 bg-paper md:hidden ${
-          menuOpen ? "pointer-events-auto" : "pointer-events-none"
-        }`}
+        className={`fixed inset-0 z-40 bg-red md:hidden ${menuOpen ? "pointer-events-auto" : "pointer-events-none"}`}
         style={{
-          clipPath: menuOpen ? "inset(0 0 0 0)" : "inset(0 0 100% 0)",
-          transition: "clip-path 0.55s cubic-bezier(0.19, 1, 0.22, 1)",
+          clipPath: menuOpen ? "circle(150% at 90% 5%)" : "circle(0% at 90% 5%)",
+          transition: "clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
         <div className="flex h-full flex-col px-5 pb-10 pt-24">
-          <nav className="flex flex-col border-t border-rule" aria-label="Mobile">
+          <nav className="flex flex-col gap-1" aria-label="Mobile">
             {[...NAV, { href: "/receive", label: "Receive" }].map((item, i) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
                 tabIndex={menuOpen ? 0 : -1}
-                className="group flex items-baseline justify-between border-b border-rule py-5 transition-colors active:bg-ink active:text-paper"
+                className="flex items-baseline gap-4 py-2.5"
                 style={{
                   opacity: menuOpen ? 1 : 0,
-                  transform: menuOpen ? "translateY(0)" : "translateY(14px)",
-                  transition: `opacity 0.5s cubic-bezier(0.19,1,0.22,1) ${120 + i * 60}ms, transform 0.5s cubic-bezier(0.19,1,0.22,1) ${120 + i * 60}ms`,
+                  transform: menuOpen ? "translateY(0)" : "translateY(16px)",
+                  transition: `opacity .4s ease ${140 + i * 55}ms, transform .4s cubic-bezier(.2,1,.3,1) ${140 + i * 55}ms`,
                 }}
               >
-                <span className="font-display text-[30px] font-bold leading-none tracking-[-0.02em]">
-                  {item.label}
-                </span>
-                <span className="font-mono text-[11px] tabular-nums text-ink-soft">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
+                <span className="font-display text-[15px] leading-none text-pink">0{i + 1}</span>
+                <span className="font-display text-[34px] leading-none text-yellow">{item.label}</span>
               </Link>
             ))}
           </nav>
@@ -198,20 +154,17 @@ export function SiteHeader() {
             href="/#send"
             onClick={() => setMenuOpen(false)}
             tabIndex={menuOpen ? 0 : -1}
-            className="sff-press sff-offset mt-10 flex items-center justify-center bg-accent py-4 text-[15px] font-medium text-on-accent"
-            style={{
-              opacity: menuOpen ? 1 : 0,
-              transition: "opacity 0.5s cubic-bezier(0.19,1,0.22,1) 440ms",
-            }}
+            className="mt-10 block bg-lime px-6 py-4 text-center font-display text-[20px] leading-none text-red"
+            style={{ opacity: menuOpen ? 1 : 0, transition: "opacity .4s ease 420ms" }}
           >
             Send a file
           </Link>
 
           <p
-            className="mt-auto pt-10 font-mono text-[11px] uppercase tracking-[0.2em] text-ink-soft"
-            style={{ opacity: menuOpen ? 1 : 0, transition: "opacity 0.5s ease 500ms" }}
+            className="mt-auto pt-10 text-[12px] font-bold uppercase tracking-[0.18em] text-pink"
+            style={{ opacity: menuOpen ? 1 : 0, transition: "opacity .4s ease 480ms" }}
           >
-            No account · No install · Free
+            No account · No app · Free
           </p>
         </div>
       </div>

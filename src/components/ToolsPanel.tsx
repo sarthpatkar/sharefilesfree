@@ -3,49 +3,52 @@
 import Link from "next/link";
 import { TOOLS, TOOL_GROUPS } from "./tools/registry";
 
+/* Each group takes a different field, so the palette organises the index. */
+const GROUP_FIELDS: Record<string, string> = {
+  "PDF pages": "bg-yellow",
+  "Convert to PDF": "bg-lime",
+  "Convert from PDF": "bg-blush",
+  Images: "bg-gold",
+  Utilities: "bg-pink",
+};
+
 /**
- * A directory of tools, each linking to its own indexable /tools/[slug] page.
- * Built as ruled cells sharing hairlines with their neighbours rather than a
- * grid of bordered cards — the card grid is exactly the look we avoid, and a
- * shared-rule matrix reads as a considered index instead.
+ * The tools index. Every tool links to its own page, and the colour of the
+ * block tells you which family it belongs to — no rules, no dividers.
  */
 export function ToolsPanel() {
   return (
-    <div className="flex flex-col gap-16">
+    <div className="flex flex-col gap-14">
       {TOOL_GROUPS.map((group) => {
         const tools = TOOLS.filter((t) => t.group === group);
         if (tools.length === 0) return null;
+        const field = GROUP_FIELDS[group] ?? "bg-yellow";
         return (
           <section key={group}>
-            <div className="flex items-center gap-4">
-              <h2 className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">{group}</h2>
-              <span className="h-px flex-1 bg-rule" />
-              <span className="font-mono text-[11px] tabular-nums text-accent">
-                {String(tools.length).padStart(2, "0")}
-              </span>
+            <div className="flex items-baseline gap-3">
+              <h2 className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
+                {group}
+              </h2>
+              <span className="font-display text-[16px] text-red opacity-50">{String(tools.length).padStart(2, "0")}</span>
             </div>
 
-            <div className="mt-5 grid border-t border-ink sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {tools.map((tool) => (
                 <Link
                   key={tool.slug}
                   href={`/tools/${tool.slug}`}
-                  className="sff-cell group relative flex flex-col gap-2 border-b border-rule px-0 py-6 hover:bg-ink sm:px-6 sm:[&:nth-child(2n+1)]:border-r lg:[&:nth-child(2n+1)]:border-r-0 lg:[&:not(:nth-child(3n))]:border-r"
+                  className={`sff-nudge sff-block-sm relative flex flex-col gap-2 p-6 ${field}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <tool.icon className="h-5 w-5 shrink-0 text-accent" />
+                    <tool.icon className="h-7 w-7 shrink-0 text-red" />
                     {tool.caveat && (
-                      <span className="border border-rule px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft transition-colors group-hover:border-paper/30 group-hover:text-paper/70">
+                      <span className="bg-red px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-yellow">
                         {tool.caveat}
                       </span>
                     )}
                   </div>
-                  <span className="mt-1 font-display text-lg font-bold tracking-[-0.015em] text-ink transition-colors group-hover:text-paper">
-                    {tool.title}
-                  </span>
-                  <span className="text-sm leading-relaxed text-ink-soft transition-colors group-hover:text-paper/70">
-                    {tool.cardBlurb}
-                  </span>
+                  <span className="mt-1 font-display text-[21px] leading-[1.05] text-red">{tool.title}</span>
+                  <span className="text-[14px] font-semibold leading-[1.45] text-red">{tool.cardBlurb}</span>
                 </Link>
               ))}
             </div>

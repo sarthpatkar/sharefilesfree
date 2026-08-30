@@ -1,69 +1,52 @@
 "use client";
 
-import { Reveal, SectionLabel } from "./Reveal";
 import { TransferAnimation } from "./TransferAnimation";
 
-/*
- * Each step leads with what the person gets out of it, with the mechanism as
- * the supporting clause — BRAND.md §1. "Nothing uploads yet" is the reassuring
- * outcome; "the file stays on your device" is why.
- */
+/* Outcome first, mechanism as the supporting clause. */
 const STEPS = [
   {
-    title: "Drop it. Nothing uploads.",
-    body: "The file stays on your machine while it waits — so there's no progress bar to watch and nothing sitting on a server if the other person never shows up.",
+    title: "Drop it.",
+    body: "Nothing uploads. Your file waits on your own machine, so there's no progress bar to sit through and nothing left on a server if they never turn up.",
   },
   {
-    title: "Say six digits out loud.",
-    body: "That's the whole handoff. Read it across the room, text it, or let them scan the QR — it works phone to laptop, Windows to Mac, across any two networks.",
+    title: "Say six digits.",
+    body: "That's the whole handoff. Read them across the room, text them, or let them point a camera at the code. Phone to laptop, any two networks.",
   },
   {
-    title: "It's already on their device.",
-    body: "The two browsers connect directly and the file moves at whatever your network can do, encrypted the whole way. If they're not online, you get a link instead.",
+    title: "Done.",
+    body: "It's already on their screen, at whatever speed your connection can manage. If they're not around right now, you get a link instead.",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section id="how" className="scroll-mt-20 border-b border-rule">
+    <section id="how" className="scroll-mt-20 bg-lime">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
-        <Reveal>
-          <SectionLabel index="01">How it works</SectionLabel>
-        </Reveal>
+        <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
+          How it works
+        </p>
 
-        <div className="mt-10 grid items-center gap-x-14 gap-y-10 lg:grid-cols-12">
-          <Reveal delay={90} className="lg:col-span-6">
-            <h2 className="max-w-2xl font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
-              Faster than attaching it to an email.
-            </h2>
-          </Reveal>
+        <div className="mt-8 grid items-center gap-x-14 gap-y-10 lg:grid-cols-12">
+          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red lg:col-span-6">
+            Faster than attaching it to an email.
+          </h2>
 
-          {/* The illustration lives here rather than in the hero: it shows a
-              file crossing directly from laptop to phone, which is precisely
-              what the three steps below describe. Beside the words it explains
-              them; in the hero it was only decorating. */}
-          <Reveal delay={170} className="lg:col-span-6">
+          {/* The illustration belongs here rather than in the hero: it shows a
+              file crossing straight from one screen to the other, which is
+              exactly what the three steps underneath describe. */}
+          <div className="lg:col-span-6">
             <TransferAnimation />
-          </Reveal>
+          </div>
         </div>
 
-        {/* Ruled columns sharing hairlines, rather than three bordered cards. */}
-        <ol className="mt-16 grid border-t border-ink md:grid-cols-3">
+        {/* Three blocks. The colour change between them is the divider. */}
+        <ol className="mt-14 grid gap-5 md:grid-cols-3">
           {STEPS.map((step, i) => (
-            <Reveal
-              key={step.title}
-              as="li"
-              delay={i * 120}
-              className="group relative border-b border-rule md:border-b-0 md:border-r md:last:border-r-0"
-            >
-              <div className="sff-cell h-full px-0 py-8 md:px-7 md:first:pl-0">
-                <div className="flex items-baseline gap-4">
-                  <span className="font-mono text-sm tabular-nums text-accent">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">{step.title}</h3>
-                </div>
-                <p className="mt-4 max-w-sm text-[15px] leading-[1.7] text-ink-soft md:pl-[3.25rem]">{step.body}</p>
-              </div>
-            </Reveal>
+            <li key={step.title} className="sff-block-sm bg-yellow p-6">
+              <span className="font-display text-[44px] leading-none text-pink">0{i + 1}</span>
+              <h3 className="mt-3 font-display text-[26px] leading-none text-red">{step.title}</h3>
+              <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{step.body}</p>
+            </li>
           ))}
         </ol>
       </div>

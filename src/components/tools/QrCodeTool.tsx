@@ -76,7 +76,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
   const [text, setText] = useState("");
   const [size, setSize] = useState(500);
-  const [dark, setDark] = useState("#1c3ad4");
+  const [dark, setDark] = useState("#d50000");
   const [light, setLight] = useState("#ffffff");
   const [margin, setMargin] = useState(2);
   const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<ErrorCorrection>("M");
@@ -232,7 +232,7 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
             </>
           )}
         </div>
-        <p className="text-xs text-muted">The logo never leaves your browser — it&apos;s only composited into the image locally.</p>
+        <p className="text-xs text-muted">Your logo never leaves this device — it&apos;s added to the image right here.</p>
       </div>
 
       {error && (

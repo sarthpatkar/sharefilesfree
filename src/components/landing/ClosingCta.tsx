@@ -1,46 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { Reveal } from "./Reveal";
-import { GridBackdrop } from "./GridBackdrop";
 
 export function ClosingCta() {
   return (
-    <section className="relative overflow-hidden border-b border-rule">
-      <GridBackdrop size={64} className="opacity-50" />
+    <section className="relative overflow-hidden bg-red">
+      {/* Big flat shapes doing the graphic work the pinks are for. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="sff-bob absolute -bottom-24 -right-16 h-[360px] w-[360px] bg-pink"
+          style={{ "--tilt": "-14deg" } as React.CSSProperties}
+        />
+        <div className="absolute -left-20 -top-16 h-[220px] w-[220px] rotate-[24deg] bg-blush opacity-60" />
+      </div>
 
       <div className="relative mx-auto w-full max-w-[1400px] px-5 py-24 sm:px-8 sm:py-32">
-        <Reveal>
-          <h2 className="max-w-4xl font-display text-[clamp(2.8rem,8vw,6.6rem)] font-black leading-[0.9] tracking-[-0.028em] text-ink">
-            Nothing to lose.
-            <br />
-            Literally nothing.
-          </h2>
-        </Reveal>
+        <h2 className="max-w-4xl font-display text-[clamp(2.8rem,7.5vw,6.4rem)] leading-[1.0] text-yellow">
+          Nothing to lose.
+          <br />
+          <span className="text-lime">Literally nothing.</span>
+        </h2>
 
-        <Reveal delay={100}>
-          {/* Risk reversal, stated as things that cannot happen to you — the
-              honest version of a guarantee for a product with no account and
-              no price. BRAND.md §3. */}
-          <p className="mt-8 max-w-lg text-[17px] leading-[1.65] text-ink-soft">
-            No account to abandon later. No card to cancel. No file of yours sitting on a server you forgot about.
-            Close the tab and there is nothing left behind.
-          </p>
-        </Reveal>
+        <p className="mt-8 max-w-lg text-[17px] font-medium leading-[1.6] text-yellow sm:text-[19px]">
+          No account to abandon later. No card to cancel. No file of yours sitting on a server you forgot about.
+          Close the tab and there is nothing left behind.
+        </p>
 
-        <Reveal delay={170}>
-          <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-            <Link
-              href="/#send"
-              className="sff-press inline-flex items-center bg-ink px-7 py-4 text-[15px] font-medium leading-none text-paper shadow-[5px_5px_0_var(--accent)] hover:bg-accent"
-            >
-              Send a file
-            </Link>
-            <Link href="/tools" className="sff-underline py-2 text-[15px] font-medium text-ink">
-              Explore the 19 tools
-            </Link>
-          </div>
-        </Reveal>
+        <div className="mt-10 flex flex-wrap items-center gap-4">
+          <Link
+            href="/#send"
+            className="sff-nudge inline-flex items-center bg-lime px-8 py-4 font-display text-[19px] leading-none text-red"
+          >
+            Send a file
+          </Link>
+          <Link
+            href="/tools"
+            className="sff-nudge inline-flex items-center bg-yellow px-8 py-4 font-display text-[19px] leading-none text-red"
+          >
+            Explore the 19 tools
+          </Link>
+        </div>
       </div>
     </section>
   );

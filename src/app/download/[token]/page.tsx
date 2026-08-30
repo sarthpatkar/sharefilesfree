@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { DownloadPanel } from "@/components/DownloadPanel";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { GridBackdrop } from "@/components/landing/GridBackdrop";
 
 // Shared links are single-use and private — they should never be indexed.
 export const metadata: Metadata = {
@@ -16,10 +15,9 @@ export default async function DownloadPage({ params }: { params: Promise<{ token
     <>
       <SiteHeader />
       <main className="relative flex flex-1 flex-col overflow-hidden">
-        <GridBackdrop size={64} className="opacity-50" />
 
         <div className="relative mx-auto w-full max-w-[1400px] px-5 sm:px-8">
-          <div className="flex items-center gap-4 border-b border-rule py-4">
+          <div className="flex items-center gap-4 py-4">
             <span className="h-1.5 w-1.5 shrink-0 bg-accent" />
             <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">
               Someone shared a file with you
@@ -28,17 +26,9 @@ export default async function DownloadPage({ params }: { params: Promise<{ token
 
           <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-bold leading-[0.88] tracking-[-0.024em] text-ink">
-                <span className="block overflow-hidden pb-[0.07em]">
-                  <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
-                    Your file is
-                  </span>
-                </span>
-                <span className="block overflow-hidden pb-[0.07em]">
-                  <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
-                    ready.
-                  </span>
-                </span>
+              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-bold leading-[0.97] tracking-[-0.024em] text-ink">
+                <span className="block">Your file is</span>
+                <span className="block text-accent">ready.</span>
               </h1>
               <p
                 className="sff-enter mt-6 max-w-sm text-[16px] leading-[1.7] text-ink-soft"
@@ -50,7 +40,7 @@ export default async function DownloadPage({ params }: { params: Promise<{ token
             </header>
 
             <div
-              className="sff-enter mt-12 border-t border-ink pt-10 lg:col-span-7 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-16 lg:pt-0"
+              className="sff-enter mt-12 pt-10 lg:col-span-7 lg:mt-0-0 lg:pl-16 lg:pt-0"
               style={{ "--i": 4 } as React.CSSProperties}
             >
               <DownloadPanel token={token} />

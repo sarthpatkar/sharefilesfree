@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ReceivePanel } from "@/components/ReceivePanel";
-import { GridBackdrop } from "@/components/landing/GridBackdrop";
 
 export const metadata: Metadata = {
   title: "Receive a file — enter your 6-digit code — ShareFilesFree",
@@ -22,38 +21,28 @@ export default async function ReceivePage({
     <>
       <SiteHeader />
       <main className="relative flex flex-1 flex-col overflow-hidden">
-        <GridBackdrop size={64} className="opacity-60" />
 
         <div className="relative mx-auto w-full max-w-[1400px] flex-1 px-5 sm:px-8">
-          <div className="flex items-center gap-4 border-b border-rule py-4">
+          <div className="flex items-center gap-4 py-4">
             <span className="h-1.5 w-1.5 shrink-0 bg-accent" />
-            <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">Receive</span>
+            <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-red">Receive</span>
           </div>
 
           <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <h1 className="font-display text-[clamp(2.4rem,6vw,4.5rem)] font-black leading-[0.9] tracking-[-0.028em] text-ink">
-                <span className="block overflow-hidden pb-[0.07em]">
-                  <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
-                    Enter the code
-                  </span>
-                </span>
-                <span className="block overflow-hidden pb-[0.07em]">
-                  <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
-                    you were given.
-                  </span>
-                </span>
+              <h1 className="font-display text-[clamp(2.4rem,6vw,4.5rem)] font-black leading-[0.98] tracking-[-0.028em] text-red">
+                <span className="block">Enter the code</span>
+                <span className="block text-accent">you were given.</span>
               </h1>
               <p
-                className="sff-enter mt-7 max-w-sm text-[16px] leading-[1.7] text-ink-soft"
+                className="sff-enter mt-7 max-w-sm text-[16px] leading-[1.7] text-red"
                 style={{ "--i": 3 } as React.CSSProperties}
               >
-                The file transfers straight from the sender&apos;s browser to yours — it never lands on a server in
-                between, and there&apos;s nothing to install on either end.
+                Whoever sent this is holding it on their screen right now. Type the six digits and it comes straight to you — it never sits on a server in between, and there is nothing to install.
               </p>
-              <p className="sff-enter mt-8 text-sm text-ink-soft" style={{ "--i": 4 } as React.CSSProperties}>
+              <p className="sff-enter mt-8 text-sm text-red" style={{ "--i": 4 } as React.CSSProperties}>
                 Wanted to send instead?{" "}
-                <Link href="/#send" className="sff-underline font-medium text-ink">
+                <Link href="/#send" className="link font-medium text-red">
                   Drop a file here
                 </Link>
                 .
@@ -61,7 +50,7 @@ export default async function ReceivePage({
             </header>
 
             <div
-              className="sff-enter mt-14 border-t border-ink pt-12 lg:col-span-7 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-16 lg:pt-0"
+              className="sff-enter mt-14 pt-12 lg:col-span-7 lg:mt-0-0 lg:pl-16 lg:pt-0"
               style={{ "--i": 5 } as React.CSSProperties}
             >
               <ReceivePanel initialCode={code} />

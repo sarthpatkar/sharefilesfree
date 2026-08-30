@@ -35,7 +35,7 @@ function AppJsonLd() {
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any (web browser)",
     description:
-      "Send files between devices with a 6-digit code — no account, no app, no size limit on peer-to-peer transfers. Includes 19 free browser-based PDF and image tools.",
+      "Send any file to any device with a six-digit code. No account, no app, no size limit. Plus 19 free tools to fix your file before it goes.",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;

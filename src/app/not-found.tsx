@@ -1,25 +1,19 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { GridBackdrop } from "@/components/landing/GridBackdrop";
 
 export default function NotFound() {
   return (
     <>
       <SiteHeader />
       <main className="relative flex flex-1 flex-col overflow-hidden">
-        <GridBackdrop size={64} className="opacity-60" />
         <div className="relative mx-auto flex w-full max-w-[1400px] flex-1 flex-col justify-center px-5 py-24 sm:px-8">
           <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">Error 404</p>
-          <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.4rem,7vw,5rem)] font-black leading-[0.9] tracking-[-0.028em] text-ink">
-            <span className="block overflow-hidden pb-[0.07em]">
-              <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
-                This page isn&apos;t here.
-              </span>
-            </span>
+          <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.4rem,7vw,5rem)] font-black leading-[0.98] tracking-[-0.028em] text-red">
+            <span className="block">This page isn&apos;t here.</span>
           </h1>
           <p
-            className="sff-enter mt-7 max-w-md text-[17px] leading-[1.65] text-ink-soft"
+            className="sff-enter mt-7 max-w-md text-[17px] leading-[1.65] text-red"
             style={{ "--i": 2 } as React.CSSProperties}
           >
             Either it never existed, or a shared link pointing here has expired or been removed — which is working
@@ -35,7 +29,7 @@ export default function NotFound() {
             >
               Back to ShareFilesFree
             </Link>
-            <Link href="/tools" className="sff-underline py-2 text-[15px] font-medium text-ink">
+            <Link href="/tools" className="link py-2 text-[15px] font-medium text-red">
               Browse the tools
             </Link>
           </div>
