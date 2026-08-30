@@ -40,7 +40,7 @@ export function ToolsPanel() {
                       </span>
                     )}
                   </div>
-                  <span className="mt-1 font-display text-lg font-medium tracking-[-0.01em] text-ink transition-colors group-hover:text-paper">
+                  <span className="mt-1 font-display text-lg font-medium tracking-[-0.004em] text-ink transition-colors group-hover:text-paper">
                     {tool.title}
                   </span>
                   <span className="text-sm leading-relaxed text-ink-soft transition-colors group-hover:text-paper/70">

@@ -18,7 +18,7 @@ export function CodeDisplay({ code }: { code: string }) {
   useEffect(() => {
     let cancelled = false;
     // Flat two-colour QR — no gradients anywhere, this one included.
-    QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: "#10201a", light: "#f7f4ec" } }).then((url) => {
+    QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: "#14171a", light: "#eeebe2" } }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     });
     return () => {

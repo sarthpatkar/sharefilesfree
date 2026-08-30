@@ -43,7 +43,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
         <header className="lg:col-span-5">
           <div className="sff-enter" style={{ "--i": 0 } as React.CSSProperties}>
             <tool.icon className="h-8 w-8 text-accent" />
-            <h1 className="mt-6 font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.03em] text-ink">
+            <h1 className="mt-6 font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
               {tool.title}
             </h1>
             {tool.caveat && (

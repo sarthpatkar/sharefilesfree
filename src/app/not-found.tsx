@@ -11,8 +11,8 @@ export default function NotFound() {
         <GridBackdrop size={64} className="opacity-60" />
         <div className="relative mx-auto flex w-full max-w-[1400px] flex-1 flex-col justify-center px-5 py-24 sm:px-8">
           <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">Error 404</p>
-          <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.4rem,7vw,5rem)] font-medium leading-[0.98] tracking-[-0.035em] text-ink">
-            <span className="block overflow-hidden pb-[0.06em]">
+          <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.4rem,7vw,5rem)] font-medium leading-[1.04] tracking-[-0.015em] text-ink">
+            <span className="block overflow-hidden pb-[0.13em]">
               <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
                 This page isn&apos;t here.
               </span>

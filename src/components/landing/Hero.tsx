@@ -51,15 +51,15 @@ export function Hero() {
 
         {/* --- Headline ----------------------------------------------------- */}
         <div className="grid gap-x-12 pt-10 sm:pt-14 lg:grid-cols-12">
-          <h1 className="col-span-full font-display text-[clamp(2.7rem,8vw,6.25rem)] font-medium leading-[0.92] tracking-[-0.04em] text-ink lg:col-span-9">
+          <h1 className="col-span-full font-display text-[clamp(2.7rem,8vw,6.25rem)] font-medium leading-[1.0] tracking-[-0.018em] text-ink lg:col-span-9">
             {/* Each line gets its own overflow-hidden box so the type wipes up
                 from behind a hard edge instead of fading in. */}
-            <span className="block overflow-hidden pb-[0.06em]">
+            <span className="block overflow-hidden pb-[0.13em]">
               <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
                 Send files,
               </span>
             </span>
-            <span className="block overflow-hidden pb-[0.06em]">
+            <span className="block overflow-hidden pb-[0.13em]">
               <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
                 not sign-ups.
               </span>
@@ -89,7 +89,7 @@ export function Hero() {
           {FACTS.map((fact) => (
             <div key={fact.k} className="border-b border-r border-rule py-5 pr-4 last:border-r-0 sm:border-b-0">
               <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">{fact.k}</dt>
-              <dd className="mt-1.5 font-display text-lg font-medium tracking-[-0.01em] text-ink">{fact.v}</dd>
+              <dd className="mt-1.5 font-display text-lg font-medium tracking-[-0.004em] text-ink">{fact.v}</dd>
             </div>
           ))}
         </dl>
@@ -100,7 +100,7 @@ export function Hero() {
         <div className="grid lg:grid-cols-12">
           <div id="send" className="scroll-mt-24 py-10 lg:col-span-6 lg:pr-14">
             <div className="mb-7 flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.02em] text-ink">Send a file now</h2>
+              <h2 className="font-display text-2xl font-medium tracking-[-0.008em] text-ink">Send a file now</h2>
               <Link href="/receive" className="sff-underline text-sm text-ink-soft hover:text-ink">
                 Got a code?
               </Link>

@@ -1,25 +1,49 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { Bodoni_Moda, Archivo, Space_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/*
+ * Type is doing a lot of the identity work here, so none of these are the
+ * defaults a Next.js project reaches for. Specifically NOT Geist (Vercel's
+ * own face — the single biggest "generated Next app" tell), NOT Inter, and
+ * NOT Fraunces/Playfair, which are the stock "tasteful serif" picks.
+ */
+
+/**
+ * Bodoni Moda — a Didone with extreme thick/thin contrast. At display sizes
+ * it's genuinely arresting in a way a humanist serif isn't, and its hairlines
+ * pair naturally with a page built out of hairline rules. Variable weight, so
+ * the existing font-medium headings still resolve properly.
+ */
+const bodoni = Bodoni_Moda({
+  variable: "--font-bodoni",
   subsets: ["latin"],
+  axes: ["opsz"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/**
+ * Archivo — a grotesque with slightly condensed, squarish proportions. Reads
+ * as engineered rather than friendly, which suits a transfer utility, and
+ * holds up at the small sizes the tool UIs need.
+ */
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
+  display: "swap",
 });
 
-// A serif display face for headlines only — pairing it against Geist's plain
-// sans for body/UI text is what gives the page an actual point of view
-// instead of the single-typeface look most generated interfaces default to.
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+/**
+ * Space Mono — used only for labels, counters and codes. Its odd curved
+ * terminals give the mono small-caps a real voice instead of the neutral
+ * monospace every dashboard uses.
+ */
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
+  weight: ["400", "700"],
+  display: "swap",
 });
 
 const title = "ShareFilesFree — Send large files free, no signup, no login";
@@ -49,9 +73,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${archivo.variable} ${spaceMono.variable} ${bodoni.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col">
         {children}
         <ServiceWorkerRegister />
       </body>

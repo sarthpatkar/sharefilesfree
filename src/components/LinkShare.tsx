@@ -19,7 +19,7 @@ export function LinkShare({ token, expiresAt }: { token: string; expiresAt: numb
 
   useEffect(() => {
     let cancelled = false;
-    QRCode.toDataURL(link, { margin: 1, width: 200, color: { dark: "#0b6e4f", light: "#faf8f3" } }).then((url) => {
+    QRCode.toDataURL(link, { margin: 1, width: 200, color: { dark: "#14171a", light: "#eeebe2" } }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     });
     return () => {

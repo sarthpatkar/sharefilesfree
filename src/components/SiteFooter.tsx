@@ -20,7 +20,7 @@ export function SiteFooter() {
               <span className="flex h-8 w-8 items-center justify-center bg-accent text-on-accent">
                 <IconSend className="h-4 w-4" />
               </span>
-              <span className="font-display text-[19px] font-medium leading-none tracking-[-0.02em] text-ink">
+              <span className="font-display text-[19px] font-medium leading-none tracking-[-0.008em] text-ink">
                 ShareFilesFree
               </span>
             </div>

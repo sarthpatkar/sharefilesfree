@@ -97,7 +97,7 @@ export function SiteHeader() {
             <span className="flex h-8 w-8 items-center justify-center bg-accent text-on-accent transition-transform duration-500 group-hover:rotate-[-10deg]">
               <IconSend className="h-4 w-4" />
             </span>
-            <span className="font-display text-[19px] font-medium leading-none tracking-[-0.02em] text-ink">
+            <span className="font-display text-[19px] font-medium leading-none tracking-[-0.008em] text-ink">
               ShareFilesFree
             </span>
           </Link>
@@ -184,7 +184,7 @@ export function SiteHeader() {
                   transition: `opacity 0.5s cubic-bezier(0.19,1,0.22,1) ${120 + i * 60}ms, transform 0.5s cubic-bezier(0.19,1,0.22,1) ${120 + i * 60}ms`,
                 }}
               >
-                <span className="font-display text-[30px] font-medium leading-none tracking-[-0.02em]">
+                <span className="font-display text-[30px] font-medium leading-none tracking-[-0.008em]">
                   {item.label}
                 </span>
                 <span className="font-mono text-[11px] tabular-nums text-ink-soft">

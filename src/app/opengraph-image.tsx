@@ -24,7 +24,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ fontSize: 96, fontWeight: 700, display: "flex" }}>ShareFilesFree</div>
-        <div style={{ fontSize: 36, color: "#34c28c", marginTop: 24, display: "flex" }}>
+        <div style={{ fontSize: 36, color: "#7d97ff", marginTop: 24, display: "flex" }}>
           Send large files free — no signup, no login
         </div>
       </div>

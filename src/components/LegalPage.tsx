@@ -46,7 +46,7 @@ export function LegalPage({
 
           <div className="grid gap-x-16 py-16 sm:py-20 lg:grid-cols-12">
             <header className="lg:col-span-4">
-              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.03em] text-ink lg:sticky lg:top-28">
+              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink lg:sticky lg:top-28">
                 {title}
               </h1>
             </header>
@@ -61,7 +61,7 @@ export function LegalPage({
                       <span className="font-mono text-xs tabular-nums text-accent">
                         {String(i + 1).padStart(2, "0")}
                       </span>
-                      <h2 className="font-display text-xl font-medium tracking-[-0.02em] text-ink">
+                      <h2 className="font-display text-xl font-medium tracking-[-0.008em] text-ink">
                         {section.heading}
                       </h2>
                     </div>

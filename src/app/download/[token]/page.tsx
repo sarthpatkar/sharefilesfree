@@ -28,13 +28,13 @@ export default async function DownloadPage({ params }: { params: Promise<{ token
 
           <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.03em] text-ink">
-                <span className="block overflow-hidden pb-[0.06em]">
+              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
+                <span className="block overflow-hidden pb-[0.13em]">
                   <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
                     Your file is
                   </span>
                 </span>
-                <span className="block overflow-hidden pb-[0.06em]">
+                <span className="block overflow-hidden pb-[0.13em]">
                   <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
                     ready.
                   </span>

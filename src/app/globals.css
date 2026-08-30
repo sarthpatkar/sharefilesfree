@@ -15,22 +15,31 @@
  * asymmetric grids, flat blocks of accent, hard offset shadows, and motion.
  */
 
+/*
+ * Palette: bone paper, near-black ink, electric cobalt.
+ *
+ * Deliberately not green-on-cream — that combination has become the default
+ * "tasteful" palette and reads as generated. Cobalt on bone is a printer's
+ * pairing (Vignelli, Blue Note sleeves): high-conviction, unmistakably
+ * chosen, and it leaves red free to mean *only* danger rather than competing
+ * with the brand colour.
+ */
 :root {
-  --paper: #f7f4ec;
-  --ink: #10201a;
-  --ink-soft: #55655e;
-  --rule: #d9d3c4;
-  --rule-strong: #b9b2a1;
-  --accent: #0b6e4f;
-  --accent-hover: #085a40;
-  --on-accent: #f7f4ec;
-  --danger: #b83a1f;
-  --danger-hover: #9a2f18;
+  --paper: #eeebe2;
+  --ink: #14171a;
+  --ink-soft: #585f67;
+  --rule: #d5d0c3;
+  --rule-strong: #b0aa9a;
+  --accent: #1c3ad4;
+  --accent-hover: #142ba6;
+  --on-accent: #f3f1ea;
+  --danger: #b3301c;
+  --danger-hover: #932515;
 
   /* Aliases kept so the 19 tool components and transfer UI don't all need
      rewriting — they map onto the same flat palette. */
   --background: var(--paper);
-  --card: #fffdf7;
+  --card: #f6f4ee;
   --foreground: var(--ink);
   --muted: var(--ink-soft);
   --border: var(--rule);
@@ -39,18 +48,22 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0d1310;
-    --ink: #eceee7;
-    --ink-soft: #8b9a92;
-    --rule: #232d27;
-    --rule-strong: #3b4740;
-    --accent: #3ecf94;
-    --accent-hover: #5ce0a9;
-    --on-accent: #06140f;
+    --paper: #0e1013;
+    --ink: #e9e6de;
+    --ink-soft: #8d939b;
+    /* Lifted deliberately: the whole layout is built out of hairlines, so if
+       the rules aren't legible on the dark ground the structure disappears. */
+    --rule: #2b313a;
+    --rule-strong: #454d58;
+    /* Cobalt lifted well above the mid-tone: the light-on-dark version has to
+       carry Bodoni's hairlines without them going spindly. */
+    --accent: #7d97ff;
+    --accent-hover: #9db1ff;
+    --on-accent: #0b0d10;
     --danger: #ff7a5c;
     --danger-hover: #ff9679;
 
-    --card: #131c17;
+    --card: #14181d;
   }
 }
 
@@ -73,9 +86,11 @@
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-fraunces);
+  /* Real fallback stacks behind each: `display: swap` means the fallback is
+     what people actually see on a cold load, so it shouldn't be Times. */
+  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-bodoni), "Didot", "Bodoni MT", Georgia, serif;
 }
 
 body {
