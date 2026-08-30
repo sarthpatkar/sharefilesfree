@@ -86,7 +86,7 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
         <path d="M 8 218 h 208 l -10 14 H 18 z" fill="var(--lime-3)" stroke="var(--red)" strokeWidth="5" strokeLinejoin="round" />
 
         {/* Screen contents: a file card that stays put until it's sent. */}
-        <g style={{ opacity: held ? 1 : 0.3, transition: "opacity .5s ease" }}>
+        <g className={held ? "sff-waiting" : undefined} style={{ opacity: held ? 1 : 0.3, transition: "opacity .5s ease" }}>
           <rect x="46" y="126" width="60" height="10" fill="var(--lime-2)" />
           <rect x="46" y="148" width="132" height="42" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
           <rect x="58" y="158" width="20" height="22" fill="var(--pink)" />
@@ -112,7 +112,7 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
         </g>
 
         <g style={{ opacity: awake ? 1 : 0, transition: "opacity .45s ease" }}>
-          <rect x="476" y="120" width="68" height="34" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
+          <rect x="476" y="120" width="68" height="34" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" className={awake && !crossing ? "sff-ping" : undefined} />
           <text x="510" y="144" textAnchor="middle" className="font-display" fill="var(--red)" fontSize="17" letterSpacing="0.5">
             {CODES[codeIndex]}
           </text>

@@ -189,6 +189,19 @@ html {
   100% { offset-distance: 100%; opacity: 0; transform: scale(0.4) rotate(8deg); }
 }
 
+/* The staged file, waiting to be sent — a small idle so the picture is never
+   completely still, even on the steps where nothing is crossing yet. */
+@keyframes sff-waiting {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+/* The phone waking as the code appears. */
+@keyframes sff-ping {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
 /* Slow drift for the big decorative shapes. */
 @keyframes sff-bob {
   0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
@@ -210,6 +223,8 @@ html {
 }
 
 .sff-bob { animation: sff-bob 6s ease-in-out infinite; }
+.sff-waiting { animation: sff-waiting 2.6s ease-in-out infinite; }
+.sff-ping { animation: sff-ping 1.6s ease-in-out infinite; }
 
 .sff-packet {
   animation: sff-packet 3s cubic-bezier(0.4, 0, 0.4, 1) infinite;
@@ -237,6 +252,8 @@ html {
   .sff-swap-out,
   .sff-marquee-track,
   .sff-bob,
+  .sff-waiting,
+  .sff-ping,
   .sff-packet {
     animation: none !important;
   }

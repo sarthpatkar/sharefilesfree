@@ -85,21 +85,31 @@ export function HowItWorks() {
             </div>
           </div>
 
-          {/* The steps themselves. */}
-          <ol className="flex flex-col gap-6 lg:col-span-6">
+          {/*
+            Each step gets a tall slot on wide screens. That's what gives the
+            pinned illustration something to pin *through* — with the steps at
+            their natural height the column was barely taller than the picture,
+            so it unpinned almost immediately and scrolled away before reaching
+            step three.
+          */}
+          <ol className="flex flex-col gap-6 lg:col-span-6 lg:gap-0">
             {STEPS.map((step, i) => (
               <li
                 key={step.title}
                 ref={(el) => {
                   stepRefs.current[i] = el;
                 }}
-                className={`sff-block-sm p-7 transition-transform duration-300 ${step.field} ${
-                  i === active ? "lg:translate-x-0" : "lg:translate-x-3"
-                }`}
+                className="lg:flex lg:min-h-[58vh] lg:flex-col lg:justify-center"
               >
-                <span className="font-display text-[44px] leading-none text-pink">0{i + 1}</span>
-                <h3 className="mt-3 font-display text-[28px] leading-none text-red-bright">{step.title}</h3>
-                <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{step.body}</p>
+                <div
+                  className={`sff-block-sm p-7 transition-all duration-500 ${step.field} ${
+                    i === active ? "lg:translate-x-0 lg:opacity-100" : "lg:translate-x-4 lg:opacity-45"
+                  }`}
+                >
+                  <span className="font-display text-[44px] leading-none text-pink">0{i + 1}</span>
+                  <h3 className="mt-3 font-display text-[28px] leading-none text-red-bright">{step.title}</h3>
+                  <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{step.body}</p>
+                </div>
               </li>
             ))}
           </ol>
