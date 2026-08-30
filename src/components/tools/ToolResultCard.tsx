@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { formatBytes } from "@/lib/format";
 import { IconDownload, IconSend } from "../icons";
 
@@ -16,8 +16,23 @@ export function ToolResultCard({
   onSend?: (file: File) => void;
   onReset: () => void;
 }) {
-  const url = useMemo(() => URL.createObjectURL(file), [file]);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  // Deliberately NOT `useMemo(() => URL.createObjectURL(file), [file])` — that
+  // pattern creates the URL during render, which React 18 Strict Mode's dev-only
+  // double-render can leave pointing at an already-revoked URL (verified: traced
+  // two URLs being created but the *revoked* one ending up in the committed
+  // render). Creating it inside an effect and pushing it through state instead
+  // means the last effect invocation's fresh URL always wins.
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    // Deferred: React flags a synchronous setState call in an effect body as a
+    // footgun in general, even though this one is intentional and correct.
+    const timer = setTimeout(() => setUrl(objectUrl), 0);
+    return () => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
 
   const savedPct = originalSize ? Math.round((1 - file.size / originalSize) * 100) : null;
 
@@ -40,9 +55,12 @@ export function ToolResultCard({
       )}
       <div className="flex flex-wrap justify-center gap-3">
         <a
-          href={url}
+          href={url ?? undefined}
           download={file.name}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition hover:bg-accent-hover active:scale-[0.98]"
+          aria-disabled={!url}
+          className={`inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition hover:bg-accent-hover active:scale-[0.98] ${
+            url ? "" : "pointer-events-none opacity-50"
+          }`}
         >
           <IconDownload className="h-4 w-4" /> Download
         </a>

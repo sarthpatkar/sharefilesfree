@@ -21,6 +21,12 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
   const [received, setReceived] = useState<IncomingFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const transferRef = useRef<PeerTransfer | null>(null);
+  // Object URLs are created exactly once per received file, at receipt time —
+  // not inline in JSX during render. Creating them during render (even
+  // memoized) risks the URL being revoked out from under the very render that
+  // uses it under React Strict Mode's double-render in dev — see the fix in
+  // ToolResultCard.tsx for the verified version of this bug.
+  const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
 
   function connect(targetCode: string) {
     if (targetCode.length !== 6) {
@@ -34,7 +40,11 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
         if (s === "error" && detail) setError(detail);
       },
       onProgress: setProgress,
-      onFileReceived: (file) => setReceived((prev) => [...prev, file]),
+      onFileReceived: (file) => {
+        const url = URL.createObjectURL(file.blob);
+        setObjectUrls((prev) => new Map(prev).set(file.id, url));
+        setReceived((prev) => [...prev, file]);
+      },
       onError: setError,
     });
     transferRef.current = transfer;
@@ -53,6 +63,8 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
   function reset() {
     transferRef.current?.close();
     transferRef.current = null;
+    objectUrls.forEach((u) => URL.revokeObjectURL(u));
+    setObjectUrls(new Map());
     setCode("");
     setStatus("idle");
     setProgress(null);
@@ -121,7 +133,7 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
             >
               <span className="truncate text-foreground">{f.name}</span>
               <a
-                href={URL.createObjectURL(f.blob)}
+                href={objectUrls.get(f.id)}
                 download={f.name}
                 className="shrink-0 rounded-lg bg-accent px-3 py-1 text-accent-foreground hover:bg-accent-hover"
               >
