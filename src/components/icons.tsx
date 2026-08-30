@@ -107,3 +107,50 @@ export function IconArrowLeft(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconDownload(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 4v12M12 16l4.5-4.5M12 16l-4.5-4.5" />
+      <path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16" />
+    </svg>
+  );
+}
+
+export function IconShrink(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 4v4a1 1 0 0 1-1 1H4" />
+      <path d="M20 9h-4a1 1 0 0 1-1-1V4" />
+      <path d="M4 15h4a1 1 0 0 1 1 1v4" />
+      <path d="M15 20v-4a1 1 0 0 1 1-1h4" />
+    </svg>
+  );
+}
+
+export function IconStack(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 13 9 5 9-5" />
+    </svg>
+  );
+}
+
+export function IconSend(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M21 3 10.5 13.5" />
+      <path d="M21 3 14.5 21l-3.5-7.5L3 10z" />
+    </svg>
+  );
+}
+
+export function IconTool(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M14.7 6.3a4 4 0 0 1 5 5l-6.6 6.6a2 2 0 0 1-2.8 0l-2.2-2.2a2 2 0 0 1 0-2.8l6.6-6.6Z" />
+      <path d="m9 9-4.5-4.5a2 2 0 0 0-2.5 2.5L6.5 12" />
+    </svg>
+  );
+}

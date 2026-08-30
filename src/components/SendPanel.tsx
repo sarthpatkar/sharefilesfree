@@ -24,9 +24,19 @@ const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
 // slow to type the code; short enough that nobody sits there wondering.
 const LINK_FALLBACK_DELAY_MS = 20_000;
 
-export function SendPanel() {
+export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [files, setFiles] = useState<File[]>([]);
   const [mode, setMode] = useState<"p2p" | "link">("p2p");
+
+  // A file handed off from the Tools tab (e.g. "compress then send") lands here —
+  // each hand-off is a fresh File instance, so this fires once per hand-off.
+  // Deferred via setTimeout for the same reason as ReceivePanel's initial-code
+  // effect: React flags a synchronous setState in an effect body.
+  useEffect(() => {
+    if (!initialFile) return;
+    const timer = setTimeout(() => setFiles([initialFile]), 0);
+    return () => clearTimeout(timer);
+  }, [initialFile]);
 
   // --- P2P (default) path ---
   const [status, setStatus] = useState<TransferStatus>("idle");

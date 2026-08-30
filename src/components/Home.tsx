@@ -4,9 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { SendPanel } from "./SendPanel";
 import { ReceivePanel } from "./ReceivePanel";
+import { ToolsPanel } from "./ToolsPanel";
+
+const TABS = ["send", "receive", "tools"] as const;
+type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = { send: "Send", receive: "Receive", tools: "Tools" };
 
 export function Home({ initialTab = "send", initialCode }: { initialTab?: "send" | "receive"; initialCode?: string }) {
-  const [tab, setTab] = useState<"send" | "receive">(initialTab);
+  const [tab, setTab] = useState<Tab>(initialTab);
+  // A file produced by a Tool (compressed image, converted PDF, …), handed to
+  // the Send tab when the user clicks "Send this file" — see ToolsPanel.
+  const [handoffFile, setHandoffFile] = useState<File | null>(null);
+
+  function sendFromTools(file: File) {
+    setHandoffFile(file);
+    setTab("send");
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-4 py-14 sm:py-24">
@@ -16,13 +29,14 @@ export function Home({ initialTab = "send", initialCode }: { initialTab?: "send"
           Send files, not sign-ups.
         </h1>
         <p className="max-w-sm text-balance text-muted">
-          Straight from your browser to any device — a code for right now, or a link for later.
+          Straight from your browser to any device — a code for right now, or a link for later. Compress and
+          convert files right here too.
         </p>
       </header>
 
       <div>
         <div className="mx-auto flex w-fit gap-8 border-b border-border">
-          {(["send", "receive"] as const).map((t) => (
+          {TABS.map((t) => (
             <button
               key={t}
               type="button"
@@ -31,14 +45,16 @@ export function Home({ initialTab = "send", initialCode }: { initialTab?: "send"
                 tab === t ? "text-foreground" : "text-muted hover:text-foreground"
               }`}
             >
-              {t === "send" ? "Send" : "Receive"}
+              {TAB_LABEL[t]}
               {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent" />}
             </button>
           ))}
         </div>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(20,35,29,0.04)] sm:p-10">
-          {tab === "send" ? <SendPanel /> : <ReceivePanel initialCode={initialCode} />}
+          {tab === "send" && <SendPanel initialFile={handoffFile} />}
+          {tab === "receive" && <ReceivePanel initialCode={initialCode} />}
+          {tab === "tools" && <ToolsPanel onSendFile={sendFromTools} />}
         </section>
       </div>
 

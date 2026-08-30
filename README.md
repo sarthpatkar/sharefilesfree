@@ -11,8 +11,23 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
 6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer.
 7. Every download page has a **"Report this file"** link that immediately disables the shared link — no review queue, no waiting on the operator.
+8. A **Tools** tab offers image compression and PDF utilities (compress an image, combine images into a PDF, merge PDFs) that run **entirely client-side** — no upload, no server cost, works even before picking a transfer method. A result can be downloaded directly or handed straight to the Send tab.
 
 Phase 1 (pure P2P) and Phase 2 (the link fallback, abuse reporting) are both built. Still to come: malware scanning on the relay path and ads.
+
+## Tools (client-side compress/convert)
+
+All under `src/lib/tools/` (pure logic, browser APIs only) + `src/components/tools/` (UI):
+
+| Tool | How | Notes |
+|---|---|---|
+| Compress image | Canvas API (`drawImage` + `toBlob`) | JPEG/WebP/PNG output, quality slider; honestly reports when a file doesn't shrink (e.g. already-compressed input) rather than showing a false "smaller" badge |
+| Images → PDF | `pdf-lib` | One page per image, sized to the image's own dimensions |
+| Merge PDFs | `pdf-lib` | Joins in the order files are added |
+
+Verified end-to-end with a real headless browser (Playwright, temporary — not a project dependency) driving actual file uploads through each tool, not just by reading the code.
+
+**Feature ideas not built yet** (see the plan file for the fuller list and feasibility notes): PDF ↔ image page rendering/splitting, DOCX → PDF, resize-only image tool, video/audio compression. PDF → DOCX specifically is flagged as low-quality if done client-side (no real client-side layout-preserving engine exists) rather than promised and under-delivered.
 
 ## Running it locally
 
@@ -84,7 +99,8 @@ src/
       file/[token]/          Looks up a shared link's metadata + a fresh presigned download URL (or {requiresPassword:true})
       file/[token]/unlock/   Verifies a password-protected link's password before releasing the download URL
       report/[token]/        Abuse report — immediately disables a shared link
-  components/     UI: SendPanel, ReceivePanel, CodeDisplay, LinkShare, DownloadPanel, ProgressBar, Home
+  components/     UI: SendPanel, ReceivePanel, CodeDisplay, LinkShare, DownloadPanel, ProgressBar, ToolsPanel, Button, icons.tsx, Home
+    tools/          Per-tool UI: CompressImageTool, ImagesToPdfTool, MergePdfsTool, FileDropZone, ToolResultCard
   lib/
     peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine, with retry-with-backoff on connect (no UI deps)
     linkTransfer.ts   Browser-side upload-with-progress for the link fallback
@@ -92,6 +108,7 @@ src/
     rateLimit.ts      Shared in-memory per-IP throttle for the upload/TURN-credential/report/unlock APIs
     sanitize.ts       Filename sanitization (prevents header injection in Content-Disposition)
     format.ts         Byte-size formatting helper
+    tools/            Compress/convert logic (compressImage, imagesToPdf, mergePdfs) — pure browser-API functions, no UI
     *.test.ts         Vitest unit tests for the above (run: `npm test`)
 server/
   index.js             WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only)
