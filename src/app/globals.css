@@ -229,3 +229,13 @@ html {
   .sff-nudge:hover,
   .sff-nudge:active { transform: none; }
 }
+
+/* Scroll-driven layout (the pinned illustration, the stacking pillars) is
+   still motion — release both when motion is unwelcome so the page reads as
+   a plain stacked list. */
+@media (prefers-reduced-motion: reduce) {
+  .lg\:sticky,
+  [class*="lg:sticky"] {
+    position: static !important;
+  }
+}
