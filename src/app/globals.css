@@ -6,6 +6,10 @@
  * cream/charcoal neutrals instead of pure white/black, and a terracotta
  * (not stock red-600) for destructive actions. Small deliberate choices like
  * this are most of what separates a designed interface from a default one.
+ *
+ * --ember is a warm secondary that only appears in the marketing surfaces
+ * (landing page accents, the transfer animation). Deliberately NOT the
+ * violet/indigo gradient every generated landing page reaches for.
  */
 :root {
   --background: #faf8f3;
@@ -18,6 +22,10 @@
   --accent-foreground: #ffffff;
   --danger: #c8452a;
   --danger-hover: #ad3b23;
+  --ember: #c86f2a;
+  --ember-soft: #e8a765;
+  --glow: rgba(11, 110, 79, 0.16);
+  --grid-line: rgba(20, 35, 29, 0.055);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +40,10 @@
     --accent-foreground: #06140f;
     --danger: #ff7a5c;
     --danger-hover: #ff9276;
+    --ember: #e0913f;
+    --ember-soft: #f0bd80;
+    --glow: rgba(52, 194, 140, 0.2);
+    --grid-line: rgba(237, 239, 233, 0.05);
   }
 }
 
@@ -46,6 +58,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
+  --color-ember: var(--ember);
+  --color-ember-soft: var(--ember-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-fraunces);
@@ -77,4 +91,273 @@ body::before {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ==========================================================================
+   Motion system
+   --------------------------------------------------------------------------
+   Hand-written keyframes rather than a motion library: everything here is
+   transform/opacity only (compositor-friendly, no layout thrash), and it
+   keeps ~50KB of framer-motion out of a bundle that already carries pdf.js,
+   Tesseract and SheetJS. Every animation below is disabled wholesale by the
+   prefers-reduced-motion block at the bottom of this file.
+   ========================================================================== */
+
+@keyframes sff-aurora {
+  0%   { transform: translate3d(-8%, -6%, 0) scale(1);    }
+  33%  { transform: translate3d(6%, 4%, 0) scale(1.12);   }
+  66%  { transform: translate3d(-4%, 8%, 0) scale(0.95);  }
+  100% { transform: translate3d(-8%, -6%, 0) scale(1);    }
+}
+
+@keyframes sff-float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50%      { transform: translateY(-14px) rotate(calc(var(--tilt, 0deg) + 1.5deg)); }
+}
+
+@keyframes sff-drift {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, -22px, 0); }
+}
+
+/* The signature hero motion: a packet leaving one device and arriving at the
+   other. Scale/opacity are keyed so it "pops" on departure and lands softly. */
+@keyframes sff-packet {
+  0%   { offset-distance: 0%;   opacity: 0; transform: scale(0.4); }
+  8%   { opacity: 1;            transform: scale(1); }
+  88%  { opacity: 1;            transform: scale(1); }
+  100% { offset-distance: 100%; opacity: 0; transform: scale(0.4); }
+}
+
+@keyframes sff-dash {
+  to { stroke-dashoffset: -1000; }
+}
+
+@keyframes sff-draw {
+  from { stroke-dashoffset: var(--len, 1000); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes sff-pulse-ring {
+  0%   { transform: scale(0.85); opacity: 0.55; }
+  70%  { transform: scale(1.6);  opacity: 0; }
+  100% { transform: scale(1.6);  opacity: 0; }
+}
+
+@keyframes sff-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes sff-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes sff-blink {
+  0%, 45%   { opacity: 1; }
+  50%, 95%  { opacity: 0.25; }
+  100%      { opacity: 1; }
+}
+
+@keyframes sff-rise {
+  from { opacity: 0; transform: translate3d(0, 26px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes sff-scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sff-sweep {
+  0%   { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
+}
+
+@keyframes sff-orbit {
+  from { transform: rotate(0deg) translateX(var(--r, 60px)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--r, 60px)) rotate(-360deg); }
+}
+
+/* --- Animation utility classes ------------------------------------------ */
+
+.sff-aurora {
+  animation: sff-aurora 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sff-float {
+  animation: sff-float 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.sff-packet {
+  animation: sff-packet 3.2s cubic-bezier(0.45, 0, 0.35, 1) infinite;
+  offset-rotate: 0deg;
+  will-change: offset-distance, opacity, transform;
+}
+
+.sff-dash {
+  stroke-dasharray: 5 9;
+  animation: sff-dash 14s linear infinite;
+}
+
+.sff-pulse-ring {
+  animation: sff-pulse-ring 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+
+.sff-blink {
+  animation: sff-blink 2.4s steps(1, end) infinite;
+}
+
+/* Marquee: the track holds two identical copies side by side, so translating
+   exactly -50% loops seamlessly with no visible jump. */
+.sff-marquee-track {
+  animation: sff-marquee var(--speed, 46s) linear infinite;
+  will-change: transform;
+}
+
+.sff-marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+.sff-shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in oklab, var(--accent) 22%, transparent) 42%,
+    transparent 64%
+  );
+  background-size: 200% 100%;
+  animation: sff-shimmer 3.4s linear infinite;
+}
+
+/* Staggered entrance for hero content — each child opts in with an index. */
+.sff-enter {
+  opacity: 0;
+  animation: sff-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 95ms);
+}
+
+.sff-enter-scale {
+  opacity: 0;
+  animation: sff-scale-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 95ms);
+}
+
+/* Scroll-reveal: the base state is set here, and Reveal.tsx flips
+   data-shown once the element crosses the viewport. */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 30px, 0);
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
+}
+
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+/* The moving light that sweeps across the primary CTA on hover. */
+.sff-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.sff-sweep:hover::after {
+  animation: sff-sweep 0.85s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* Cursor-tracked glow. --mx/--my are written by a pointer handler in JS;
+   with no JS they simply resolve to the centered fallback and sit still. */
+.sff-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 50%),
+    var(--glow),
+    transparent 70%
+  );
+}
+
+.sff-spotlight:hover::before {
+  opacity: 1;
+}
+
+/* Faint engineering-grid backdrop — reads as "infrastructure", and gives the
+   floating elements something to parallax against. */
+.sff-grid {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+
+/* Accordion height animation without measuring in JS. */
+.sff-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sff-collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.sff-collapse > div {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .sff-aurora,
+  .sff-float,
+  .sff-packet,
+  .sff-dash,
+  .sff-pulse-ring,
+  .sff-blink,
+  .sff-marquee-track,
+  .sff-shimmer,
+  .sff-enter,
+  .sff-enter-scale,
+  .sff-sweep::after {
+    animation: none !important;
+  }
+
+  .sff-enter,
+  .sff-enter-scale {
+    opacity: 1;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .sff-collapse {
+    transition: none;
+  }
 }

@@ -1,7 +1,8 @@
 // Single source of truth for every tool: its URL slug, SEO copy, grouping,
-// icon, and component. Both the in-page Tools directory (Home.tsx's Tools
-// tab) and the real indexable /tools/[slug] pages read from this — one place
-// to add a tool instead of wiring it into two UIs separately.
+// icon, and component. The /tools directory page, the landing page's tool
+// marquee, the footer link columns and the indexable /tools/[slug] pages all
+// read from this — one place to add a tool instead of wiring it into each UI
+// separately.
 import type { ComponentType, SVGProps } from "react";
 import {
   IconShrink,

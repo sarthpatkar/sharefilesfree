@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IconArrowLeft } from "@/components/icons";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "Terms of Use — ShareFilesFree",
@@ -11,9 +13,11 @@ const LAST_UPDATED = "August 29, 2026";
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-16">
-      <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-hover hover:underline">
-        <IconArrowLeft className="h-4 w-4" /> Back to ShareFilesFree
+    <>
+      <SiteHeader variant="solid" />
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-16">
+      <Link href="/" className="group inline-flex items-center gap-1.5 text-sm text-accent transition-colors hover:text-accent-hover">
+        <IconArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" /> Back to ShareFilesFree
       </Link>
       <h1 className="font-display text-3xl font-medium tracking-tight text-foreground">Terms of Use</h1>
       <p className="text-sm text-muted">Last updated: {LAST_UPDATED}</p>
@@ -87,6 +91,8 @@ export default function TermsPage() {
           lawyer — worth a proper legal review once the service carries real traffic or revenue.
         </p>
       </div>
-    </main>
+      </main>
+      <SiteFooter />
+    </>
   );
 }
