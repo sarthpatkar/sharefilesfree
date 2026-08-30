@@ -41,7 +41,7 @@ export function ToolResultCard({
     // a box inside a box is the nested-card look we avoid site-wide.
     <div className="flex flex-col gap-6 border-t-2 border-ink pt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <p className="min-w-0 flex-1 truncate font-display text-xl font-medium tracking-[-0.004em] text-ink">
+        <p className="min-w-0 flex-1 truncate font-display text-xl font-bold tracking-[-0.015em] text-ink">
           {file.name}
         </p>
         <p className="font-mono text-xs tabular-nums text-ink-soft">

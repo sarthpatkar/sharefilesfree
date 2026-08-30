@@ -37,7 +37,7 @@ export function CodeDisplay({ code }: { code: string }) {
         {code.split("").map((digit, i) => (
           <span
             key={i}
-            className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink font-display text-4xl font-medium tabular-nums text-ink last:border-r sm:h-20 sm:w-14 sm:text-5xl"
+            className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink font-display text-4xl font-bold tabular-nums text-ink last:border-r sm:h-20 sm:w-14 sm:text-5xl"
           >
             {digit}
           </span>

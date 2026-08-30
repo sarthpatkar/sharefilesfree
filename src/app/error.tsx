@@ -10,7 +10,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-20 text-center">
       <IconWarning className="h-9 w-9 text-danger" />
-      <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">Something went wrong</h1>
+      <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Something went wrong</h1>
       <p className="text-muted">
         That&apos;s on us, not your file or your connection. Try again — if it keeps happening, the transfer itself
         (P2P or a shared link) should still work fine even if this page hiccups.

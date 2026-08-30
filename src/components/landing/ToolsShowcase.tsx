@@ -55,7 +55,7 @@ export function ToolsShowcase() {
 
         <div className="mt-10 grid gap-x-12 gap-y-8 lg:grid-cols-12">
           <Reveal delay={90} className="lg:col-span-7">
-            <h2 className="font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
+            <h2 className="font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
               Fix the file before you send it.
             </h2>
           </Reveal>

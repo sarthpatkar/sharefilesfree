@@ -31,7 +31,7 @@ export function HowItWorks() {
         </Reveal>
 
         <Reveal delay={90}>
-          <h2 className="mt-10 max-w-3xl font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
+          <h2 className="mt-10 max-w-3xl font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
             Faster than attaching it to an email.
           </h2>
         </Reveal>
@@ -48,7 +48,7 @@ export function HowItWorks() {
               <div className="sff-cell h-full px-0 py-8 md:px-7 md:first:pl-0">
                 <div className="flex items-baseline gap-4">
                   <span className="font-mono text-sm tabular-nums text-accent">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="font-display text-2xl font-medium tracking-[-0.008em] text-ink">{step.title}</h3>
+                  <h3 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">{step.title}</h3>
                 </div>
                 <p className="mt-4 max-w-sm text-[15px] leading-[1.7] text-ink-soft md:pl-[3.25rem]">{step.body}</p>
               </div>

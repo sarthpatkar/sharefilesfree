@@ -11,7 +11,7 @@ export function ClosingCta() {
 
       <div className="relative mx-auto w-full max-w-[1400px] px-5 py-24 sm:px-8 sm:py-32">
         <Reveal>
-          <h2 className="max-w-4xl font-display text-[clamp(2.4rem,7vw,5.5rem)] font-medium leading-[1.04] tracking-[-0.015em] text-ink">
+          <h2 className="max-w-4xl font-display text-[clamp(2.8rem,8vw,6.6rem)] font-black leading-[0.9] tracking-[-0.028em] text-ink">
             Nothing to lose.
             <br />
             Literally nothing.

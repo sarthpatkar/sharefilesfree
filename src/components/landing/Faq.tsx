@@ -16,7 +16,7 @@ export function Faq() {
 
         <div className="mt-10 grid gap-x-16 lg:grid-cols-12">
           <Reveal delay={90} className="lg:col-span-4">
-            <h2 className="font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink lg:sticky lg:top-28">
+            <h2 className="font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink lg:sticky lg:top-28">
               The questions worth answering.
             </h2>
           </Reveal>

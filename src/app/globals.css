@@ -87,10 +87,12 @@
   --color-danger-hover: var(--danger-hover);
 
   /* Real fallback stacks behind each: `display: swap` means the fallback is
-     what people actually see on a cold load, so it shouldn't be Times. */
-  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
-  --font-display: var(--font-bodoni), "Didot", "Bodoni MT", Georgia, serif;
+     what people actually see on a cold load, so it shouldn't be Times.
+     The display fallback is a condensed grotesque, matching Darker
+     Grotesque's proportions rather than swapping a narrow face for a wide one. */
+  --font-sans: var(--font-instrument), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-darker), "Haettenschweiler", "Arial Narrow", "Helvetica Neue Condensed", sans-serif;
 }
 
 body {

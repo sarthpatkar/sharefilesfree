@@ -1,48 +1,53 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, Archivo, Space_Mono } from "next/font/google";
+import { Darker_Grotesque, Instrument_Sans, DM_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 /*
- * Type is doing a lot of the identity work here, so none of these are the
- * defaults a Next.js project reaches for. Specifically NOT Geist (Vercel's
- * own face — the single biggest "generated Next app" tell), NOT Inter, and
- * NOT Fraunces/Playfair, which are the stock "tasteful serif" picks.
+ * Display face is Darker Grotesque, chosen from the user's own shortlist —
+ * it was the only one of the eight actually available on Google Fonts
+ * (Spectre, Komika Axis, Palmore, Montreal, Alcazar, Aquire, Munich,
+ * Aquatico and Nordic are all commercial or free-download faces that would
+ * need self-hosted files). The other two below are picked to serve it.
+ *
+ * None of the three are the defaults a Next.js project reaches for: not
+ * Geist (Vercel's own face, the biggest "generated Next app" tell) and not
+ * Inter.
  */
 
 /**
- * Bodoni Moda — a Didone with extreme thick/thin contrast. At display sizes
- * it's genuinely arresting in a way a humanist serif isn't, and its hairlines
- * pair naturally with a page built out of hairline rules. Variable weight, so
- * the existing font-medium headings still resolve properly.
+ * Darker Grotesque — tall, narrow, high x-height, with genuinely odd
+ * letterforms at heavy weights. Used large and tightly tracked, it does the
+ * job the reference set's display faces do: carry all the personality so
+ * everything around it can stay quiet. Variable 300–900.
  */
-const bodoni = Bodoni_Moda({
-  variable: "--font-bodoni",
-  subsets: ["latin"],
-  axes: ["opsz"],
-  display: "swap",
-});
-
-/**
- * Archivo — a grotesque with slightly condensed, squarish proportions. Reads
- * as engineered rather than friendly, which suits a transfer utility, and
- * holds up at the small sizes the tool UIs need.
- */
-const archivo = Archivo({
-  variable: "--font-archivo",
+const darkerGrotesque = Darker_Grotesque({
+  variable: "--font-darker",
   subsets: ["latin"],
   display: "swap",
 });
 
 /**
- * Space Mono — used only for labels, counters and codes. Its odd curved
- * terminals give the mono small-caps a real voice instead of the neutral
- * monospace every dashboard uses.
+ * Instrument Sans — the quiet half of the pair. Deliberately *wider* than
+ * the display face, because two condensed grotesques stacked together read
+ * as one muddled voice; the width contrast is what makes the pairing work.
+ * Holds up at the small sizes the 19 tool UIs need.
  */
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument",
   subsets: ["latin"],
-  weight: ["400", "700"],
+  display: "swap",
+});
+
+/**
+ * DM Mono — labels, counters and codes only. Chosen over Space Mono now that
+ * the display face is loud: Space Mono's quirks competed with it, and the
+ * mono's job here is to be precise, not characterful.
+ */
+const dmMono = DM_Mono({
+  variable: "--font-dm-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -73,7 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${spaceMono.variable} ${bodoni.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${dmMono.variable} ${darkerGrotesque.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {children}

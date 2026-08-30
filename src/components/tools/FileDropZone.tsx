@@ -63,7 +63,7 @@ export function FileDropZone({
           dragging ? "text-paper" : "text-ink-soft group-hover:text-accent"
         }`}
       />
-      <span className="font-display text-lg font-medium tracking-[-0.004em]">{label}</span>
+      <span className="font-display text-lg font-bold tracking-[-0.015em]">{label}</span>
       {hint && <span className={`text-sm ${dragging ? "text-paper/80" : "text-ink-soft"}`}>{hint}</span>}
       <input
         type="file"

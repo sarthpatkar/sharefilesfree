@@ -34,7 +34,7 @@ export function WhyFree() {
         </Reveal>
 
         <Reveal delay={90}>
-          <h2 className="mt-10 max-w-3xl font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.012em] text-ink">
+          <h2 className="mt-10 max-w-3xl font-display text-[clamp(2.3rem,5.8vw,4.4rem)] font-black leading-[0.88] tracking-[-0.024em] text-ink">
             The honest version of &ldquo;free forever&rdquo;.
           </h2>
         </Reveal>
@@ -57,7 +57,7 @@ export function WhyFree() {
             >
               <div className="sff-cell group h-full px-0 py-9 hover:bg-ink sm:px-8 sm:[&]:first:pl-0">
                 <span className="font-mono text-sm tabular-nums text-accent">{pillar.n}</span>
-                <h3 className="mt-4 font-display text-2xl font-medium tracking-[-0.008em] text-ink transition-colors group-hover:text-paper">
+                <h3 className="mt-4 font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover:text-paper">
                   {pillar.title}
                 </h3>
                 <p className="mt-3 max-w-md text-[15px] leading-[1.7] text-ink-soft transition-colors group-hover:text-paper/75">

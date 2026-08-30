@@ -27,13 +27,13 @@ export default function ToolsIndexPage() {
               </span>
             </div>
             <div className="grid gap-x-12 py-16 sm:py-24 lg:grid-cols-12">
-              <h1 className="col-span-full font-display text-[clamp(2.6rem,8vw,6rem)] font-medium leading-[1.02] tracking-[-0.015em] text-ink lg:col-span-8">
-                <span className="block overflow-hidden pb-[0.13em]">
+              <h1 className="col-span-full font-display text-[clamp(2.6rem,8vw,6rem)] font-black leading-[0.88] tracking-[-0.028em] text-ink lg:col-span-8">
+                <span className="block overflow-hidden pb-[0.07em]">
                   <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
                     File tools that
                   </span>
                 </span>
-                <span className="block overflow-hidden pb-[0.13em]">
+                <span className="block overflow-hidden pb-[0.07em]">
                   <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
                     never see your files.
                   </span>
