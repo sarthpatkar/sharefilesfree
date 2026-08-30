@@ -56,7 +56,7 @@ export function HowItWorks() {
   }, []);
 
   return (
-    <section id="how" className="scroll-mt-20 bg-lime">
+    <section id="how" className="scroll-mt-20 bg-lime-3">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           How it works

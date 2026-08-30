@@ -58,7 +58,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <section className="bg-lime">
+      <section className="bg-lime-4">
         <div className="mx-auto w-full max-w-[1400px] px-5 py-14 sm:px-8">
           <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
             Related tools

@@ -31,7 +31,17 @@
   --y-soft:     #ffffa3;  /* second field */
   --y-mid:      #ffff74;  /* third field */
   --y-max:      #ffff17;  /* punch: type on red, badges, the logo mark */
-  --lime:       #c3ff17;
+  /* Lime ladder, same principle as the yellows — the pale end is the higher
+     contrast (5.27 vs 4.61 with red), so paler grounds read better, and the
+     saturated end is reserved for punches. */
+  --lime-max:  #c3ff17;
+  --lime-2:    #cdff3d;
+  --lime-3:    #d7ff64;
+  --lime-4:    #e1ff8b;
+  --lime-5:    #ebffb1;
+  --lime-pale: #f5ffd8;
+  --lime:      var(--lime-max);
+
   --pink:       #ff69b4;
   --blush:      #e9a4cb;
   --gold:       #ffde21;
@@ -70,6 +80,12 @@
   --color-red: var(--red);
   --color-red-bright: var(--red-bright);
   --color-lime: var(--lime);
+  --color-lime-max: var(--lime-max);
+  --color-lime-2: var(--lime-2);
+  --color-lime-3: var(--lime-3);
+  --color-lime-4: var(--lime-4);
+  --color-lime-5: var(--lime-5);
+  --color-lime-pale: var(--lime-pale);
   --color-yellow: var(--yellow);
   --color-y-pale: var(--y-pale);
   --color-y-soft: var(--y-soft);
@@ -230,12 +246,26 @@ html {
   .sff-nudge:active { transform: none; }
 }
 
+/* The swipe track: hide the scrollbar chrome but keep the scrolling itself
+   entirely native, so momentum and rubber-banding behave the way the OS does
+   them rather than the way a library imitates them. */
+.sff-track {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.sff-track::-webkit-scrollbar { display: none; }
+
 /* Scroll-driven layout (the pinned illustration, the stacking pillars) is
-   still motion — release both when motion is unwelcome so the page reads as
-   a plain stacked list. */
+   still motion — release it when motion is unwelcome so the page reads as a
+   plain stacked list, and drop the snap so the carousel scrolls freely. */
 @media (prefers-reduced-motion: reduce) {
+  .sticky,
   .lg\:sticky,
   [class*="lg:sticky"] {
     position: static !important;
+  }
+  .sff-track {
+    scroll-snap-type: none !important;
   }
 }

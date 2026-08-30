@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 const PILLARS = [
   {
     field: "bg-y-max",
@@ -7,7 +9,7 @@ const PILLARS = [
     body: "When you're both online the file goes straight across, never touching a server we rent. That's why there's no size cap here, and no reason to charge you for one.",
   },
   {
-    field: "bg-lime",
+    field: "bg-lime-max",
     title: "We can't read your files",
     body: "It's locked before it leaves you and opened only on their screen. There's no copy on our side to lose, to sell, or to be asked to hand over.",
   },
@@ -24,22 +26,51 @@ const PILLARS = [
 ];
 
 /**
- * Four reasons that stack.
+ * Four reasons, presented two ways because one presentation can't serve both
+ * widths honestly.
  *
- * These are parallel, not sequential — so a horizontal track or a numbered
- * advance would imply an order that isn't there. Stacking is the honest
- * device: each card pins in turn and the next slides over it, leaving a
- * visible edge of every card underneath, so you end up looking at all four
- * piled up rather than at a winner.
+ * Wide: they STACK. Each card sticks a little lower than the last, so the ones
+ * above stay on screen as title bands and you end up looking at all four piled
+ * up rather than at a winner. Parallel reasons, so nothing implies an order.
  *
- * Built purely on position:sticky. The browser drives it, so there's no
- * scroll listener, no hijacking, and nothing to jank. Below lg the sticky
- * offsets would fight the smaller viewport, so it degrades to a plain
- * stacked list.
+ * Narrow: stacking has nowhere to go — a phone viewport can't hold four pinned
+ * cards, which is why it previously collapsed to a dead list. So below lg it
+ * becomes a snap carousel you swipe, with the next card peeking to advertise
+ * that it moves, and a dot rail showing where you are. Native scroll-snap, so
+ * momentum and rubber-banding stay exactly as the OS does them.
  */
 export function WhyFree() {
+  const [active, setActive] = useState(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    const cards = cardRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (!track || cards.length === 0 || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const best = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!best) return;
+        const index = cards.indexOf(best.target as HTMLDivElement);
+        if (index >= 0) setActive(index);
+      },
+      { root: track, threshold: [0.5, 0.75, 1] },
+    );
+
+    cards.forEach((c) => observer.observe(c));
+    return () => observer.disconnect();
+  }, []);
+
+  function goTo(i: number) {
+    cardRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+
   return (
-    <section id="why" className="scroll-mt-20 bg-y-soft">
+    <section id="why" className="scroll-mt-20 overflow-hidden bg-y-soft">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           Why it&apos;s free
@@ -55,31 +86,66 @@ export function WhyFree() {
           </p>
         </div>
 
-        {/* The stack. Each card sticks a little lower than the last, so the
-            one above stays visible as a band once it's been passed. */}
-        <div className="mt-14 flex flex-col gap-5 lg:mt-20 lg:gap-0">
+        {/* ---------- Narrow: swipeable snap carousel ---------- */}
+        <div className="mt-12 lg:hidden">
+          <div
+            ref={trackRef}
+            className="sff-track -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3"
+          >
+            {PILLARS.map((pillar, i) => (
+              <div
+                key={pillar.title}
+                ref={(el) => {
+                  cardRefs.current[i] = el;
+                }}
+                className={`sff-block w-[82vw] max-w-sm shrink-0 snap-center p-6 transition-transform duration-300 ${pillar.field} ${
+                  i === active ? "scale-100" : "scale-[0.955]"
+                }`}
+              >
+                <span className="font-display text-[46px] leading-none text-red">0{i + 1}</span>
+                <h3 className="mt-2 font-display text-[26px] leading-[1.05] text-red-bright">{pillar.title}</h3>
+                <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{pillar.body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Dot rail — also a control, not just an indicator. */}
+          <div className="mt-5 flex items-center gap-2">
+            {PILLARS.map((pillar, i) => (
+              <button
+                key={pillar.title}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Show reason ${i + 1}: ${pillar.title}`}
+                aria-current={i === active}
+                className="group flex h-11 flex-1 items-center"
+              >
+                <span
+                  className={`h-2 w-full transition-colors duration-300 ${i === active ? "bg-red" : "bg-lime-4"}`}
+                />
+              </button>
+            ))}
+            <span className="ml-2 shrink-0 font-display text-[15px] leading-none text-red">
+              {active + 1}/{PILLARS.length}
+            </span>
+          </div>
+        </div>
+
+        {/* ---------- Wide: the stack ---------- */}
+        <div className="mt-20 hidden flex-col lg:flex">
           {PILLARS.map((pillar, i) => (
             <div
               key={pillar.title}
-              className="lg:sticky lg:pb-6"
-              style={{
-                // 7rem clears the sticky header; each card lands 4.5rem below
-                // the previous so its number strip stays on screen.
-                top: `calc(7rem + ${i * 4.5}rem)`,
-                zIndex: i + 1,
-              }}
+              className="sticky pb-6"
+              style={{ top: `calc(7rem + ${i * 4.5}rem)`, zIndex: i + 1 }}
             >
-              <div className={`sff-block flex flex-col gap-3 p-7 sm:flex-row sm:gap-8 sm:p-9 ${pillar.field}`}>
-                <span className="font-display text-[46px] leading-none text-red sm:w-24 sm:shrink-0">
-                  0{i + 1}
-                </span>
+              <div className={`sff-block flex gap-8 p-9 ${pillar.field}`}>
+                <span className="w-24 shrink-0 font-display text-[46px] leading-none text-red">0{i + 1}</span>
                 <div>
                   <h3 className="font-display text-[clamp(1.5rem,2.6vw,2.1rem)] leading-[1.05] text-red-bright">
                     {pillar.title}
                   </h3>
-                  <p className="mt-3 max-w-2xl text-[15px] font-medium leading-[1.55] text-red sm:text-[16px]">
-                    {pillar.body}
-                  </p>
+                  <p className="mt-3 max-w-2xl text-[16px] font-medium leading-[1.55] text-red">{pillar.body}</p>
                 </div>
               </div>
             </div>
@@ -88,7 +154,7 @@ export function WhyFree() {
 
         <div className="mt-10 max-w-2xl bg-red p-7 lg:mt-16">
           <p className="text-[16px] font-medium leading-[1.6] text-yellow">
-            <span className="font-display text-[20px] text-lime">The part we&apos;d rather say than hide:</span>{" "}
+            <span className="font-display text-[20px] text-lime-max">The part we&apos;d rather say than hide:</span>{" "}
             if the person you&apos;re sending to isn&apos;t around, the shareable link does park your file on storage
             we rent — locked, and deleted on the schedule you choose. That route has a size cap, because it costs us
             real money. The six-digit route doesn&apos;t.

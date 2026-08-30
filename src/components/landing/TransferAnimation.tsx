@@ -3,20 +3,22 @@
 import { useEffect, useState } from "react";
 
 /**
- * The file crossing from one screen to the other, drawn in the full palette —
- * where hot pink and blush earn their place as pure graphic.
+ * The handoff, drawn as a picture that actually teaches.
  *
- * Takes a `step` so it can actually *play* the three-step explanation rather
- * than looping the same loop regardless of what's being read:
- *   0 — the file is sitting on your machine, nothing sent
- *   1 — the code is up on the other screen, wire not live yet
- *   2 — packets crossing, file landed
+ * Takes a `step` so it plays the three-step explanation rather than looping
+ * regardless of what's being read:
+ *   0 — the file is sitting on your machine, wire dark, phone asleep
+ *   1 — the code is up on the other screen, wire waking
+ *   2 — the file crosses and lands
  *
  * With no step passed it runs the full loop, which is how the hero used it.
+ *
+ * Tonal depth comes from the lime ladder rather than from shading — six steps
+ * of the same hue read as light and shadow without introducing a colour that
+ * isn't in the palette.
  */
 
-const ARC_TOP = "M 214 150 C 286 84, 356 84, 424 146";
-const ARC_BOTTOM = "M 214 176 C 286 244, 356 244, 424 182";
+const ARC = "M 196 158 C 280 96, 360 96, 444 158";
 
 const CODES = ["481 902", "137 546", "620 318", "905 274"];
 
@@ -29,94 +31,106 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
     return () => clearInterval(id);
   }, []);
 
-  const staged = step === undefined;
-  const showCode = staged || step >= 1;
-  const wireLive = staged || step === 2;
-  const landed = staged || step === 2;
-  const fileOnLaptop = staged || step === 0;
+  const loop = step === undefined;
+  const awake = loop || step >= 1;
+  const crossing = loop || step === 2;
+  const held = loop || step === 0;
 
   return (
     <svg
-      viewBox="0 0 600 300"
+      viewBox="0 0 640 340"
       fill="none"
       className="w-full overflow-visible"
       role="img"
       aria-label="A file crossing directly from a laptop to a phone, with no server in between"
     >
-      <rect x="10" y="30" width="580" height="240" fill="var(--blush)" />
+      {/* Field, with a second lighter plate behind the devices for depth. */}
+      <rect x="0" y="16" width="640" height="292" fill="var(--lime-5)" />
+      <rect x="0" y="16" width="640" height="120" fill="var(--lime-4)" />
 
       {/* ---------- The wire ---------- */}
-      <g style={{ opacity: wireLive ? 1 : 0.25, transition: "opacity .45s ease" }}>
-        <path d={ARC_TOP} stroke="var(--red)" strokeWidth="4" strokeLinecap="round" />
-        <path d={ARC_BOTTOM} stroke="var(--red)" strokeWidth="4" strokeLinecap="round" />
-      </g>
+      <path
+        d={ARC}
+        stroke="var(--lime-2)"
+        strokeWidth="14"
+        strokeLinecap="round"
+        style={{ opacity: awake ? 1 : 0.45, transition: "opacity .45s ease" }}
+      />
+      <path
+        d={ARC}
+        stroke="var(--red)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeDasharray="2 14"
+        style={{ opacity: crossing ? 1 : 0.3, transition: "opacity .45s ease" }}
+      />
 
-      {/* ---------- Packets, only once the wire is live ---------- */}
-      {wireLive &&
+      {/* ---------- The file, crossing ---------- */}
+      {crossing &&
         [
-          { path: ARC_TOP, delay: "0s", dur: "3s", fill: "var(--pink)" },
-          { path: ARC_TOP, delay: "1.5s", dur: "3s", fill: "var(--y-max)" },
-          { path: ARC_BOTTOM, delay: "0.75s", dur: "3.4s", fill: "var(--y-max)" },
-          { path: ARC_BOTTOM, delay: "2.25s", dur: "3.4s", fill: "var(--pink)" },
+          { delay: "0s", fill: "var(--pink)" },
+          { delay: "1.15s", fill: "var(--y-max)" },
+          { delay: "2.3s", fill: "var(--lime-max)" },
         ].map((packet, i) => (
-          <g
-            key={i}
-            className="sff-packet"
-            style={{ offsetPath: `path("${packet.path}")`, animationDelay: packet.delay, animationDuration: packet.dur }}
-          >
-            <rect x="-11" y="-13" width="22" height="26" fill={packet.fill} stroke="var(--red)" strokeWidth="3" />
+          <g key={i} className="sff-packet" style={{ offsetPath: `path("${ARC}")`, animationDelay: packet.delay, animationDuration: "3.4s" }}>
+            <rect x="-15" y="-19" width="30" height="38" fill={packet.fill} stroke="var(--red)" strokeWidth="4" />
+            <path d="M 3 -19 v 9 h 9" stroke="var(--red)" strokeWidth="4" fill="none" strokeLinejoin="round" />
+            <path d="M -7 0 h 12 M -7 8 h 12" stroke="var(--red)" strokeWidth="3.5" strokeLinecap="round" />
           </g>
         ))}
 
       {/* ---------- Laptop ---------- */}
       <g>
-        <rect x="60" y="108" width="140" height="90" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
-        <path d="M 40 202 h 180 l -8 12 H 48 z" fill="var(--lime)" stroke="var(--red)" strokeWidth="4" strokeLinejoin="round" />
-        <rect x="76" y="124" width="46" height="9" fill="var(--pink)" />
-        {/* The staged file — sitting here until it's actually sent. */}
-        <g style={{ opacity: fileOnLaptop ? 1 : 0.35, transition: "opacity .45s ease" }}>
-          <rect x="76" y="144" width="108" height="30" fill="var(--lime)" />
-          <rect x="86" y="152" width="16" height="14" fill="var(--pink)" />
-          <rect x="110" y="156" width="60" height="7" fill="var(--red)" />
+        <rect x="34" y="112" width="168" height="106" fill="var(--red)" />
+        <rect x="28" y="106" width="168" height="106" fill="var(--lime-pale)" stroke="var(--red)" strokeWidth="5" />
+        <path d="M 8 218 h 208 l -10 14 H 18 z" fill="var(--lime-3)" stroke="var(--red)" strokeWidth="5" strokeLinejoin="round" />
+
+        {/* Screen contents: a file card that stays put until it's sent. */}
+        <g style={{ opacity: held ? 1 : 0.3, transition: "opacity .5s ease" }}>
+          <rect x="46" y="126" width="60" height="10" fill="var(--lime-2)" />
+          <rect x="46" y="148" width="132" height="42" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
+          <rect x="58" y="158" width="20" height="22" fill="var(--pink)" />
+          <rect x="86" y="162" width="78" height="7" fill="var(--red)" />
+          <rect x="86" y="174" width="52" height="7" fill="var(--lime-2)" />
         </g>
-        <rect x="76" y="182" width="108" height="7" fill="var(--blush)" />
-        <rect x="76" y="182" height="7" fill="var(--red)" style={{ transition: "width .5s ease" }} width={landed ? 108 : 16}>
-          {wireLive && (
-            <animate attributeName="width" values="16;98;16" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" />
-          )}
-        </rect>
+
+        {/* Sent-progress rail. */}
+        <rect x="46" y="198" width="132" height="8" fill="var(--lime-3)" />
+        <rect x="46" y="198" height="8" fill="var(--red)" width={crossing ? 132 : 20} style={{ transition: "width .6s ease" }} />
       </g>
 
       {/* ---------- Phone ---------- */}
       <g>
-        <rect x="436" y="92" width="76" height="146" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
-        <rect x="462" y="102" width="24" height="6" fill="var(--red)" />
-        <g style={{ opacity: showCode ? 1 : 0, transition: "opacity .45s ease" }}>
-          <text
-            x="474"
-            y="152"
-            textAnchor="middle"
-            className="font-display"
-            fill="var(--red)"
-            fontSize="19"
-            letterSpacing="0.5"
-          >
+        <rect x="468" y="86" width="96" height="176" fill="var(--red)" />
+        <rect x="462" y="80" width="96" height="176" fill="var(--lime-pale)" stroke="var(--red)" strokeWidth="5" />
+        <rect x="494" y="92" width="32" height="7" fill="var(--red)" />
+
+        {/* Asleep until the code is shared. */}
+        <g style={{ opacity: awake ? 0 : 1, transition: "opacity .4s ease" }}>
+          <rect x="478" y="150" width="64" height="8" fill="var(--lime-3)" />
+          <rect x="490" y="166" width="40" height="8" fill="var(--lime-3)" />
+        </g>
+
+        <g style={{ opacity: awake ? 1 : 0, transition: "opacity .45s ease" }}>
+          <rect x="476" y="120" width="68" height="34" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
+          <text x="510" y="144" textAnchor="middle" className="font-display" fill="var(--red)" fontSize="17" letterSpacing="0.5">
             {CODES[codeIndex]}
           </text>
-          <rect x="452" y="166" width="44" height="7" fill="var(--pink)" />
-          <rect x="460" y="180" width="28" height="7" fill="var(--blush)" />
+          <rect x="480" y="166" width="60" height="8" fill="var(--pink)" />
+          <rect x="488" y="182" width="44" height="8" fill="var(--lime-2)" />
         </g>
-        {/* Arrived. */}
-        <g style={{ opacity: landed ? 1 : 0, transition: "opacity .45s ease .15s" }}>
-          <rect x="450" y="198" width="48" height="26" fill="var(--lime)" />
-          <path d="m 461 211 5 5 9 -11" stroke="var(--red)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+
+        {/* Landed. */}
+        <g style={{ opacity: crossing ? 1 : 0, transition: "opacity .45s ease .2s" }}>
+          <rect x="478" y="204" width="64" height="38" fill="var(--lime-max)" stroke="var(--red)" strokeWidth="4" />
+          <path d="m 492 224 7 7 13 -15" stroke="var(--red)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         </g>
       </g>
 
       {/* ---------- Nothing in the middle ---------- */}
-      <g transform="translate(300 258)">
-        <rect x="-86" y="-16" width="172" height="32" fill="var(--red)" />
-        <text x="0" y="6" textAnchor="middle" className="font-display" fill="var(--lime)" fontSize="14" letterSpacing="0.5">
+      <g transform="translate(320 286)">
+        <rect x="-104" y="-19" width="208" height="38" fill="var(--red)" />
+        <text x="0" y="7" textAnchor="middle" className="font-display" fill="var(--lime-max)" fontSize="15" letterSpacing="0.6">
           NO SERVER IN BETWEEN
         </text>
       </g>
