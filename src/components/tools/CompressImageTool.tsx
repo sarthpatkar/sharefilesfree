@@ -28,7 +28,7 @@ export function CompressImageTool({ onSend }: { onSend?: (file: File) => void })
             <select
               value={value.format}
               onChange={(e) => set({ ...value, format: e.target.value as CompressOptions["format"] })}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             >
               <option value="jpeg">JPEG — smallest, no transparency</option>
               <option value="webp">WebP — small, keeps transparency</option>

@@ -1,4 +1,4 @@
-// A small hand-built icon set — consistent 1.75px stroke, rounded joins,
+// A small hand-built icon set — consistent 1.75px stroke, joins,
 // 24x24 viewBox — used everywhere instead of emoji. Emoji render inconsistently
 // across platforms and read as a placeholder rather than a designed detail;
 // a matched line-icon set is one of the fastest ways to make an interface

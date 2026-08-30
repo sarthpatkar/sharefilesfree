@@ -2,19 +2,24 @@
 
 import Link from "next/link";
 import { TOOLS } from "../tools/registry";
-import { Reveal } from "./Reveal";
+import { Reveal, SectionLabel } from "./Reveal";
 
-/** Split into two rows that scroll in opposite directions — reads as motion rather than as a list that happens to slide. */
 const HALF = Math.ceil(TOOLS.length / 2);
 const ROW_ONE = TOOLS.slice(0, HALF);
 const ROW_TWO = TOOLS.slice(HALF);
 
+/**
+ * Two rows scrolling in opposite directions. Hard-clipped by `overflow-hidden`
+ * on the section rather than faded with a mask-image, because masks require a
+ * gradient and gradients are banned site-wide — the hard edge suits the ruled
+ * layout better anyway.
+ */
 function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; speed: string; reverse?: boolean }) {
   return (
-    <div className="sff-marquee-mask relative flex overflow-hidden">
+    <div className="flex border-b border-rule">
       {/* The track holds the list twice; translating exactly -50% loops seamlessly. */}
       <div
-        className="sff-marquee-track flex shrink-0 gap-3 pr-3"
+        className="sff-marquee-track flex shrink-0"
         style={{ "--speed": speed, animationDirection: reverse ? "reverse" : "normal" } as React.CSSProperties}
       >
         {[...tools, ...tools].map((tool, i) => (
@@ -24,12 +29,14 @@ function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; sp
             // aria-hidden on the duplicate half so screen readers don't hear every tool twice.
             aria-hidden={i >= tools.length}
             tabIndex={i >= tools.length ? -1 : undefined}
-            className="group flex shrink-0 items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-[0_6px_20px_-8px_var(--glow)]"
+            className="sff-cell flex shrink-0 items-center gap-3 border-r border-rule px-6 py-5 hover:bg-ink hover:text-paper"
           >
-            <tool.icon className="h-[18px] w-[18px] text-accent transition-transform duration-300 group-hover:scale-110" />
-            <span className="whitespace-nowrap text-sm font-medium text-foreground">{tool.title}</span>
+            <tool.icon className="h-[18px] w-[18px] shrink-0 text-accent" />
+            <span className="whitespace-nowrap text-sm font-medium">{tool.title}</span>
             {tool.caveat && (
-              <span className="rounded-full bg-border/70 px-1.5 py-0.5 text-[10px] font-medium text-muted">{tool.caveat}</span>
+              <span className="border border-current px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] opacity-60">
+                {tool.caveat}
+              </span>
             )}
           </Link>
         ))}
@@ -40,43 +47,34 @@ function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; sp
 
 export function ToolsShowcase() {
   return (
-    <section className="relative border-t border-border py-24 sm:py-32">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
-          <div>
-            <Reveal>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Free tools</p>
-            </Reveal>
-            <Reveal delay={80}>
-              <h2 className="mt-4 max-w-2xl font-display text-3xl font-medium leading-tight tracking-[-0.02em] text-foreground sm:text-[2.75rem]">
-                {TOOLS.length} file tools that never see your files.
-              </h2>
-            </Reveal>
-            <Reveal delay={140}>
-              <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-muted">
-                Merge, split, compress, convert, OCR. Every one runs entirely inside your browser — so there&apos;s no
-                upload queue, no watermark, no daily limit, and genuinely nothing for us to leak.
-              </p>
-            </Reveal>
-          </div>
-          <Reveal delay={200}>
-            <Link
-              href="/tools"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all duration-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-[0_6px_20px_-8px_var(--glow)]"
-            >
-              Browse all tools
-              <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
-                →
-              </span>
+    <section className="overflow-hidden border-b border-rule">
+      <div className="mx-auto w-full max-w-[1400px] px-5 pt-20 sm:px-8 sm:pt-28">
+        <Reveal>
+          <SectionLabel index="02">Free tools</SectionLabel>
+        </Reveal>
+
+        <div className="mt-10 grid gap-x-12 gap-y-8 lg:grid-cols-12">
+          <Reveal delay={90} className="lg:col-span-7">
+            <h2 className="font-display text-[clamp(2rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.03em] text-ink">
+              {TOOLS.length} file tools that never see your files.
+            </h2>
+          </Reveal>
+          <Reveal delay={160} className="flex flex-col justify-end lg:col-span-5">
+            <p className="max-w-md text-[16px] leading-[1.7] text-ink-soft">
+              Merge, split, compress, convert, OCR. Every one runs inside your browser — no upload queue, no
+              watermark, no daily limit, and genuinely nothing for us to leak.
+            </p>
+            <Link href="/tools" className="sff-underline mt-5 w-fit text-sm font-medium text-ink">
+              Browse all {TOOLS.length} tools
             </Link>
           </Reveal>
         </div>
       </div>
 
-      <Reveal delay={240} className="mt-14 flex flex-col gap-3">
-        <MarqueeRow tools={ROW_ONE} speed="52s" />
-        <MarqueeRow tools={ROW_TWO} speed="64s" reverse />
-      </Reveal>
+      <div className="mt-16 border-t border-rule">
+        <MarqueeRow tools={ROW_ONE} speed="56s" />
+        <MarqueeRow tools={ROW_TWO} speed="68s" reverse />
+      </div>
     </section>
   );
 }

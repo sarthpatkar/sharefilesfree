@@ -1,53 +1,67 @@
 @import "tailwindcss";
 
 /*
- * Design tokens — a real palette, not Tailwind's defaults. The brand color is
- * a specific deep pine green (not Tailwind's emerald-600), paired with warm
- * cream/charcoal neutrals instead of pure white/black, and a terracotta
- * (not stock red-600) for destructive actions. Small deliberate choices like
- * this are most of what separates a designed interface from a default one.
+ * ShareFilesFree design system — editorial / Swiss, not soft-SaaS.
  *
- * --ember is a warm secondary that only appears in the marketing surfaces
- * (landing page accents, the transfer animation). Deliberately NOT the
- * violet/indigo gradient every generated landing page reaches for.
+ * THREE HARD RULES, site-wide, no exceptions:
+ *   1. No gradients. Not in CSS (linear/radial/repeating, including
+ *      mask-image and fades), not in SVG (<linearGradient>/<radialGradient>).
+ *      Solid fills and strokes only.
+ *   2. No capsules. No pill shapes, no rounded-full on anything wide.
+ *   3. No cards inside cards, and as few boxed panels as possible.
+ *
+ * What carries the design instead: hairline rules as structure, content
+ * sitting directly on the paper, large display type, mono small-caps labels,
+ * asymmetric grids, flat blocks of accent, hard offset shadows, and motion.
  */
+
 :root {
-  --background: #faf8f3;
-  --card: #ffffff;
-  --foreground: #14231d;
-  --muted: #5b6b64;
-  --border: #e4e0d6;
+  --paper: #f7f4ec;
+  --ink: #10201a;
+  --ink-soft: #55655e;
+  --rule: #d9d3c4;
+  --rule-strong: #b9b2a1;
   --accent: #0b6e4f;
-  --accent-hover: #0a5f44;
-  --accent-foreground: #ffffff;
-  --danger: #c8452a;
-  --danger-hover: #ad3b23;
-  --ember: #c86f2a;
-  --ember-soft: #e8a765;
-  --glow: rgba(11, 110, 79, 0.16);
-  --grid-line: rgba(20, 35, 29, 0.055);
+  --accent-hover: #085a40;
+  --on-accent: #f7f4ec;
+  --danger: #b83a1f;
+  --danger-hover: #9a2f18;
+
+  /* Aliases kept so the 19 tool components and transfer UI don't all need
+     rewriting — they map onto the same flat palette. */
+  --background: var(--paper);
+  --card: #fffdf7;
+  --foreground: var(--ink);
+  --muted: var(--ink-soft);
+  --border: var(--rule);
+  --accent-foreground: var(--on-accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0e1512;
-    --card: #16201b;
-    --foreground: #edefe9;
-    --muted: #8a9992;
-    --border: #253029;
-    --accent: #34c28c;
-    --accent-hover: #4dd39d;
-    --accent-foreground: #06140f;
+    --paper: #0d1310;
+    --ink: #eceee7;
+    --ink-soft: #8b9a92;
+    --rule: #232d27;
+    --rule-strong: #3b4740;
+    --accent: #3ecf94;
+    --accent-hover: #5ce0a9;
+    --on-accent: #06140f;
     --danger: #ff7a5c;
-    --danger-hover: #ff9276;
-    --ember: #e0913f;
-    --ember-soft: #f0bd80;
-    --glow: rgba(52, 194, 140, 0.2);
-    --grid-line: rgba(237, 239, 233, 0.05);
+    --danger-hover: #ff9679;
+
+    --card: #131c17;
   }
 }
 
 @theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-on-accent: var(--on-accent);
+
   --color-background: var(--background);
   --color-card: var(--card);
   --color-foreground: var(--foreground);
@@ -58,207 +72,234 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
-  --color-ember: var(--ember);
-  --color-ember-soft: var(--ember-soft);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-fraunces);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
 }
 
-/* A faint grain over the flat background — the single cheapest trick for
-   making a solid color field feel like paper instead of a default div. */
+/* Paper grain. feTurbulence noise, not a gradient — this is what keeps a
+   flat single-colour field from reading as an empty div. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.35;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  body::before {
+    mix-blend-mode: screen;
+    opacity: 0.06;
+  }
 }
 
 ::selection {
   background: var(--accent);
-  color: var(--accent-foreground);
+  color: var(--on-accent);
 }
 
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 0;
 }
 
 html {
   scroll-behavior: smooth;
+  /* Sharp corners are the house style; this stops any stray rounding from
+     Tailwind defaults reading as the generic soft-SaaS look. */
+  --radius: 0px;
 }
 
 /* ==========================================================================
-   Motion system
+   Motion
    --------------------------------------------------------------------------
-   Hand-written keyframes rather than a motion library: everything here is
-   transform/opacity only (compositor-friendly, no layout thrash), and it
-   keeps ~50KB of framer-motion out of a bundle that already carries pdf.js,
-   Tesseract and SheetJS. Every animation below is disabled wholesale by the
-   prefers-reduced-motion block at the bottom of this file.
+   With gradients and glows off the table, motion is doing the work that
+   decoration usually does — so it has to be precise. Everything is
+   transform / opacity / clip-path / stroke-dashoffset (all compositor- or
+   paint-cheap) and everything is switched off by the reduced-motion block
+   at the bottom.
    ========================================================================== */
 
-@keyframes sff-aurora {
-  0%   { transform: translate3d(-8%, -6%, 0) scale(1);    }
-  33%  { transform: translate3d(6%, 4%, 0) scale(1.12);   }
-  66%  { transform: translate3d(-4%, 8%, 0) scale(0.95);  }
-  100% { transform: translate3d(-8%, -6%, 0) scale(1);    }
+/* The signature reveal: type wipes up from behind a hard edge, the way
+   letterpress lines land. No fade — a fade is the default; a wipe is a choice. */
+@keyframes sff-wipe-up {
+  from {
+    clip-path: inset(105% 0 0 0);
+    transform: translate3d(0, 0.34em, 0);
+  }
+  to {
+    clip-path: inset(-30% 0 -30% 0);
+    transform: translate3d(0, 0, 0);
+  }
 }
 
-@keyframes sff-float {
-  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
-  50%      { transform: translateY(-14px) rotate(calc(var(--tilt, 0deg) + 1.5deg)); }
-}
-
-@keyframes sff-drift {
-  0%   { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(0, -22px, 0); }
-}
-
-/* The signature hero motion: a packet leaving one device and arriving at the
-   other. Scale/opacity are keyed so it "pops" on departure and lands softly. */
-@keyframes sff-packet {
-  0%   { offset-distance: 0%;   opacity: 0; transform: scale(0.4); }
-  8%   { opacity: 1;            transform: scale(1); }
-  88%  { opacity: 1;            transform: scale(1); }
-  100% { offset-distance: 100%; opacity: 0; transform: scale(0.4); }
-}
-
-@keyframes sff-dash {
-  to { stroke-dashoffset: -1000; }
-}
-
-@keyframes sff-draw {
-  from { stroke-dashoffset: var(--len, 1000); }
-  to   { stroke-dashoffset: 0; }
-}
-
-@keyframes sff-pulse-ring {
-  0%   { transform: scale(0.85); opacity: 0.55; }
-  70%  { transform: scale(1.6);  opacity: 0; }
-  100% { transform: scale(1.6);  opacity: 0; }
-}
-
-@keyframes sff-marquee {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
-@keyframes sff-shimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
-}
-
-@keyframes sff-blink {
-  0%, 45%   { opacity: 1; }
-  50%, 95%  { opacity: 0.25; }
-  100%      { opacity: 1; }
+@keyframes sff-wipe-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 @keyframes sff-rise {
-  from { opacity: 0; transform: translate3d(0, 26px, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
-@keyframes sff-scale-in {
-  from { opacity: 0; transform: scale(0.94); }
-  to   { opacity: 1; transform: scale(1); }
+/* Hairlines that grow into place instead of just being there. */
+@keyframes sff-rule {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
-@keyframes sff-sweep {
-  0%   { transform: translateX(-120%) skewX(-18deg); }
-  100% { transform: translateX(320%) skewX(-18deg); }
+@keyframes sff-draw {
+  from {
+    stroke-dashoffset: var(--len, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
-@keyframes sff-orbit {
-  from { transform: rotate(0deg) translateX(var(--r, 60px)) rotate(0deg); }
-  to   { transform: rotate(360deg) translateX(var(--r, 60px)) rotate(-360deg); }
+@keyframes sff-dash {
+  to {
+    stroke-dashoffset: -1000;
+  }
 }
 
-/* --- Animation utility classes ------------------------------------------ */
-
-.sff-aurora {
-  animation: sff-aurora 26s ease-in-out infinite;
-  will-change: transform;
+/* A file packet crossing the wire between two devices. */
+@keyframes sff-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  86% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
 }
 
-.sff-float {
-  animation: sff-float 7s ease-in-out infinite;
-  will-change: transform;
+@keyframes sff-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes sff-blink {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  50%,
+  96% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes sff-tick {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -3px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* --- Utilities ---------------------------------------------------------- */
+
+.sff-enter {
+  opacity: 0;
+  animation: sff-rise 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+/* Each headline line needs its own clipping context, so this is applied to a
+   wrapper span with overflow hidden around the animating line. */
+.sff-line {
+  display: block;
+  animation: sff-wipe-up 1s cubic-bezier(0.19, 1, 0.22, 1) both;
+  animation-delay: calc(var(--i, 0) * 110ms);
+}
+
+.sff-wipe {
+  animation: sff-wipe-in 0.9s cubic-bezier(0.19, 1, 0.22, 1) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+.sff-dash {
+  stroke-dasharray: 4 8;
+  animation: sff-dash 16s linear infinite;
+}
+
+.sff-blink {
+  animation: sff-blink 2.6s steps(1, end) infinite;
+}
+
+.sff-tick {
+  animation: sff-tick 3.4s ease-in-out infinite;
 }
 
 .sff-packet {
-  animation: sff-packet 3.2s cubic-bezier(0.45, 0, 0.35, 1) infinite;
+  animation: sff-packet 3.4s cubic-bezier(0.42, 0, 0.4, 1) infinite;
   offset-rotate: 0deg;
   will-change: offset-distance, opacity, transform;
 }
 
-.sff-dash {
-  stroke-dasharray: 5 9;
-  animation: sff-dash 14s linear infinite;
-}
-
-.sff-pulse-ring {
-  animation: sff-pulse-ring 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
-}
-
-.sff-blink {
-  animation: sff-blink 2.4s steps(1, end) infinite;
-}
-
-/* Marquee: the track holds two identical copies side by side, so translating
-   exactly -50% loops seamlessly with no visible jump. */
+/* Marquee: the track holds two identical copies, so -50% loops seamlessly.
+   Hard-clipped by overflow rather than a mask, since masks need gradients. */
 .sff-marquee-track {
-  animation: sff-marquee var(--speed, 46s) linear infinite;
+  animation: sff-marquee var(--speed, 50s) linear infinite;
   will-change: transform;
 }
 
-.sff-marquee-mask {
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-}
-
-.sff-shimmer {
-  background: linear-gradient(
-    100deg,
-    transparent 20%,
-    color-mix(in oklab, var(--accent) 22%, transparent) 42%,
-    transparent 64%
-  );
-  background-size: 200% 100%;
-  animation: sff-shimmer 3.4s linear infinite;
-}
-
-/* Staggered entrance for hero content — each child opts in with an index. */
-.sff-enter {
-  opacity: 0;
-  animation: sff-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: calc(var(--i, 0) * 95ms);
-}
-
-.sff-enter-scale {
-  opacity: 0;
-  animation: sff-scale-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: calc(var(--i, 0) * 95ms);
-}
-
-/* Scroll-reveal: the base state is set here, and Reveal.tsx flips
-   data-shown once the element crosses the viewport. */
+/* Scroll reveal. Base state here; Reveal.tsx flips data-reveal on entry. */
 [data-reveal] {
   opacity: 0;
-  transform: translate3d(0, 30px, 0);
+  transform: translate3d(0, 24px, 0);
   transition:
-    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+    transform 0.7s cubic-bezier(0.19, 1, 0.22, 1);
   transition-delay: var(--delay, 0ms);
 }
 
@@ -267,64 +308,79 @@ html {
   transform: translate3d(0, 0, 0);
 }
 
-/* The moving light that sweeps across the primary CTA on hover. */
-.sff-sweep::after {
+/* A hairline that draws itself across when its section is revealed. */
+[data-reveal] .sff-rule-grow {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.9s cubic-bezier(0.19, 1, 0.22, 1);
+  transition-delay: calc(var(--delay, 0ms) + 120ms);
+}
+
+[data-reveal="shown"] .sff-rule-grow {
+  transform: scaleX(1);
+}
+
+/* Underline that grows from the left on hover — the nav/link affordance,
+   replacing the usual colour-shift-plus-glow. */
+.sff-underline {
+  position: relative;
+}
+
+.sff-underline::after {
   content: "";
   position: absolute;
-  inset: 0;
-  width: 40%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
-  transform: translateX(-120%) skewX(-18deg);
-  pointer-events: none;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1.5px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
-.sff-sweep:hover::after {
-  animation: sff-sweep 0.85s cubic-bezier(0.3, 0, 0.2, 1);
+.sff-underline:hover::after,
+.sff-underline:focus-visible::after,
+.sff-underline[data-active="true"]::after {
+  transform: scaleX(1);
 }
 
-/* Cursor-tracked glow. --mx/--my are written by a pointer handler in JS;
-   with no JS they simply resolve to the centered fallback and sit still. */
-.sff-spotlight::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.35s ease;
-  pointer-events: none;
-  background: radial-gradient(
-    240px circle at var(--mx, 50%) var(--my, 50%),
-    var(--glow),
-    transparent 70%
-  );
+/* Hard offset shadow — a deliberate print-like device, and the one shadow
+   style allowed here. Soft blurred shadows read as the default SaaS card. */
+.sff-offset {
+  box-shadow: 5px 5px 0 var(--ink);
 }
 
-.sff-spotlight:hover::before {
-  opacity: 1;
+.sff-offset-accent {
+  box-shadow: 5px 5px 0 var(--accent);
 }
 
-/* Faint engineering-grid backdrop — reads as "infrastructure", and gives the
-   floating elements something to parallax against. */
-.sff-grid {
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 52px 52px;
+/* Press/hover: the block slides onto its own shadow. Tactile, and works on
+   touch (it's :active too), unlike a hover-only glow. */
+.sff-press {
+  transition:
+    transform 0.18s cubic-bezier(0.19, 1, 0.22, 1),
+    box-shadow 0.18s cubic-bezier(0.19, 1, 0.22, 1),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
-/* Accordion height animation without measuring in JS. */
-.sff-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+.sff-press:hover {
+  transform: translate3d(-2px, -2px, 0);
 }
 
-.sff-collapse[data-open="true"] {
-  grid-template-rows: 1fr;
+.sff-press:active {
+  transform: translate3d(2px, 2px, 0);
+  box-shadow: 0 0 0 var(--ink);
 }
 
-.sff-collapse > div {
-  overflow: hidden;
+/* Cells in a ruled grid: one shared hairline between neighbours instead of a
+   border box per item, which is what makes a grid of cards look like cards. */
+.sff-cell {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -332,23 +388,23 @@ html {
     scroll-behavior: auto;
   }
 
-  .sff-aurora,
-  .sff-float,
-  .sff-packet,
-  .sff-dash,
-  .sff-pulse-ring,
-  .sff-blink,
-  .sff-marquee-track,
-  .sff-shimmer,
   .sff-enter,
-  .sff-enter-scale,
-  .sff-sweep::after {
+  .sff-line,
+  .sff-wipe,
+  .sff-dash,
+  .sff-blink,
+  .sff-tick,
+  .sff-packet,
+  .sff-marquee-track {
     animation: none !important;
   }
 
   .sff-enter,
-  .sff-enter-scale {
+  .sff-line,
+  .sff-wipe {
     opacity: 1;
+    clip-path: none;
+    transform: none;
   }
 
   [data-reveal] {
@@ -357,7 +413,18 @@ html {
     transition: none;
   }
 
-  .sff-collapse {
+  [data-reveal] .sff-rule-grow,
+  [data-reveal="shown"] .sff-rule-grow {
+    transform: scaleX(1);
+    transition: none;
+  }
+
+  .sff-press:hover,
+  .sff-press:active {
+    transform: none;
+  }
+
+  .sff-underline::after {
     transition: none;
   }
 }

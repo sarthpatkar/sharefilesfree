@@ -42,7 +42,7 @@ export function WatermarkTool({ onSend }: { onSend?: (file: File) => void }) {
             <input
               value={value.text}
               onChange={(e) => set({ ...value, text: e.target.value })}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -50,7 +50,7 @@ export function WatermarkTool({ onSend }: { onSend?: (file: File) => void }) {
             <select
               value={value.position}
               onChange={(e) => set({ ...value, position: e.target.value as WatermarkPosition })}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             >
               {POSITIONS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -67,13 +67,13 @@ export function WatermarkTool({ onSend }: { onSend?: (file: File) => void }) {
                   type="color"
                   value={value.color}
                   onChange={(e) => set({ ...value, color: e.target.value })}
-                  className="h-9 w-9 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+                  className="h-9 w-9 cursor-pointer border border-border bg-transparent p-0.5"
                   aria-label="Watermark color"
                 />
                 <input
                   value={value.color}
                   onChange={(e) => set({ ...value, color: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
+                  className="w-full border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
                 />
               </div>
             </label>
@@ -120,7 +120,7 @@ export function WatermarkTool({ onSend }: { onSend?: (file: File) => void }) {
               value={value.pageRange}
               onChange={(e) => set({ ...value, pageRange: e.target.value })}
               placeholder="e.g. 1,3-5 — leave blank for every page"
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             />
           </label>
         </div>

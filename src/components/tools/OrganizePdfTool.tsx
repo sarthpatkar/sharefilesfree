@@ -145,7 +145,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => onDrop(e, i)}
             onDragEnd={() => setDragIndex(null)}
-            className={`flex cursor-grab flex-col items-center gap-1 rounded-lg border p-1.5 active:cursor-grabbing ${
+            className={`flex cursor-grab flex-col items-center gap-1 border p-1.5 active:cursor-grabbing ${
               page.deleted ? "opacity-30" : ""
             } ${dragIndex === i ? "border-accent" : "border-border"}`}
           >
@@ -153,7 +153,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
             <img
               src={page.thumb}
               alt={`Page ${page.originalIndex + 1}`}
-              className="rounded border border-border"
+              className="border border-border"
               style={{ transform: `rotate(${page.addRotation}deg)` }}
             />
             <span className="text-xs text-muted">#{page.originalIndex + 1}</span>
@@ -163,7 +163,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
                 aria-label={`Move page ${page.originalIndex + 1} earlier`}
-                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
               >
                 ↑
               </button>
@@ -172,7 +172,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 onClick={() => move(i, 1)}
                 disabled={i === pages.length - 1}
                 aria-label={`Move page ${page.originalIndex + 1} later`}
-                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
               >
                 ↓
               </button>
@@ -180,7 +180,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 type="button"
                 onClick={() => rotate(i)}
                 aria-label={`Rotate page ${page.originalIndex + 1}`}
-                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
+                className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
               >
                 ⟳
               </button>
@@ -188,7 +188,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 type="button"
                 onClick={() => duplicate(i)}
                 aria-label={`Duplicate page ${page.originalIndex + 1}`}
-                className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
+                className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
               >
                 Duplicate
               </button>
@@ -196,7 +196,7 @@ export function OrganizePdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 type="button"
                 onClick={() => toggleDelete(i)}
                 aria-label={`${page.deleted ? "Restore" : "Delete"} page ${page.originalIndex + 1}`}
-                className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
+                className="border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
               >
                 {page.deleted ? "Undo" : "Delete"}
               </button>

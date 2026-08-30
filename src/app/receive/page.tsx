@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ReceivePanel } from "@/components/ReceivePanel";
+import { GridBackdrop } from "@/components/landing/GridBackdrop";
 
 export const metadata: Metadata = {
   title: "Receive a file — enter your 6-digit code — ShareFilesFree",
@@ -19,42 +20,53 @@ export default async function ReceivePage({
 
   return (
     <>
-      <SiteHeader variant="solid" />
-      <main className="relative flex flex-1 flex-col">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="sff-grid absolute inset-0 opacity-60" />
-          <div
-            className="sff-aurora absolute -top-24 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full blur-[120px]"
-            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 68%)", opacity: 0.14 }}
-          />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background" />
-        </div>
+      <SiteHeader />
+      <main className="relative flex flex-1 flex-col overflow-hidden">
+        <GridBackdrop size={64} className="opacity-60" />
 
-        <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-16 sm:py-24">
-          <header className="sff-enter flex flex-col items-center gap-4 text-center" style={{ "--i": 0 } as React.CSSProperties}>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Receive</p>
-            <h1 className="font-display text-3xl font-medium tracking-[-0.02em] text-foreground sm:text-4xl">
-              Enter the code you were given.
-            </h1>
-            <p className="max-w-sm text-pretty text-muted">
-              The file transfers straight from the sender&apos;s browser to yours — it never lands on a server in between.
-            </p>
-          </header>
+        <div className="relative mx-auto w-full max-w-[1400px] flex-1 px-5 sm:px-8">
+          <div className="flex items-center gap-4 border-b border-rule py-4">
+            <span className="h-1.5 w-1.5 shrink-0 bg-accent" />
+            <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">Receive</span>
+          </div>
 
-          <section
-            className="sff-enter-scale mt-10 rounded-2xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(20,35,29,0.05),0_24px_60px_-30px_rgba(20,35,29,0.28)] sm:p-10"
-            style={{ "--i": 1 } as React.CSSProperties}
-          >
-            <ReceivePanel initialCode={code} />
-          </section>
+          <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
+            <header className="lg:col-span-5">
+              <h1 className="font-display text-[clamp(2.4rem,6vw,4.5rem)] font-medium leading-[0.98] tracking-[-0.035em] text-ink">
+                <span className="block overflow-hidden pb-[0.06em]">
+                  <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
+                    Enter the code
+                  </span>
+                </span>
+                <span className="block overflow-hidden pb-[0.06em]">
+                  <span className="sff-line text-accent" style={{ "--i": 1 } as React.CSSProperties}>
+                    you were given.
+                  </span>
+                </span>
+              </h1>
+              <p
+                className="sff-enter mt-7 max-w-sm text-[16px] leading-[1.7] text-ink-soft"
+                style={{ "--i": 3 } as React.CSSProperties}
+              >
+                The file transfers straight from the sender&apos;s browser to yours — it never lands on a server in
+                between, and there&apos;s nothing to install on either end.
+              </p>
+              <p className="sff-enter mt-8 text-sm text-ink-soft" style={{ "--i": 4 } as React.CSSProperties}>
+                Wanted to send instead?{" "}
+                <Link href="/#send" className="sff-underline font-medium text-ink">
+                  Drop a file here
+                </Link>
+                .
+              </p>
+            </header>
 
-          <p className="sff-enter mt-8 text-center text-sm text-muted" style={{ "--i": 2 } as React.CSSProperties}>
-            Wanted to send instead?{" "}
-            <Link href="/#send" className="font-medium text-accent transition-colors hover:text-accent-hover hover:underline">
-              Drop a file here
-            </Link>
-            .
-          </p>
+            <div
+              className="sff-enter mt-14 border-t border-ink pt-12 lg:col-span-7 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-16 lg:pt-0"
+              style={{ "--i": 5 } as React.CSSProperties}
+            >
+              <ReceivePanel initialCode={code} />
+            </div>
+          </div>
         </div>
       </main>
       <SiteFooter />

@@ -9,7 +9,7 @@ import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { LinkShare } from "./LinkShare";
 import { Button } from "./Button";
-import { IconUpload } from "./icons";
+import { FileDropZone } from "./tools/FileDropZone";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
@@ -66,11 +66,6 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     const timer = setTimeout(() => setShowLinkOffer(shouldOffer), delay);
     return () => clearTimeout(timer);
   }, [status]);
-
-  function pickFiles(list: FileList | null) {
-    if (!list || list.length === 0) return;
-    setFiles(Array.from(list));
-  }
 
   function startSending() {
     setError(null);
@@ -152,35 +147,22 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
 
   if (status === "idle") {
     return (
-      <div className="flex flex-col gap-4">
-        <label
-          htmlFor="file-input"
-          className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-12 text-center transition hover:border-accent hover:bg-accent/[.04]"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            pickFiles(e.dataTransfer.files);
-          }}
-        >
-          <IconUpload className="h-7 w-7 text-muted transition group-hover:text-accent" />
-          <span className="font-medium text-foreground">Drop a file here, or click to choose</span>
-          <span className="text-sm text-muted">No size limit games. No account.</span>
-          <input
-            id="file-input"
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => pickFiles(e.target.files)}
-          />
-        </label>
+      <div className="flex flex-col gap-6">
+        <FileDropZone
+          onFiles={(picked) => setFiles(picked)}
+          label="Drop a file here, or click to choose"
+          hint="Any size. Any type. No account."
+        />
 
         {files.length > 0 && (
-          <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
-            <ul className="flex flex-col gap-1 text-sm">
+          // A ruled list sitting on the page — deliberately not a bordered
+          // panel, which would nest a box inside the section's own box.
+          <div className="flex flex-col gap-5">
+            <ul className="flex flex-col border-t border-rule text-sm">
               {files.map((f) => (
-                <li key={f.name} className="flex justify-between gap-3">
-                  <span className="truncate">{f.name}</span>
-                  <span className="shrink-0 text-muted">{formatBytes(f.size)}</span>
+                <li key={f.name} className="flex items-baseline justify-between gap-4 border-b border-rule py-2.5">
+                  <span className="truncate text-ink">{f.name}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-ink-soft">{formatBytes(f.size)}</span>
                 </li>
               ))}
             </ul>
@@ -197,43 +179,45 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     return (
       <div className="flex flex-col items-center gap-6">
         {linkStatus === "configuring" && (
-          <div className="flex w-full max-w-sm flex-col gap-4">
-            <p className="text-sm font-medium text-foreground">A few optional protections for this link</p>
+          <div className="flex w-full max-w-sm flex-col gap-5">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-soft">
+              Optional protections
+            </p>
             {files.length > 1 && (
-              <div className="flex flex-col gap-2 rounded-lg border border-border p-3 text-sm text-muted">
-                <label className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 border-l-2 border-accent pl-3 text-sm text-ink-soft">
+                <label className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
                     checked={linkZipFiles}
                     onChange={(e) => setLinkZipFiles(e.target.checked)}
-                    className="h-4 w-4 accent-accent"
+                    className="h-4 w-4 accent-[var(--accent)]"
                   />
                   Bundle these {files.length} files into one .zip
                 </label>
                 {!linkZipFiles && (
-                  <p className="text-xs text-muted">
+                  <p className="text-xs">
                     A shareable link needs a single file — check the box above to bundle them, or go back and send
                     them one at a time via a code instead.
                   </p>
                 )}
               </div>
             )}
-            <label className="flex flex-col gap-1.5 text-sm text-muted">
+            <label className="flex flex-col gap-1.5 text-sm text-ink-soft">
               Password (optional)
               <input
                 type="password"
                 value={linkPassword}
                 onChange={(e) => setLinkPassword(e.target.value)}
                 placeholder="Leave blank for no password"
-                className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none placeholder:text-muted/70 focus:border-accent"
+                className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none placeholder:text-ink-soft/70 focus:border-accent"
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm text-muted">
+            <label className="flex flex-col gap-1.5 text-sm text-ink-soft">
               Link expires after
               <select
                 value={linkExpiryHours}
                 onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
-                className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+                className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none focus:border-accent"
               >
                 <option value={1}>1 hour</option>
                 <option value={24}>1 day</option>
@@ -241,16 +225,16 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                 <option value={168}>7 days</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-muted">
+            <label className="flex items-center gap-2.5 text-sm text-ink-soft">
               <input
                 type="checkbox"
                 checked={linkBurnAfterDownload}
                 onChange={(e) => setLinkBurnAfterDownload(e.target.checked)}
-                className="h-4 w-4 accent-accent"
+                className="h-4 w-4 accent-[var(--accent)]"
               />
               Delete after first download
             </label>
-            <Button onClick={createLink} disabled={files.length > 1 && !linkZipFiles} className="mt-2 self-start">
+            <Button onClick={createLink} disabled={files.length > 1 && !linkZipFiles} className="self-start">
               Create link
             </Button>
           </div>

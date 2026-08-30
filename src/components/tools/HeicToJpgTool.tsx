@@ -26,7 +26,7 @@ export function HeicToJpgTool({ onSend }: { onSend?: (file: File) => void }) {
             <select
               value={value.format}
               onChange={(e) => set({ ...value, format: e.target.value as HeicOutputFormat })}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             >
               <option value="jpeg">JPEG — smallest, works everywhere</option>
               <option value="png">PNG — lossless, larger file</option>

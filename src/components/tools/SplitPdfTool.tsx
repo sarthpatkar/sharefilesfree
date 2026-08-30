@@ -93,7 +93,7 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
       <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
         {thumbs.map((src, i) => (
           // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={src} alt={`Page ${i + 1}`} className="rounded border border-border" />
+          <img key={i} src={src} alt={`Page ${i + 1}`} className="border border-border" />
         ))}
       </div>
       <p className="text-sm text-muted">{thumbs.length} pages</p>
@@ -111,7 +111,7 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               max={thumbs.length}
               value={from}
               onChange={(e) => setFrom(Number(e.target.value))}
-              className="w-16 rounded-lg border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
+              className="w-16 border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
             />
             <span className="text-muted">to</span>
             <input
@@ -120,7 +120,7 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               max={thumbs.length}
               value={to}
               onChange={(e) => setTo(Number(e.target.value))}
-              className="w-16 rounded-lg border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
+              className="w-16 border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
             />
           </div>
         )}
@@ -136,7 +136,7 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               max={thumbs.length}
               value={chunkSize}
               onChange={(e) => setChunkSize(Number(e.target.value))}
-              className="w-16 rounded-lg border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
+              className="w-16 border border-border bg-transparent px-2 py-1 outline-none focus:border-accent"
             />
             <span className="text-muted">pages per file (downloads a .zip)</span>
           </div>
@@ -151,7 +151,7 @@ export function SplitPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               value={customRanges}
               onChange={(e) => setCustomRanges(e.target.value)}
               placeholder="e.g. 1-3, 5, 8-10"
-              className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 text-foreground outline-none focus:border-accent"
+              className="w-full border border-border bg-transparent px-2 py-1.5 text-foreground outline-none focus:border-accent"
             />
             <p className="mt-1 text-xs">Each group becomes its own PDF, bundled into one .zip.</p>
           </div>

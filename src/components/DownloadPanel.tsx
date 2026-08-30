@@ -95,7 +95,7 @@ export function DownloadPanel({ token }: { token: string }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter password"
-          className="w-56 rounded-lg border border-border bg-transparent px-3 py-2 text-center text-foreground outline-none placeholder:text-muted/70 focus:border-accent"
+          className="w-56 border border-border bg-transparent px-3 py-2 text-center text-foreground outline-none placeholder:text-muted/70 focus:border-accent"
         />
         {unlockError && <p className="text-sm text-danger">{unlockError}</p>}
         <Button type="submit" disabled={unlocking}>
@@ -116,7 +116,7 @@ export function DownloadPanel({ token }: { token: string }) {
       <p className="text-sm text-muted">{formatBytes(meta.size)}</p>
       <a
         href={meta.downloadUrl}
-        className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground shadow-[0_1px_2px_rgba(11,110,79,0.25)] transition hover:bg-accent-hover active:scale-[0.98]"
+        className="inline-flex items-center justify-center bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground shadow-[0_1px_2px_rgba(11,110,79,0.25)] transition hover:bg-accent-hover active:scale-[0.98]"
       >
         Download
       </a>

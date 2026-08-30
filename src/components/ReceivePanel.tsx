@@ -79,63 +79,69 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
           e.preventDefault();
           connect(code);
         }}
-        className="flex flex-col items-center gap-4"
+        className="flex flex-col gap-6"
       >
-        <label htmlFor="code-input" className="text-sm text-muted">
+        <label htmlFor="code-input" className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">
           Enter the 6-digit code from the sender
         </label>
+        {/* Display-scale, underlined rather than boxed — this is the single
+            most important control on the page, so it's sized like it. */}
         <input
           id="code-input"
           inputMode="numeric"
+          autoComplete="one-time-code"
           maxLength={6}
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
-          className="w-48 rounded-xl border border-border bg-transparent px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] text-foreground outline-none placeholder:text-muted/50 focus:border-accent"
+          className="w-full border-b-2 border-ink bg-transparent pb-3 font-display text-5xl font-medium tabular-nums tracking-[0.18em] text-ink outline-none placeholder:text-ink-soft/30 focus:border-accent sm:text-6xl"
         />
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">
             {error}
           </p>
         )}
-        <Button type="submit">Connect</Button>
+        <Button type="submit" className="self-start">
+          Connect
+        </Button>
       </form>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">
+    <div className="flex flex-col gap-6">
+      <p role="status" aria-live="polite" className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">
         {STATUS_LABEL[status] ?? status}
       </p>
       {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
+        <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       {status === "transferring" && progress && (
-        <div className="w-full max-w-md">
-          <p className="mb-1 truncate text-sm text-foreground">{progress.name}</p>
+        <div className="w-full">
+          <div className="mb-2 flex items-baseline justify-between gap-4">
+            <p className="truncate text-sm text-ink">{progress.name}</p>
+            <p className="shrink-0 font-mono text-xs tabular-nums text-ink-soft">
+              {formatBytes(progress.sent)} / {formatBytes(progress.size)}
+            </p>
+          </div>
           <ProgressBar fraction={progress.size ? progress.sent / progress.size : 0} />
-          <p className="mt-2 text-center text-sm text-muted">
-            {formatBytes(progress.sent)} / {formatBytes(progress.size)}
-          </p>
         </div>
       )}
 
       {received.length > 0 && (
-        <ul className="flex w-full max-w-md flex-col gap-2">
+        // A ruled list, not a stack of bordered rows — same device as the
+        // sender's staged-file list.
+        <ul className="flex w-full flex-col border-t border-ink">
           {received.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 text-sm"
-            >
-              <span className="truncate text-foreground">{f.name}</span>
+            <li key={f.id} className="flex items-center justify-between gap-4 border-b border-rule py-3 text-sm">
+              <span className="truncate text-ink">{f.name}</span>
               <a
                 href={objectUrls.get(f.id)}
                 download={f.name}
-                className="shrink-0 rounded-lg bg-accent px-3 py-1 text-accent-foreground hover:bg-accent-hover"
+                className="sff-press shrink-0 bg-ink px-4 py-2 text-xs font-medium leading-none text-paper shadow-[3px_3px_0_var(--accent)] hover:bg-accent"
               >
                 Save
               </a>
@@ -144,12 +150,14 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
         </ul>
       )}
 
-      {status === "done" && <Button onClick={reset}>Receive more files</Button>}
-      {status !== "done" && (
-        <Button variant="ghost" onClick={reset}>
-          Cancel
-        </Button>
-      )}
+      <div className="flex items-center gap-6">
+        {status === "done" && <Button onClick={reset}>Receive more files</Button>}
+        {status !== "done" && (
+          <Button variant="ghost" onClick={reset}>
+            Cancel
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

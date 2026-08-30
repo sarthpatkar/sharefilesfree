@@ -42,7 +42,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />
-      <SiteHeader variant="solid" />
+      <SiteHeader />
       <main className="flex flex-1 flex-col">
         <ToolPageClient slug={slug} />
       </main>

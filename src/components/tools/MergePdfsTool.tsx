@@ -96,7 +96,7 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => onDrop(e, i)}
               onDragEnd={() => setDragIndex(null)}
-              className={`flex cursor-grab flex-col gap-2 rounded-lg border px-3 py-2 active:cursor-grabbing ${
+              className={`flex cursor-grab flex-col gap-2 border px-3 py-2 active:cursor-grabbing ${
                 dragIndex === i ? "border-accent opacity-50" : "border-border"
               }`}
             >
@@ -111,7 +111,7 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
                     onClick={() => move(i, -1)}
                     disabled={i === 0}
                     aria-label={`Move ${entry.file.name} up`}
-                    className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                    className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
                   >
                     ↑
                   </button>
@@ -120,7 +120,7 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
                     onClick={() => move(i, 1)}
                     disabled={i === entries.length - 1}
                     aria-label={`Move ${entry.file.name} down`}
-                    className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                    className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
                   >
                     ↓
                   </button>
@@ -128,7 +128,7 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
                     type="button"
                     onClick={() => remove(i)}
                     aria-label={`Remove ${entry.file.name}`}
-                    className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
+                    className="border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
                   >
                     Remove
                   </button>
@@ -140,7 +140,7 @@ export function MergePdfsTool({ onSend }: { onSend?: (file: File) => void }) {
                   value={entry.pageRange}
                   onChange={(e) => setRange(i, e.target.value)}
                   placeholder="all pages"
-                  className="w-32 rounded-md border border-border bg-transparent px-2 py-1 text-foreground outline-none focus:border-accent"
+                  className="w-32 border border-border bg-transparent px-2 py-1 text-foreground outline-none focus:border-accent"
                 />
               </label>
             </li>

@@ -99,7 +99,7 @@ function ResizeOptionsPanel({
                 const preset = RESIZE_PRESETS.find((p) => p.label === e.target.value);
                 if (preset) set({ ...value, width: preset.width, height: preset.height });
               }}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             >
               <option value="" disabled>
                 Choose a common size…
@@ -117,7 +117,7 @@ function ResizeOptionsPanel({
               placeholder="Width"
               value={value.width ?? ""}
               onChange={(e) => setWidthLocked(Number(e.target.value))}
-              className="w-24 rounded-lg border border-border bg-transparent px-2 py-1.5 outline-none focus:border-accent"
+              className="w-24 border border-border bg-transparent px-2 py-1.5 outline-none focus:border-accent"
             />
             <span>×</span>
             <input
@@ -125,7 +125,7 @@ function ResizeOptionsPanel({
               placeholder="Height"
               value={value.height ?? ""}
               onChange={(e) => setHeightLocked(Number(e.target.value))}
-              className="w-24 rounded-lg border border-border bg-transparent px-2 py-1.5 outline-none focus:border-accent"
+              className="w-24 border border-border bg-transparent px-2 py-1.5 outline-none focus:border-accent"
             />
             <span className="text-muted">px</span>
           </div>
@@ -142,7 +142,7 @@ function ResizeOptionsPanel({
         <select
           value={value.format}
           onChange={(e) => set({ ...value, format: e.target.value as ResizeOptions["format"] })}
-          className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+          className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
         >
           <option value="jpeg">JPEG</option>
           <option value="webp">WebP</option>

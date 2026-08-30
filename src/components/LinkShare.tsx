@@ -28,12 +28,12 @@ export function LinkShare({ token, expiresAt }: { token: string; expiresAt: numb
   }, [link]);
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-background p-6 text-center">
+    <div className="flex flex-col items-center gap-4 border border-border bg-background p-6 text-center">
       <p className="text-sm text-muted">Share this link — it works anytime, no code needed</p>
       <p className="max-w-full truncate font-mono text-sm text-accent">{link}</p>
       {qrDataUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={qrDataUrl} alt={`QR code for ${link}`} width={160} height={160} className="rounded-lg border border-border p-2" />
+        <img src={qrDataUrl} alt={`QR code for ${link}`} width={160} height={160} className=" border border-border p-2" />
       )}
       <button
         type="button"

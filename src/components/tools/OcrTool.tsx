@@ -69,7 +69,7 @@ export function OcrTool({ onSend }: { onSend?: (file: File) => void }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={12}
-            className="rounded-lg border border-border bg-transparent px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-accent"
+            className=" border border-border bg-transparent px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-accent"
           />
         </label>
         <div className="flex flex-wrap gap-3">
@@ -111,7 +111,7 @@ export function OcrTool({ onSend }: { onSend?: (file: File) => void }) {
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           disabled={status === "processing"}
-          className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent disabled:opacity-50"
+          className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent disabled:opacity-50"
         >
           {OCR_LANGUAGES.map((l) => (
             <option key={l.code} value={l.code}>

@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { IconCheck, IconLink } from "./icons";
 
-/** Shows the sender's room code as big digits, a copyable link, and a QR code for scanning from another device. */
+/**
+ * The sender's room code, as the loudest thing on the screen — someone is
+ * reading these six digits aloud across a room, so they get display-scale
+ * type in separated cells rather than a line of small text in a card.
+ */
 export function CodeDisplay({ code }: { code: string }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -13,8 +17,8 @@ export function CodeDisplay({ code }: { code: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Branded QR (pine green on cream) instead of the library's default black-on-white.
-    QRCode.toDataURL(link, { margin: 1, width: 200, color: { dark: "#0b6e4f", light: "#faf8f3" } }).then((url) => {
+    // Flat two-colour QR — no gradients anywhere, this one included.
+    QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: "#10201a", light: "#f7f4ec" } }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     });
     return () => {
@@ -23,25 +27,43 @@ export function CodeDisplay({ code }: { code: string }) {
   }, [link]);
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-background p-6 text-center">
-      <p className="text-sm text-muted">Share this code with the receiver</p>
-      <p className="font-display text-4xl font-medium tracking-[0.25em] text-foreground">{code}</p>
+    <div className="flex w-full flex-col items-center gap-7">
+      <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">
+        Share this code with the receiver
+      </p>
+
+      {/* Six ruled cells — reads as a code to be transcribed, not as a label. */}
+      <div className="flex" role="text" aria-label={`Code ${code.split("").join(" ")}`}>
+        {code.split("").map((digit, i) => (
+          <span
+            key={i}
+            className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink font-display text-4xl font-medium tabular-nums text-ink last:border-r sm:h-20 sm:w-14 sm:text-5xl"
+          >
+            {digit}
+          </span>
+        ))}
+      </div>
+
       {qrDataUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={qrDataUrl} alt={`QR code for ${link}`} width={160} height={160} className="rounded-lg border border-border p-2" />
+        <div className="flex flex-col items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrDataUrl} alt={`QR code linking to ${link}`} width={132} height={132} className="border border-rule" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">or scan</span>
+        </div>
       )}
+
       <button
         type="button"
         onClick={() => {
           navigator.clipboard.writeText(link).then(() => {
             setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
+            setTimeout(() => setCopied(false), 1600);
           });
         }}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover hover:underline"
+        className="sff-underline inline-flex items-center gap-2 py-1 text-sm font-medium text-ink"
       >
-        {copied ? <IconCheck className="h-4 w-4" /> : <IconLink className="h-4 w-4" />}
-        {copied ? "Link copied!" : "Copy shareable link"}
+        {copied ? <IconCheck className="h-4 w-4 text-accent" /> : <IconLink className="h-4 w-4" />}
+        {copied ? "Link copied" : "Copy shareable link"}
       </button>
     </div>
   );

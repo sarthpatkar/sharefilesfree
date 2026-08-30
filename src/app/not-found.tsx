@@ -1,35 +1,44 @@
 import Link from "next/link";
-import { IconCompass } from "@/components/icons";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { GridBackdrop } from "@/components/landing/GridBackdrop";
 
 export default function NotFound() {
   return (
     <>
-      <SiteHeader variant="solid" />
-      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-24 text-center">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+      <SiteHeader />
+      <main className="relative flex flex-1 flex-col overflow-hidden">
+        <GridBackdrop size={64} className="opacity-60" />
+        <div className="relative mx-auto flex w-full max-w-[1400px] flex-1 flex-col justify-center px-5 py-24 sm:px-8">
+          <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">Error 404</p>
+          <h1 className="mt-6 max-w-3xl font-display text-[clamp(2.4rem,7vw,5rem)] font-medium leading-[0.98] tracking-[-0.035em] text-ink">
+            <span className="block overflow-hidden pb-[0.06em]">
+              <span className="sff-line" style={{ "--i": 0 } as React.CSSProperties}>
+                This page isn&apos;t here.
+              </span>
+            </span>
+          </h1>
+          <p
+            className="sff-enter mt-7 max-w-md text-[17px] leading-[1.65] text-ink-soft"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            Either it never existed, or a shared link pointing here has expired or been removed — which is working
+            as intended, since every link we issue deletes itself.
+          </p>
           <div
-            className="sff-aurora absolute left-1/2 top-1/2 h-[320px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[110px]"
-            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 68%)", opacity: 0.12 }}
-          />
-        </div>
-        <IconCompass className="sff-float h-10 w-10 text-muted" />
-        <h1 className="font-display text-3xl font-medium tracking-[-0.02em] text-foreground">Page not found</h1>
-        <p className="text-muted">This page doesn&apos;t exist — or a shared link here has expired or been removed.</p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/"
-            className="sff-sweep relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground shadow-[0_1px_2px_rgba(11,110,79,0.25)] transition-all duration-300 hover:bg-accent-hover hover:shadow-[0_8px_28px_-6px_var(--glow)] active:scale-[0.97]"
+            className="sff-enter mt-10 flex flex-wrap items-center gap-x-8 gap-y-4"
+            style={{ "--i": 3 } as React.CSSProperties}
           >
-            Back to ShareFilesFree
-          </Link>
-          <Link
-            href="/tools"
-            className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-all duration-300 hover:-translate-y-0.5 hover:border-accent"
-          >
-            Browse the tools
-          </Link>
+            <Link
+              href="/"
+              className="sff-press inline-flex items-center bg-ink px-6 py-3.5 text-[15px] font-medium leading-none text-paper shadow-[5px_5px_0_var(--accent)] hover:bg-accent"
+            >
+              Back to ShareFilesFree
+            </Link>
+            <Link href="/tools" className="sff-underline py-2 text-[15px] font-medium text-ink">
+              Browse the tools
+            </Link>
+          </div>
         </div>
       </main>
       <SiteFooter />

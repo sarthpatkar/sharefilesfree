@@ -51,7 +51,7 @@ function ExcelToCsvExtraOptions({ value, set, files }: { value: Options; set: (o
         <select
           value={value.delimiter}
           onChange={(e) => set({ ...value, delimiter: e.target.value as Delimiter })}
-          className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+          className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
         >
           {DELIMITERS.map((d) => (
             <option key={d.label} value={d.value}>
@@ -72,7 +72,7 @@ function ExcelToCsvExtraOptions({ value, set, files }: { value: Options; set: (o
               <select
                 value={value.sheetName || sheetNames[0]}
                 onChange={(e) => set({ ...value, sheetName: e.target.value })}
-                className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+                className=" border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
               >
                 {sheetNames.map((name) => (
                   <option key={name} value={name}>

@@ -89,7 +89,7 @@ export function ImagesToPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => onDrop(e, i)}
               onDragEnd={() => setDragIndex(null)}
-              className={`flex cursor-grab items-center justify-between gap-3 rounded-lg border px-3 py-2 active:cursor-grabbing ${
+              className={`flex cursor-grab items-center justify-between gap-3 border px-3 py-2 active:cursor-grabbing ${
                 dragIndex === i ? "border-accent opacity-50" : "border-border"
               }`}
             >
@@ -103,7 +103,7 @@ export function ImagesToPdfTool({ onSend }: { onSend?: (file: File) => void }) {
                   onClick={() => move(i, -1)}
                   disabled={i === 0}
                   aria-label={`Move ${f.name} up`}
-                  className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                  className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
                 >
                   ↑
                 </button>
@@ -112,7 +112,7 @@ export function ImagesToPdfTool({ onSend }: { onSend?: (file: File) => void }) {
                   onClick={() => move(i, 1)}
                   disabled={i === files.length - 1}
                   aria-label={`Move ${f.name} down`}
-                  className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
+                  className="border border-border px-1.5 py-0.5 text-xs text-muted hover:text-foreground disabled:opacity-30"
                 >
                   ↓
                 </button>
@@ -120,7 +120,7 @@ export function ImagesToPdfTool({ onSend }: { onSend?: (file: File) => void }) {
                   type="button"
                   onClick={() => remove(i)}
                   aria-label={`Remove ${f.name}`}
-                  className="rounded border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
+                  className="border border-border px-1.5 py-0.5 text-xs text-danger hover:underline"
                 >
                   Remove
                 </button>
@@ -137,7 +137,7 @@ export function ImagesToPdfTool({ onSend }: { onSend?: (file: File) => void }) {
             <select
               value={options.pageSize}
               onChange={(e) => setOptions({ ...options, pageSize: e.target.value as PageSizeMode })}
-              className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+              className="border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
             >
               <option value="fit-image">Fit to each image (no cropping or letterboxing)</option>
               <option value="a4">A4</option>

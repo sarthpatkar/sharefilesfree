@@ -44,44 +44,34 @@ export function Reveal({
           observer.disconnect();
         }
       },
-      { rootMargin: "0px 0px -12% 0px", threshold: 0.08 },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.06 },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <Tag ref={ref} data-reveal={shown ? "shown" : ""} style={{ "--delay": `${delay}ms` } as React.CSSProperties} className={className}>
+    <Tag
+      ref={ref}
+      data-reveal={shown ? "shown" : ""}
+      style={{ "--delay": `${delay}ms` } as React.CSSProperties}
+      className={className}
+    >
       {children}
     </Tag>
   );
 }
 
 /**
- * Writes the pointer position into --mx/--my as percentages so a CSS radial
- * gradient can follow the cursor. Pure decoration: with JS disabled the
- * custom properties fall back to their centered defaults and nothing breaks.
+ * Section eyebrow: a mono, wide-tracked label above a hairline that draws
+ * itself in. Used instead of a coloured pill, which would be a capsule.
  */
-export function useSpotlight<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // Coarse pointers have no hover state to track — skip the listener entirely
-    // rather than paying for pointermove events on touch devices.
-    if (!window.matchMedia("(hover: hover)").matches) return;
-
-    function onMove(e: PointerEvent) {
-      const rect = el!.getBoundingClientRect();
-      el!.style.setProperty("--mx", `${((e.clientX - rect.left) / rect.width) * 100}%`);
-      el!.style.setProperty("--my", `${((e.clientY - rect.top) / rect.height) * 100}%`);
-    }
-
-    el.addEventListener("pointermove", onMove);
-    return () => el.removeEventListener("pointermove", onMove);
-  }, []);
-
-  return ref;
+export function SectionLabel({ children, index }: { children: ReactNode; index?: string }) {
+  return (
+    <div className="flex items-center gap-4">
+      {index && <span className="font-mono text-xs tabular-nums text-accent">{index}</span>}
+      <span className="font-mono text-[11px] uppercase tracking-[0.28em] text-ink-soft">{children}</span>
+      <span className="sff-rule-grow h-px flex-1 bg-rule" />
+    </div>
+  );
 }

@@ -38,7 +38,7 @@ export function CompressPdfTool({ onSend }: { onSend?: (file: File) => void }) {
             </label>
           </fieldset>
           {value.level === "strong" && (
-            <div className="flex flex-col gap-3 rounded-lg border border-border p-3 text-sm text-muted">
+            <div className="flex flex-col gap-3 border border-border p-3 text-sm text-muted">
               <label className="flex flex-col gap-1.5">
                 Image quality ({Math.round(value.imageQuality * 100)}%)
                 <input

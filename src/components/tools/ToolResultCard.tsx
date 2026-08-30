@@ -37,29 +37,37 @@ export function ToolResultCard({
   const savedPct = originalSize ? Math.round((1 - file.size / originalSize) * 100) : null;
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-background p-6 text-center">
-      <p className="max-w-xs truncate font-medium text-foreground">{file.name}</p>
-      <p className="text-sm text-muted">
-        {formatBytes(file.size)}
-        {savedPct !== null && savedPct > 0 && <span className="text-accent"> · {savedPct}% smaller</span>}
-      </p>
-      {/* Some inputs (already-compressed JPEGs, high-noise images, flat-color
+    // Ruled block, not a bordered card — this already sits inside a section, and
+    // a box inside a box is the nested-card look we avoid site-wide.
+    <div className="flex flex-col gap-6 border-t-2 border-ink pt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <p className="min-w-0 flex-1 truncate font-display text-xl font-medium tracking-[-0.01em] text-ink">
+          {file.name}
+        </p>
+        <p className="font-mono text-xs tabular-nums text-ink-soft">
+          {formatBytes(file.size)}
+          {savedPct !== null && savedPct > 0 && <span className="ml-2 text-accent">−{savedPct}%</span>}
+        </p>
+      </div>
+
+      {/* Some inputs (already-compressed JPEGs, high-noise images, flat-colour
           graphics better suited to PNG) genuinely don't shrink under lossy
           re-encoding — say so plainly instead of silently showing nothing,
           which reads as broken rather than as an honest result. */}
       {savedPct !== null && savedPct <= 0 && (
-        <p className="text-xs text-muted">
+        <p className="border-l-2 border-rule-strong pl-3 text-sm text-ink-soft">
           Not smaller this time — this file may already be efficiently compressed. Try a lower quality, or a
           different output format.
         </p>
       )}
-      <div className="flex flex-wrap justify-center gap-3">
+
+      <div className="flex flex-wrap items-center gap-x-7 gap-y-3">
         <a
           href={url ?? undefined}
           download={file.name}
           aria-disabled={!url}
-          className={`inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition hover:bg-accent-hover active:scale-[0.98] ${
-            url ? "" : "pointer-events-none opacity-50"
+          className={`sff-press inline-flex items-center gap-2 bg-ink px-5 py-3 text-sm font-medium leading-none text-paper shadow-[4px_4px_0_var(--accent)] hover:bg-accent ${
+            url ? "" : "pointer-events-none opacity-40"
           }`}
         >
           <IconDownload className="h-4 w-4" /> Download
@@ -68,15 +76,15 @@ export function ToolResultCard({
           <button
             type="button"
             onClick={() => onSend(file)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover hover:underline"
+            className="sff-underline inline-flex items-center gap-2 py-1 text-sm font-medium text-ink"
           >
             <IconSend className="h-4 w-4" /> Send this file
           </button>
         )}
+        <button type="button" onClick={onReset} className="sff-underline py-1 text-sm text-ink-soft">
+          Start over
+        </button>
       </div>
-      <button type="button" onClick={onReset} className="text-xs text-muted hover:underline">
-        Start over
-      </button>
     </div>
   );
 }

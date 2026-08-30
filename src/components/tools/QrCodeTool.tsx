@@ -132,7 +132,7 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="https://example.com"
-          className="rounded-lg border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
+          className="border border-border bg-transparent px-3 py-2 text-foreground outline-none focus:border-accent"
         />
       </label>
 
@@ -149,13 +149,13 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
               type="color"
               value={dark}
               onChange={(e) => setDark(e.target.value)}
-              className="h-9 w-9 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+              className="h-9 w-9 cursor-pointer border border-border bg-transparent p-0.5"
               aria-label="Code color"
             />
             <input
               value={dark}
               onChange={(e) => setDark(e.target.value)}
-              className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
+              className="w-full border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
             />
           </div>
         </label>
@@ -166,13 +166,13 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
               type="color"
               value={light}
               onChange={(e) => setLight(e.target.value)}
-              className="h-9 w-9 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+              className="h-9 w-9 cursor-pointer border border-border bg-transparent p-0.5"
               aria-label="Background color"
             />
             <input
               value={light}
               onChange={(e) => setLight(e.target.value)}
-              className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
+              className="w-full border border-border bg-transparent px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:border-accent"
             />
           </div>
         </label>
@@ -196,7 +196,7 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
               key={level}
               type="button"
               onClick={() => setErrorCorrectionLevel(level)}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+              className={`border px-3 py-1.5 text-sm transition ${
                 errorCorrectionLevel === level
                   ? "border-accent bg-accent/10 text-accent"
                   : "border-border text-foreground hover:border-accent/50"
@@ -225,7 +225,7 @@ export function QrCodeTool({ onSend }: { onSend?: (file: File) => void }) {
           {logoDataUrl && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element -- small local preview of a user-picked file, not a page asset */}
-              <img src={logoDataUrl} alt="Logo preview" className="h-8 w-8 rounded object-contain" />
+              <img src={logoDataUrl} alt="Logo preview" className="h-8 w-8 object-contain" />
               <button type="button" onClick={() => setLogoDataUrl(null)} className="text-xs text-muted hover:underline">
                 Remove
               </button>

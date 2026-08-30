@@ -43,7 +43,7 @@ function SheetPicker({ value, set, files }: { value: ExcelToPdfOptions; set: (o:
       <legend className="mb-0.5">Sheets to include</legend>
       <div className="flex flex-wrap gap-2">
         {sheetNames.map((name) => (
-          <label key={name} className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1">
+          <label key={name} className="flex items-center gap-1.5 border border-border px-2.5 py-1">
             <input type="checkbox" checked={selected.includes(name)} onChange={() => toggle(name)} className="accent-accent" />
             {name}
           </label>
