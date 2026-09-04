@@ -1,14 +1,60 @@
-# Reverse proxy for the signaling server, with automatic free HTTPS
-# (Let's Encrypt) — this is what turns your plain ws://localhost:8080 into a
-# real wss://signal.sharefilesfree.com the browser will trust.
+# Caddy config for the whole deployment: the website and the signaling server.
 #
-# Copy to /etc/caddy/Caddyfile on the VPS, replace the domain, then:
+# Copy to /etc/caddy/Caddyfile on the VPS, then:
+#   sudo systemctl reload caddy
+#
+# ---------------------------------------------------------------------------
+# CERTIFICATES, AND WHY THIS CHANGED
+# ---------------------------------------------------------------------------
+# This file previously told you to keep DNS records on "DNS only" (grey cloud)
+# so Caddy could complete an HTTP-01 Let's Encrypt challenge directly. That
+# works, but it publishes your origin IP — anyone can then DDoS or port-scan
+# the box straight past Cloudflare. Measured on 4 Sep 2026, that is exactly
+# the position toffeeshare.com is in (origin 206.189.1.166 openly reachable),
+# while snapdrop.net, wormhole.app and ilovepdf.com are all fully proxied.
+#
+# So: set all three records to PROXIED (orange cloud) in Cloudflare, and use
+# the DNS-01 challenge below instead of HTTP-01. DNS-01 proves domain control
+# via a TXT record, so it works fine behind the proxy.
+#
+# DNS-01 needs the Cloudflare DNS plugin, which is NOT in the default Caddy
+# binary. Either download a build with it from https://caddyserver.com/download
+# (select "github.com/caddy-dns/cloudflare"), or run:
+#   sudo caddy add-package github.com/caddy-dns/cloudflare
 #   sudo systemctl restart caddy
 #
-# Requires: an A record for this subdomain pointing at the VPS's IP, set to
-# "DNS only" (grey cloud) in Cloudflare — NOT proxied — so Caddy can complete
-# its own Let's Encrypt certificate challenge directly.
+# CF_API_TOKEN must be a Cloudflare API token with Zone:DNS:Edit on this zone
+# only — not a Global API Key. Put it in /etc/default/caddy as
+#   CF_API_TOKEN=...
+# and keep that file chmod 600, root-owned.
+# ---------------------------------------------------------------------------
 
+{
+	# Applies to every site below unless overridden.
+	acme_dns cloudflare {env.CF_API_TOKEN}
+}
+
+# --- The website ------------------------------------------------------------
+sharefilesfree.com {
+	encode zstd gzip
+
+	# Next.js hashes its static asset filenames, so they are safe to cache
+	# hard and forever. Cloudflare respects this, which is what keeps origin
+	# egress low once the site is proxied.
+	@immutable path /_next/static/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy localhost:3000
+}
+
+# --- www redirects to the apex ---------------------------------------------
+www.sharefilesfree.com {
+	redir https://sharefilesfree.com{uri} permanent
+}
+
+# --- The signaling server ---------------------------------------------------
+# Caddy proxies WebSocket upgrades transparently; no special config needed.
+# Cloudflare also proxies WebSockets on the free plan, so this works orange.
 signal.sharefilesfree.com {
 	reverse_proxy localhost:8080
 }

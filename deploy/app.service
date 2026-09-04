@@ -1,0 +1,46 @@
+# systemd unit for the Next.js app itself. The repo previously shipped a unit
+# only for the signaling server, so the website had nothing keeping it alive
+# across reboots or crashes.
+#
+# Install: sudo cp deploy/app.service /etc/systemd/system/sharefilesfree.service
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable --now sharefilesfree
+# Logs:    sudo journalctl -u sharefilesfree -f
+[Unit]
+Description=ShareFilesFree web app (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=sendfilesfree
+WorkingDirectory=/home/sendfilesfree/sendfilesfree
+# `next start` serves the output of `next build`; the build must already exist.
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Secrets (R2 keys, TURN credentials) live here, root-owned and chmod 600,
+# rather than in this unit file — systemd reads it as root before dropping
+# privileges, so the app user never needs read access to the file itself.
+EnvironmentFile=/etc/sharefilesfree.env
+
+# --- Hardening. The app needs nothing outside its own directory. ---
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/sendfilesfree/sendfilesfree/.next
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+# AF_NETLINK is required: Next.js calls os.networkInterfaces() at startup to
+# print the LAN URL, and on Linux that goes through a netlink socket. Without
+# it the server throws EAFNOSUPPORT (errno 97) on boot and never serves a
+# single request. The signaling unit does not need it and stays stricter.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
