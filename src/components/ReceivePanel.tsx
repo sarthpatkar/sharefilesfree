@@ -94,7 +94,7 @@ export function ReceivePanel({ initialCode }: { initialCode?: string }) {
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
-          className="w-full bg-lime px-5 py-4 text-center font-display text-5xl tabular-nums tracking-[0.16em] text-red outline-none placeholder:text-red/25 sm:text-6xl"
+          className="w-full bg-lime px-5 py-4 text-center text-[2.6rem] font-bold tabular-nums tracking-[0.2em] text-black outline-none placeholder:text-black/25 sm:text-5xl"
         />
         {error && (
           <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">

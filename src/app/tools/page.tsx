@@ -25,12 +25,12 @@ export default function ToolsIndexPage() {
               </span>
             </div>
             <div className="grid gap-x-12 py-16 sm:py-24 lg:grid-cols-12">
-              <h1 className="col-span-full font-display text-[clamp(2.6rem,8vw,6rem)] font-black leading-[0.97] tracking-[-0.028em] text-red lg:col-span-8">
+              <h1 className="col-span-full font-display text-[clamp(2.2rem,5vw,4.1rem)] leading-[1.06] tracking-[-0.015em] text-red lg:col-span-8">
                 <span className="block">File tools that</span>
                 <span className="block text-accent">never see your files.</span>
               </h1>
               <p
-                className="sff-enter col-span-full mt-8 max-w-lg text-[17px] leading-[1.65] text-red lg:col-span-5"
+                className="sff-enter col-span-full mt-8 max-w-lg text-[17px] leading-[1.65] text-black lg:col-span-5"
                 style={{ "--i": 4 } as React.CSSProperties}
               >
                 Every tool below runs entirely in your browser — no upload, no signup, no watermark, no daily limit.
@@ -43,7 +43,7 @@ export default function ToolsIndexPage() {
         <div className="mx-auto w-full max-w-[1400px] px-5 py-16 sm:px-8 sm:py-20">
           <ToolsPanel />
 
-          <p className="mt-20 pt-8 text-[15px] text-red">
+          <p className="mt-20 pt-8 text-[15px] text-black">
             Need to move a file to another device instead?{" "}
             <Link href="/#send" className="link font-medium text-red">
               Send it with a 6-digit code

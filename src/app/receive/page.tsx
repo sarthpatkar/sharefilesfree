@@ -30,17 +30,17 @@ export default async function ReceivePage({
 
           <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <h1 className="font-display text-[clamp(2.4rem,6vw,4.5rem)] font-black leading-[0.98] tracking-[-0.028em] text-red">
+              <h1 className="font-display text-[clamp(2.1rem,4.4vw,3.4rem)] leading-[1.06] tracking-[-0.015em] text-red">
                 <span className="block">Enter the code</span>
                 <span className="block text-accent">you were given.</span>
               </h1>
               <p
-                className="sff-enter mt-7 max-w-sm text-[16px] leading-[1.7] text-red"
+                className="sff-enter mt-7 max-w-sm text-[16px] leading-[1.7] text-black"
                 style={{ "--i": 3 } as React.CSSProperties}
               >
                 Whoever sent this is holding it on their screen right now. Type the six digits and it comes straight to you — it never sits on a server in between, and there is nothing to install.
               </p>
-              <p className="sff-enter mt-8 text-sm text-red" style={{ "--i": 4 } as React.CSSProperties}>
+              <p className="sff-enter mt-8 text-sm text-black" style={{ "--i": 4 } as React.CSSProperties}>
                 Wanted to send instead?{" "}
                 <Link href="/#send" className="link font-medium text-red">
                   Drop a file here

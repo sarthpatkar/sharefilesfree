@@ -26,7 +26,7 @@ export default async function DownloadPage({ params }: { params: Promise<{ token
 
           <div className="grid gap-x-16 py-16 sm:py-24 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-bold leading-[0.97] tracking-[-0.024em] text-ink">
+              <h1 className="font-display text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] tracking-[-0.015em] text-ink">
                 <span className="block">Your file is</span>
                 <span className="block text-accent">ready.</span>
               </h1>

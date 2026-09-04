@@ -19,12 +19,12 @@ export default function OpengraphImage() {
           alignItems: "center",
           justifyContent: "center",
           background: "#d50000",
-          color: "#ffff17",
+          color: "#faf8f4",
           fontFamily: "sans-serif",
         }}
       >
         <div style={{ fontSize: 96, fontWeight: 700, display: "flex" }}>ShareFilesFree</div>
-        <div style={{ fontSize: 36, color: "#c3ff17", marginTop: 24, display: "flex" }}>
+        <div style={{ fontSize: 36, color: "#e6ebda", marginTop: 24, display: "flex" }}>
           Send large files free — no signup, no login
         </div>
       </div>

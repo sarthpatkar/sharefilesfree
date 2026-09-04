@@ -7,9 +7,9 @@ const HALF = Math.ceil(TOOLS.length / 2);
 const ROW_ONE = TOOLS.slice(0, HALF);
 const ROW_TWO = TOOLS.slice(HALF);
 
-/* Every chip takes one of the six in turn, so the band reads as the whole
-   palette moving rather than one accent repeated. */
-const CHIP_FIELDS = ["bg-yellow", "bg-lime", "bg-pink", "bg-gold", "bg-blush"];
+/* Chips cycle the two ladders, so the band reads as one palette breathing
+   rather than five unrelated accents competing. */
+const CHIP_FIELDS = ["bg-y-soft", "bg-lime-pale", "bg-y-mid", "bg-lime-5", "bg-lime-4"];
 
 function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; speed: string; reverse?: boolean }) {
   return (
@@ -30,7 +30,7 @@ function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; sp
             className={`sff-nudge flex shrink-0 items-center gap-2.5 px-5 py-3.5 ${CHIP_FIELDS[i % CHIP_FIELDS.length]}`}
           >
             <tool.icon className="h-5 w-5 shrink-0 text-red" />
-            <span className="whitespace-nowrap font-display text-[16px] leading-none text-red">{tool.title}</span>
+            <span className="whitespace-nowrap text-[14px] font-bold leading-none text-black">{tool.title}</span>
           </Link>
         ))}
       </div>
@@ -40,18 +40,18 @@ function MarqueeRow({ tools, speed, reverse = false }: { tools: typeof TOOLS; sp
 
 export function ToolsShowcase() {
   return (
-    <section className="overflow-hidden bg-gold">
+    <section className="overflow-hidden bg-y-soft">
       <div className="mx-auto w-full max-w-[1400px] px-5 pt-20 sm:px-8 sm:pt-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           {TOOLS.length} free tools
         </p>
 
         <div className="mt-8 grid gap-x-14 gap-y-6 lg:grid-cols-12">
-          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright lg:col-span-7">
+          <h2 className="font-display text-[clamp(2rem,4.2vw,3.3rem)] leading-[1.06] text-red-bright lg:col-span-7">
             Fix the file before you send it.
           </h2>
           <div className="flex flex-col justify-end lg:col-span-5">
-            <p className="max-w-md text-[17px] font-medium leading-[1.6] text-red">
+            <p className="max-w-md text-[17px] font-medium leading-[1.6] text-black">
               Too big to email? Wrong format? A photo of a document when you needed the words? Squash it, convert it,
               merge it, pull the text out of it. Every one runs on your own machine — the contract you just signed
               never goes anywhere near anyone&apos;s server.

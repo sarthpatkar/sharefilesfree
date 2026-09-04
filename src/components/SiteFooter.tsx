@@ -4,7 +4,7 @@ import { DonateLink } from "./DonateLink";
 import { IconSend } from "./icons";
 
 /**
- * Shared footer, on a gold field. Also does real work for search: it links
+ * Shared footer, on a mid-yellow field. Also does real work for search: it links
  * every popular tool from every page, which is how the long tail of
  * /tools/* routes gets found without a separate link-building effort.
  */
@@ -12,7 +12,7 @@ export function SiteFooter() {
   const featured = TOOLS.slice(0, 10);
 
   return (
-    <footer className="mt-auto bg-gold">
+    <footer className="mt-auto bg-y-mid">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-16 sm:px-8">
         <div className="grid gap-y-12 lg:grid-cols-12 lg:gap-x-12">
           <div className="flex flex-col gap-4 lg:col-span-4">
@@ -22,46 +22,46 @@ export function SiteFooter() {
               </span>
               <span className="font-display text-[19px] leading-none text-red">ShareFilesFree</span>
             </div>
-            <p className="max-w-xs text-[15px] font-medium leading-[1.6] text-red">
+            <p className="max-w-xs text-[15px] font-medium leading-[1.6] text-black">
               Send anything to anyone with six digits. No account, no app, no size limit.
             </p>
           </div>
 
           <nav className="flex flex-col gap-2.5 lg:col-span-2" aria-labelledby="footer-transfer">
-            <h2 id="footer-transfer" className="font-display text-[15px] leading-none text-red opacity-60">
+            <h2 id="footer-transfer" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
               Transfer
             </h2>
-            <Link href="/#send" className="sff-nudge w-fit text-[15px] font-semibold text-red">
+            <Link href="/#send" className="sff-nudge w-fit text-[15px] font-semibold text-black">
               Send a file
             </Link>
-            <Link href="/receive" className="sff-nudge w-fit text-[15px] font-semibold text-red">
+            <Link href="/receive" className="sff-nudge w-fit text-[15px] font-semibold text-black">
               Receive a file
             </Link>
-            <Link href="/#how" className="sff-nudge w-fit text-[15px] font-semibold text-red">
+            <Link href="/#how" className="sff-nudge w-fit text-[15px] font-semibold text-black">
               How it works
             </Link>
-            <Link href="/#faq" className="sff-nudge w-fit text-[15px] font-semibold text-red">
+            <Link href="/#faq" className="sff-nudge w-fit text-[15px] font-semibold text-black">
               FAQ
             </Link>
           </nav>
 
           <nav className="flex flex-col gap-2.5 lg:col-span-3" aria-labelledby="footer-tools-a">
-            <h2 id="footer-tools-a" className="font-display text-[15px] leading-none text-red opacity-60">
+            <h2 id="footer-tools-a" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
               Popular tools
             </h2>
             {featured.slice(0, 5).map((tool) => (
-              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-red">
+              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-black">
                 {tool.title}
               </Link>
             ))}
           </nav>
 
           <nav className="flex flex-col gap-2.5 lg:col-span-3" aria-labelledby="footer-tools-b">
-            <h2 id="footer-tools-b" className="font-display text-[15px] leading-none text-red opacity-60">
+            <h2 id="footer-tools-b" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
               More tools
             </h2>
             {featured.slice(5, 10).map((tool) => (
-              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-red">
+              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-black">
                 {tool.title}
               </Link>
             ))}

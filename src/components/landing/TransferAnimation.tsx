@@ -68,7 +68,7 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
       {/* ---------- The file, crossing ---------- */}
       {crossing &&
         [
-          { delay: "0s", fill: "var(--pink)" },
+          { delay: "0s", fill: "var(--lime-max)" },
           { delay: "1.15s", fill: "var(--y-max)" },
           { delay: "2.3s", fill: "var(--lime-max)" },
         ].map((packet, i) => (
@@ -89,7 +89,7 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
         <g className={held ? "sff-waiting" : undefined} style={{ opacity: held ? 1 : 0.3, transition: "opacity .5s ease" }}>
           <rect x="46" y="126" width="60" height="10" fill="var(--lime-2)" />
           <rect x="46" y="148" width="132" height="42" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" />
-          <rect x="58" y="158" width="20" height="22" fill="var(--pink)" />
+          <rect x="58" y="158" width="20" height="22" fill="var(--lime-max)" />
           <rect x="86" y="162" width="78" height="7" fill="var(--red)" />
           <rect x="86" y="174" width="52" height="7" fill="var(--lime-2)" />
         </g>
@@ -113,10 +113,10 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
 
         <g style={{ opacity: awake ? 1 : 0, transition: "opacity .45s ease" }}>
           <rect x="476" y="120" width="68" height="34" fill="var(--y-max)" stroke="var(--red)" strokeWidth="4" className={awake && !crossing ? "sff-ping" : undefined} />
-          <text x="510" y="144" textAnchor="middle" className="font-display" fill="var(--red)" fontSize="17" letterSpacing="0.5">
+          <text x="510" y="144" textAnchor="middle" fill="var(--red)" fontSize="16" fontWeight="700" letterSpacing="1.2">
             {CODES[codeIndex]}
           </text>
-          <rect x="480" y="166" width="60" height="8" fill="var(--pink)" />
+          <rect x="480" y="166" width="60" height="8" fill="var(--lime-max)" />
           <rect x="488" y="182" width="44" height="8" fill="var(--lime-2)" />
         </g>
 
@@ -130,7 +130,7 @@ export function TransferAnimation({ step }: { step?: 0 | 1 | 2 }) {
       {/* ---------- Nothing in the middle ---------- */}
       <g transform="translate(320 286)">
         <rect x="-104" y="-19" width="208" height="38" fill="var(--red)" />
-        <text x="0" y="7" textAnchor="middle" className="font-display" fill="var(--lime-max)" fontSize="15" letterSpacing="0.6">
+        <text x="0" y="7" textAnchor="middle" fill="var(--lime-max)" fontSize="14" fontWeight="700" letterSpacing="0.8">
           NO SERVER IN BETWEEN
         </text>
       </g>

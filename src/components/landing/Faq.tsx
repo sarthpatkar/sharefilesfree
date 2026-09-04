@@ -14,7 +14,7 @@ export function Faq() {
         </p>
 
         <div className="mt-8 grid gap-x-16 gap-y-10 lg:grid-cols-12">
-          <h2 className="font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright lg:col-span-4">
+          <h2 className="font-display text-[clamp(2rem,4.2vw,3.3rem)] leading-[1.06] text-red-bright lg:col-span-4">
             The questions worth answering.
           </h2>
 
@@ -32,12 +32,12 @@ export function Faq() {
                       className="flex w-full items-start gap-4 px-6 py-5 text-left"
                     >
                       <span
-                        className={`mt-0.5 font-display text-[17px] leading-none ${isOpen ? "text-pink" : "text-pink"}`}
+                        className={`mt-0.5 text-[15px] font-bold leading-none ${isOpen ? "text-lime-max" : "text-black opacity-45"}`}
                       >
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <span
-                        className={`flex-1 font-display text-[19px] leading-[1.15] ${isOpen ? "text-yellow" : "text-red"}`}
+                        className={`flex-1 text-[17px] font-bold leading-[1.35] tracking-[-0.01em] ${isOpen ? "text-yellow" : "text-black"}`}
                       >
                         {item.q}
                       </span>

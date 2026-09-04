@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Send large files free, no signup, no login.",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffff17",
+    background_color: "#faf8f4",
     theme_color: "#d50000",
     icons: [{ src: "/icon", sizes: "512x512", type: "image/png" }],
   };

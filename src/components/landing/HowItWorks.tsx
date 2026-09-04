@@ -8,17 +8,14 @@ const STEPS = [
   {
     title: "Drop it.",
     body: "Nothing uploads. Your file waits on your own machine, so there's no progress bar to sit through and nothing left on a server if they never turn up.",
-    field: "bg-y-max",
   },
   {
     title: "Say six digits.",
     body: "That's the whole handoff. Read them across the room, text them, or let them point a camera at the code. Phone to laptop, any two networks.",
-    field: "bg-y-soft",
   },
   {
     title: "Done.",
     body: "It's already on their screen, at whatever speed your connection can manage. If they're not around right now, you get a link instead.",
-    field: "bg-y-pale",
   },
 ];
 
@@ -56,13 +53,13 @@ export function HowItWorks() {
   }, []);
 
   return (
-    <section id="how" className="scroll-mt-20 bg-lime-3">
+    <section id="how" className="scroll-mt-20 bg-lime-pale">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-20 sm:px-8 sm:py-28">
         <p className="inline-block bg-red px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-yellow">
           How it works
         </p>
 
-        <h2 className="mt-8 max-w-3xl font-display text-[clamp(2.4rem,5.6vw,4.6rem)] leading-[1.0] text-red-bright">
+        <h2 className="mt-8 max-w-3xl font-display text-[clamp(2rem,4.2vw,3.3rem)] leading-[1.06] text-red-bright">
           Faster than attaching it to an email.
         </h2>
 
@@ -78,7 +75,7 @@ export function HowItWorks() {
                 {STEPS.map((s, i) => (
                   <span
                     key={s.title}
-                    className={`h-2 flex-1 transition-colors duration-300 ${i <= active ? "bg-red" : "bg-blush"}`}
+                    className={`h-2 flex-1 transition-colors duration-300 ${i <= active ? "bg-red" : "bg-y-mid"}`}
                   />
                 ))}
               </div>
@@ -101,14 +98,17 @@ export function HowItWorks() {
                 }}
                 className="lg:flex lg:min-h-[58vh] lg:flex-col lg:justify-center"
               >
+                {/* No card. The step is type on the section ground; the only
+                    thing marking the one you are reading is that the others
+                    step back. Emphasis by weight and position, not by a box. */}
                 <div
-                  className={`sff-block-sm p-7 transition-all duration-500 ${step.field} ${
-                    i === active ? "lg:translate-x-0 lg:opacity-100" : "lg:translate-x-4 lg:opacity-45"
+                  className={`max-w-md transition-all duration-500 ${
+                    i === active ? "lg:translate-x-0 lg:opacity-100" : "lg:translate-x-3 lg:opacity-40"
                   }`}
                 >
-                  <span className="font-display text-[44px] leading-none text-pink">0{i + 1}</span>
-                  <h3 className="mt-3 font-display text-[28px] leading-none text-red-bright">{step.title}</h3>
-                  <p className="mt-3 text-[15px] font-medium leading-[1.55] text-red">{step.body}</p>
+                  <span className="font-display text-[26px] leading-none text-red opacity-25">0{i + 1}</span>
+                  <h3 className="mt-2 font-display text-[21px] leading-[1.15] text-red-bright">{step.title}</h3>
+                  <p className="mt-3 text-[15.5px] font-medium leading-[1.6] text-black">{step.body}</p>
                 </div>
               </li>
             ))}

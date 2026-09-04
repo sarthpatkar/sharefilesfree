@@ -68,7 +68,7 @@ export function SiteHeader() {
       <header className="sticky top-0 z-50 bg-red">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
           <Link href="/" className="sff-nudge flex items-center gap-3" aria-label="ShareFilesFree home">
-            <span className="flex h-9 w-9 items-center justify-center bg-y-max text-red">
+            <span className="flex h-9 w-9 items-center justify-center bg-y-max text-black">
               <IconSend className="h-5 w-5" />
             </span>
             <span className="font-display text-[19px] leading-none text-yellow">ShareFilesFree</span>
@@ -88,7 +88,7 @@ export function SiteHeader() {
             </Link>
             <Link
               href="/#send"
-              className="sff-nudge hidden bg-lime px-5 py-2.5 font-display text-[15px] leading-none text-red sm:block"
+              className="sff-nudge hidden bg-lime px-5 py-2.5 text-[13px] font-bold leading-none text-black sm:block"
             >
               Send a file
             </Link>
@@ -144,7 +144,7 @@ export function SiteHeader() {
                   transition: `opacity .4s ease ${140 + i * 55}ms, transform .4s cubic-bezier(.2,1,.3,1) ${140 + i * 55}ms`,
                 }}
               >
-                <span className="font-display text-[15px] leading-none text-pink">0{i + 1}</span>
+                <span className="text-[12px] font-bold tabular-nums leading-none text-lime-max">0{i + 1}</span>
                 <span className="font-display text-[34px] leading-none text-yellow">{item.label}</span>
               </Link>
             ))}
@@ -154,14 +154,14 @@ export function SiteHeader() {
             href="/#send"
             onClick={() => setMenuOpen(false)}
             tabIndex={menuOpen ? 0 : -1}
-            className="mt-10 block bg-lime px-6 py-4 text-center font-display text-[20px] leading-none text-red"
+            className="mt-10 block bg-lime px-6 py-4 text-center text-[16px] font-bold leading-none text-black"
             style={{ opacity: menuOpen ? 1 : 0, transition: "opacity .4s ease 420ms" }}
           >
             Send a file
           </Link>
 
           <p
-            className="mt-auto pt-10 text-[12px] font-bold uppercase tracking-[0.18em] text-pink"
+            className="mt-auto pt-10 text-[12px] font-bold uppercase tracking-[0.18em] text-lime-max"
             style={{ opacity: menuOpen ? 1 : 0, transition: "opacity .4s ease 480ms" }}
           >
             No account · No app · Free

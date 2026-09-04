@@ -41,11 +41,11 @@ export function FileDropZone({
         dragging ? "bg-red" : "bg-y-max"
       }`}
     >
-      <IconUpload className={`h-7 w-7 ${dragging ? "text-lime" : "text-red"}`} />
-      <span className={`font-display text-[20px] leading-tight ${dragging ? "text-yellow" : "text-red"}`}>
+      <IconUpload className={`h-7 w-7 ${dragging ? "text-lime" : "text-black"}`} />
+      <span className={`text-[17px] font-bold leading-tight tracking-[-0.01em] ${dragging ? "text-yellow" : "text-black"}`}>
         {dragging ? "Let go" : label}
       </span>
-      {hint && <span className={`text-[14px] font-semibold ${dragging ? "text-lime" : "text-red"}`}>{hint}</span>}
+      {hint && <span className={`text-[14px] font-semibold ${dragging ? "text-lime" : "text-black"}`}>{hint}</span>}
       <input
         type="file"
         accept={accept}

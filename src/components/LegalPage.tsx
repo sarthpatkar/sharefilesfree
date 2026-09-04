@@ -44,13 +44,13 @@ export function LegalPage({
 
           <div className="grid gap-x-16 py-16 sm:py-20 lg:grid-cols-12">
             <header className="lg:col-span-4">
-              <h1 className="font-display text-[clamp(2.2rem,5vw,3.5rem)] font-black leading-[0.97] tracking-[-0.024em] text-red lg:sticky lg:top-28">
+              <h1 className="font-display text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] tracking-[-0.015em] text-red lg:sticky lg:top-28">
                 {title}
               </h1>
             </header>
 
             <div className="mt-10 lg:col-span-8 lg:mt-0">
-              <div className="max-w-2xl text-[16px] leading-[1.75] text-red">{intro}</div>
+              <div className="max-w-2xl text-[16px] leading-[1.75] text-black">{intro}</div>
 
               <div className="mt-12">
                 {sections.map((section, i) => (
@@ -59,18 +59,18 @@ export function LegalPage({
                       <span className="font-mono text-xs tabular-nums text-accent">
                         {String(i + 1).padStart(2, "0")}
                       </span>
-                      <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-red">
+                      <h2 className="font-display text-[1.15rem] tracking-[-0.015em] text-red">
                         {section.heading}
                       </h2>
                     </div>
-                    <div className="mt-4 max-w-2xl space-y-4 text-[15px] leading-[1.75] text-red sm:pl-10 [&_a]:text-red [&_a]:underline [&_a]:underline-offset-4 [&_li]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
+                    <div className="mt-4 max-w-2xl space-y-4 text-[15px] leading-[1.75] text-black sm:pl-10 [&_a]:text-black [&_a]:underline [&_a]:underline-offset-4 [&_li]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
                       {section.body}
                     </div>
                   </section>
                 ))}
               </div>
 
-              {footnote && <p className="mt-8 max-w-2xl-2-strong pl-5 text-sm leading-[1.7] text-red">{footnote}</p>}
+              {footnote && <p className="mt-8 max-w-2xl-2-strong pl-5 text-sm leading-[1.7] text-black">{footnote}</p>}
 
               <Link href="/" className="link mt-12 inline-block text-sm font-medium text-red">
                 Back to ShareFilesFree

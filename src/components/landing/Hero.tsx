@@ -38,11 +38,11 @@ export function Hero() {
 
   return (
     <section className="relative overflow-hidden bg-yellow">
-      {/* Decorative fields. Pink and blush do graphic work here — they can't
-          carry text, so they carry shape instead. */}
+      {/* Decorative fields. Kept to the palest rungs of each ladder so they read
+          as light falling on the page rather than as blocks competing with it. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="sff-bob absolute -right-24 -top-28 h-[420px] w-[420px] bg-blush" style={{ "--tilt": "12deg" } as React.CSSProperties} />
-        <div className="absolute -left-32 top-[60%] h-[280px] w-[280px] rotate-[18deg] bg-pink opacity-70" />
+        <div className="sff-bob absolute -right-24 -top-28 h-[360px] w-[360px] bg-lime-pale" style={{ "--tilt": "12deg" } as React.CSSProperties} />
+        <div className="absolute -left-32 top-[60%] h-[240px] w-[240px] rotate-[18deg] bg-y-soft" />
       </div>
 
       <div className="relative mx-auto w-full max-w-[1400px] px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
@@ -57,7 +57,7 @@ export function Hero() {
             </p>
 
             <h1
-              className="sff-stamp mt-6 font-display text-[clamp(2.9rem,7vw,6rem)] leading-[1.0] text-red-bright"
+              className="sff-stamp mt-6 font-display text-[clamp(2.3rem,5vw,4.1rem)] leading-[1.06] text-red-bright"
               style={{ "--i": 1 } as React.CSSProperties}
             >
               <span className="block">Send files,</span>
@@ -68,7 +68,7 @@ export function Hero() {
             </h1>
 
             <p
-              className="sff-stamp mt-8 max-w-lg text-[17px] font-medium leading-[1.6] text-red sm:text-[19px]"
+              className="sff-stamp mt-8 max-w-lg text-[17px] font-medium leading-[1.6] text-black sm:text-[19px]"
               style={{ "--i": 2 } as React.CSSProperties}
             >
               Your file is on their screen before you&apos;ve finished reading out the code. No account. No app. No
@@ -90,7 +90,7 @@ export function Hero() {
             {/* Heading sits on the page ground, not inside a panel — the drop
                 zone below is the only block here, so nothing is nested. */}
             <div className="mb-5 flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-[28px] leading-none text-red">Send a file now</h2>
+              <h2 className="font-display text-[21px] leading-none text-red">Send a file now</h2>
               <Link href="/receive" className="link shrink-0 text-[15px] text-red">
                 Got a code?
               </Link>
@@ -101,8 +101,8 @@ export function Hero() {
             <dl className="mt-6 flex flex-col gap-4">
               {ANSWERS.map(([q, a]) => (
                 <div key={q}>
-                  <dt className="font-display text-[17px] leading-none text-red">{q}</dt>
-                  <dd className="mt-1.5 text-[14px] font-medium leading-[1.5] text-red">{a}</dd>
+                  <dt className="text-[15px] font-bold leading-none text-black">{q}</dt>
+                  <dd className="mt-1.5 text-[14px] font-medium leading-[1.5] text-black">{a}</dd>
                 </div>
               ))}
             </dl>
@@ -115,8 +115,8 @@ export function Hero() {
         <dl className="mx-auto grid w-full max-w-[1400px] grid-cols-2 gap-x-8 gap-y-7 px-5 py-9 sm:px-8 md:grid-cols-4">
           {FACTS.map((fact) => (
             <div key={fact.k}>
-              <dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-pink">{fact.k}</dt>
-              <dd className="mt-2 font-display text-[clamp(1.15rem,2vw,1.6rem)] leading-none text-yellow">{fact.v}</dd>
+              <dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-lime-max">{fact.k}</dt>
+              <dd className="mt-2 text-[clamp(1.05rem,1.7vw,1.35rem)] font-bold leading-none tracking-[-0.01em] text-yellow">{fact.v}</dd>
             </div>
           ))}
         </dl>

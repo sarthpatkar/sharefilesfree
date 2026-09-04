@@ -26,17 +26,17 @@ export function ToolPageClient({ slug }: { slug: string }) {
     <>
       <div className="bg-yellow">
         <div className="mx-auto w-full max-w-[1400px] px-5 py-12 sm:px-8 sm:py-16">
-          <Link href="/tools" className="sff-nudge inline-flex items-center gap-2 bg-red px-4 py-2 font-display text-[14px] leading-none text-yellow">
+          <Link href="/tools" className="sff-nudge inline-flex items-center gap-2 bg-red px-4 py-2 text-[12px] font-bold uppercase tracking-[0.12em] leading-none text-yellow">
             <IconArrowLeft className="h-4 w-4" />
             All tools
           </Link>
 
           <div className="mt-8 grid gap-x-14 gap-y-10 lg:grid-cols-12">
             <header className="lg:col-span-5">
-              <span className="inline-flex h-14 w-14 items-center justify-center bg-pink text-red">
+              <span className="inline-flex h-14 w-14 items-center justify-center bg-lime-4 text-black">
                 <tool.icon className="h-8 w-8" />
               </span>
-              <h1 className="mt-5 font-display text-[clamp(2.2rem,4.8vw,3.6rem)] leading-[1.0] text-red-bright">
+              <h1 className="mt-5 font-display text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] text-red-bright">
                 {tool.title}
               </h1>
               {tool.caveat && (
@@ -44,8 +44,8 @@ export function ToolPageClient({ slug }: { slug: string }) {
                   {tool.caveat}
                 </span>
               )}
-              <p className="mt-5 max-w-md text-[16px] font-medium leading-[1.6] text-red">{tool.description}</p>
-              <p className="mt-6 max-w-md bg-lime p-5 text-[15px] font-semibold leading-[1.5] text-red">
+              <p className="mt-5 max-w-md text-[16px] font-medium leading-[1.6] text-black">{tool.description}</p>
+              <p className="mt-6 max-w-md bg-lime p-5 text-[15px] font-semibold leading-[1.5] text-black">
                 This runs on your own device. Your file never goes anywhere — no queue, no size limit, nothing to
                 delete afterwards.
               </p>
@@ -71,7 +71,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
                 className="sff-nudge flex items-center gap-3 bg-yellow px-5 py-4"
               >
                 <t.icon className="h-5 w-5 shrink-0 text-red" />
-                <span className="truncate font-display text-[16px] leading-none text-red">{t.title}</span>
+                <span className="truncate text-[14px] font-bold leading-none text-black">{t.title}</span>
               </Link>
             ))}
           </div>

@@ -24,35 +24,54 @@
      is actually *higher* contrast with red than the saturated end (5.35 vs
      5.11), so calming the page ground improved legibility rather than
      costing it. */
-  --red:        #d50000;  /* body ink, and any red field that carries text */
-  --red-bright: #ed1f1f;  /* large display type and shapes only — 4.25 on the
-                             palest yellow, which clears AA large but not body */
-  --y-pale:     #ffffd2;  /* page ground */
-  --y-soft:     #ffffa3;  /* second field */
-  --y-mid:      #ffff74;  /* third field */
-  --y-max:      #ffff17;  /* punch: type on red, badges, the logo mark */
-  /* Lime ladder, same principle as the yellows — the pale end is the higher
-     contrast (5.27 vs 4.61 with red), so paler grounds read better, and the
-     saturated end is reserved for punches. */
-  --lime-max:  #c3ff17;
-  --lime-2:    #cdff3d;
-  --lime-3:    #d7ff64;
-  --lime-4:    #e1ff8b;
-  --lime-5:    #ebffb1;
-  --lime-pale: #f5ffd8;
-  --lime:      var(--lime-max);
+  --red:        #d50000;  /* brand: headlines, red fields, links, accents */
+  --red-bright: #ed1f1f;  /* large display type and shapes only */
 
-  --pink:       #ff69b4;
-  --blush:      #e9a4cb;
-  --gold:       #ffde21;
+  /* --- Ink ------------------------------------------------------------
+     Red is the brand, but red is a poor colour to read a paragraph in: on
+     the cream ground it measures 5.18:1, where near-black measures 16.43:1.
+     Setting long copy in red also spends the colour on everything, so it
+     stops meaning anything when a heading uses it.
+
+     So the page has two inks with a clear division of labour:
+       --black  running text, UI labels, button text on light grounds
+       --red    headlines, brand marks, links, and any red field
+
+     Not pure #000 — on a warm cream ground it reads as a hole. #1a1a1a
+     keeps the warmth and still clears 16:1.
+
+     NOTE: black on red measures 3.17:1 and must never be used. Text on a
+     red field is always --y-pale. */
+  --black:      #1a1a1a;
+
+  /* --- The cream ladder ------------------------------------------------
+     Ground is #fffacf, chosen directly. The rungs step down from it in the
+     same hue so the page reads as one sheet of paper catching more or less
+     light, rather than as separate coloured panels.
+
+     Ratios below are against --red, measured. Against --black every rung
+     clears 10:1, so black is safe on all of them. */
+  --y-pale:     #fffacf;  /* page ground     5.18:1 vs red */
+  --y-soft:     #fdf3bd;  /* second field    4.89:1 */
+  --y-mid:      #f8eaa8;  /* third field     4.52:1 */
+  --y-max:      #f2de8c;  /* deepest         4.07:1 — large type only in red */
+
+  /* --- The olive ladder, for fields that need to differ from the cream -- */
+  --lime-max:  #e9f0cd;  /* 4.65:1 */
+  --lime-2:    #c7d492;  /* 3.46:1 — large type only in red */
+  --lime-3:    #d6e0a9;  /* 3.94:1 — large type only in red */
+  --lime-4:    #e7eec8;  /* 4.53:1 */
+  --lime-5:    #ecf2d2;  /* 4.75:1 */
+  --lime-pale: #f4f7e0;  /* 5.02:1 */
+  --lime:      var(--lime-max);
 
   /* `yellow` resolves to the pale ground, since that's the field almost every
      surface wants; the louder yellows are opted into by name. */
   --yellow: var(--y-pale);
 
-  /* Roles. Only red/yellow/lime combinations ever carry running text —
-     measured, they're the pairings that clear WCAG AA. Pink, blush and gold
-     do graphic work: fields, shapes, numerals, illustration, motion. */
+  /* Roles. Red on any yellow or lime tint clears WCAG AA — measured. The pale
+     ends of both ladders are the higher-contrast ones, so running text sits on
+     those and the saturated ends are reserved for punches and small shapes. */
   --ground: var(--yellow);
   --ink:    var(--red);
   --on-red: var(--yellow);
@@ -61,6 +80,15 @@
      without each being rewritten. */
   --background: var(--ground);
   --foreground: var(--ink);
+  /* The five tool-family fields, drawn from the two ladders rather than five
+     unrelated hues. Ordered light-to-saturated so a group's weight on the page
+     is deliberate rather than accidental. */
+  --field-1: var(--y-soft);
+  --field-2: var(--lime-pale);
+  --field-3: var(--y-mid);
+  --field-4: var(--lime-5);
+  --field-5: var(--lime-4);
+
   --card: var(--lime);
   --muted: var(--ink);
   --border: var(--ink);
@@ -78,6 +106,7 @@
 
 @theme inline {
   --color-red: var(--red);
+  --color-black: var(--black);
   --color-red-bright: var(--red-bright);
   --color-lime: var(--lime);
   --color-lime-max: var(--lime-max);
@@ -91,9 +120,11 @@
   --color-y-soft: var(--y-soft);
   --color-y-mid: var(--y-mid);
   --color-y-max: var(--y-max);
-  --color-pink: var(--pink);
-  --color-blush: var(--blush);
-  --color-gold: var(--gold);
+  --color-field-1: var(--field-1);
+  --color-field-2: var(--field-2);
+  --color-field-3: var(--field-3);
+  --color-field-4: var(--field-4);
+  --color-field-5: var(--field-5);
 
   --color-ground: var(--ground);
   --color-ink: var(--ink);
@@ -122,7 +153,7 @@
 
 body {
   background: var(--ground);
-  color: var(--ink);
+  color: var(--black);
   font-family: var(--font-outfit), "Helvetica Neue", Arial, sans-serif;
   font-weight: 500;
 }
@@ -141,13 +172,23 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Sigmar ships one weight (400). Asking for bold or black on a display
+   element makes the browser synthesise a faux-bold, which smears the glyphs
+   and is the other half of why headlines looked heavy. Pin the weight so a
+   stray font-bold in a class list cannot do it. */
+.font-display,
+[class*="font-display"] {
+  font-weight: 400 !important;
+  font-synthesis-weight: none;
+}
+
 /* Inline links are permanently underlined and bold — identifiable without
    needing a hover to reveal them, which matters more on touch anyway. */
 .link {
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 /* ==========================================================================
@@ -239,10 +280,11 @@ html {
 .sff-nudge:hover  { transform: translate(-3px, -3px); }
 .sff-nudge:active { transform: translate(2px, 2px); }
 
-/* Blocks sit on a hard colour shadow so they read as stacked paper. */
-.sff-block { box-shadow: 8px 8px 0 var(--red); }
-.sff-block-pink { box-shadow: 8px 8px 0 var(--pink); }
-.sff-block-sm { box-shadow: 5px 5px 0 var(--red); }
+/* Blocks sit on a hard colour shadow so they read as stacked paper. Halved on
+   4 Sep 2026 — at 8px the offset stopped reading as paper and started reading
+   as weight, which is most of what made the page feel bulky. */
+.sff-block { box-shadow: 4px 4px 0 var(--red); }
+.sff-block-sm { box-shadow: 3px 3px 0 var(--red); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
