@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ToolsPanel } from "@/components/ToolsPanel";
 import { TOOLS } from "@/components/tools/registry";
+import { AdSlot } from "@/components/ads/AdSlot";
 
 export const metadata: Metadata = {
   title: "Free PDF & File Tools — No Signup — ShareFilesFree",
@@ -42,6 +43,8 @@ export default function ToolsIndexPage() {
 
         <div className="mx-auto w-full max-w-[1400px] px-5 py-16 sm:px-8 sm:py-20">
           <ToolsPanel />
+
+          <AdSlot slotId="tools-index" format="leaderboard" className="mt-16" />
 
           <p className="mt-20 pt-8 text-[15px] text-black">
             Need to move a file to another device instead?{" "}

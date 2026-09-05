@@ -64,9 +64,9 @@ export function WhyFree() {
         <div className="mt-16 max-w-2xl bg-red px-7 py-6 lg:mt-20">
           <p className="text-[15.5px] font-medium leading-[1.6] text-yellow">
             <span className="text-[13px] font-bold uppercase tracking-[0.14em] text-lime-max">The part we&apos;d rather say than hide:</span>{" "}
-            if the person you&apos;re sending to isn&apos;t around, the shareable link does park your file on storage
-            we rent — locked, and deleted on the schedule you choose. That route has a size cap, because it costs us
-            real money. The six-digit route doesn&apos;t.
+            both devices have to be open at the same time. We store nothing, anywhere, so there is no copy sitting on
+            a server waiting for someone to collect it later. Leave the tab open and your code lasts an hour; close
+            it and the transfer is gone. That is the price of the rest of this page being true.
           </p>
         </div>
       </div>

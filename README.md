@@ -5,16 +5,37 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 ## How it works
 
 1. The sender picks a file and gets a 6-digit code (like Send Anywhere).
-2. The receiver enters the code (or opens a shared link).
+2. The receiver enters the code (or opens the QR/link, which carries the code in the URL fragment).
 3. A tiny **signaling server** (`/server`) introduces the two browsers to each other and then gets out of the way.
 4. Files stream **directly between browsers** over a WebRTC data channel — encrypted, no server storage, no size limit.
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
-6. If the receiver isn't online at all, the sender can switch to **"share a link instead"** — the file uploads once to Cloudflare R2, and the link works anytime until it expires (like WeTransfer), without our server ever being in the download path. This link can optionally be **password protected**, set to **delete after first download**, and given a custom expiry (1 hour to 7 days) — matching what competitors (Smash, WeTransfer, Send Anywhere) offer. Files over 10MB use **resumable multipart upload** (a dropped connection only costs the failed part, not the whole file). Multiple files can be shared via one link too, but **only if you explicitly opt in** to bundling them into a `.zip` first — never automatic.
-7. Every download page has a **"Report this file"** link that immediately disables the shared link — no review queue, no waiting on the operator.
-8. A **Tools** section offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, conversions to/from Word/Excel/PowerPoint/Markdown, plus image tools, a QR generator, and OCR — running **entirely client-side**, no upload, no server cost. Every tool lives on its **own indexable URL** (`/tools/merge-pdf`, etc.) for real SEO, not just hidden behind an in-app tab. Most tools support batch processing (multiple files in, one zip out) with a progress bar. A result can be downloaded directly or handed straight to the Send tab.
-9. The site works **offline after a first visit** via a small hand-rolled service worker (cache-as-you-go) — the Tools are 100% client-side already, so this makes them usable with no internet at all once cached.
+6. If the receiver isn't online yet, the code keeps working for **an hour** while the sender leaves the tab open — the file waits on the sender's own device, never on ours. There is deliberately no upload-and-share-a-link fallback; see "No storage, on purpose" below.
+7. A **Tools** section offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, conversions to/from Word/Excel/PowerPoint/Markdown, plus image tools, a QR generator, and OCR — running **entirely client-side**, no upload, no server cost. Every tool lives on its **own indexable URL** (`/tools/merge-pdf`, etc.) for real SEO, not just hidden behind an in-app tab. Most tools support batch processing (multiple files in, one zip out) with a progress bar. A result can be downloaded directly or handed straight to the Send tab.
+8. The site works **offline after a first visit** via a small hand-rolled service worker (cache-as-you-go) — the Tools are 100% client-side already, so this makes them usable with no internet at all once cached.
 
-Phase 1 (pure P2P) and Phase 2 (the link fallback, abuse reporting) are both built. Still to come: malware scanning on the relay path and ads.
+## No storage, on purpose
+
+This service stores no files. Not briefly, not encrypted, not at all. There is
+no bucket, no upload endpoint, and no page that serves user content.
+
+That started as a legal decision and turned out to be a product one. An
+anonymous host that keeps files carries the whole weight of intermediary law —
+takedown clocks measured in hours, a duty to preserve removed content for 180
+days, copyright notices, and the exposure that comes with holding material you
+can read. A service that transmits and forgets carries almost none of it: there
+is nothing to take down, nothing to preserve, and nothing to hand over.
+
+It is also the only version of "no limits, free forever" that is actually true.
+A transfer that never touches our machines costs us nothing however big it is,
+so there is no size to cap and no retention to ration.
+
+The cost is real and stated plainly on the site: **both devices have to be open
+at the same time.** If that changes — a company behind it, users, revenue — the
+storage path is recoverable from git history (branch `ads-and-storage-policy`,
+through commit `7ae4989`), where it sits complete with multipart upload, a
+retention ladder priced on bytes x time, password protection, one-time links
+and abuse reporting. Read that history before rebuilding it; register the
+company before shipping it.
 
 ## Tools (client-side compress/convert)
 
@@ -60,7 +81,7 @@ npm install
 npm run dev         # listens on :3000
 ```
 
-Open `http://localhost:3000` in two different browser tabs (or two devices on the same network) to test a transfer end-to-end. TURN and R2 are both optional locally — without them, direct P2P (works fine on a normal home network) and the "share a link" fallback (disabled with a friendly error) respectively.
+Open `http://localhost:3000` in two different browser tabs (or two devices on the same network) to test a transfer end-to-end. TURN is optional locally — without it, direct P2P works fine on a normal home network.
 
 ## Testing
 
@@ -73,7 +94,7 @@ Both run automatically on every push via GitHub Actions (`.github/workflows/ci.y
 
 ## Deploying
 
-**See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the full step-by-step runbook** — buying a domain, setting up a free Google Cloud VM, DNS, R2, TURN, and AdSense. Short version: the Next.js site + signaling server run on one free-tier Google Cloud `e2-micro` instance behind Caddy for free automatic HTTPS, with Cloudflare providing R2 storage and managed TURN relay (both free at this scale) — no self-hosted TURN relay to run or pay for.
+**See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the full step-by-step runbook** — buying a domain, setting up a free Google Cloud VM, DNS, TURN, and AdSense. Short version: the Next.js site + signaling server run on one free-tier Google Cloud `e2-micro` instance behind Caddy for free automatic HTTPS, with Cloudflare providing managed TURN relay (free at this scale) — no self-hosted TURN relay to run or pay for, and no storage bill at all.
 
 ### Environment variables
 
@@ -81,36 +102,58 @@ Both run automatically on every push via GitHub Actions (`.github/workflows/ci.y
 |---|---|---|
 | `NEXT_PUBLIC_SIGNALING_URL` | frontend | `ws://`/`wss://` address of `/server` |
 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | frontend (server-side only, **no** `NEXT_PUBLIC_` prefix) | Cloudflare Realtime TURN key, used to mint short-lived credentials per session |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | frontend (server-side only) | Cloudflare R2 access for the link-sharing fallback |
-| `MAX_UPLOAD_BYTES` | frontend | Caps worst-case storage cost per upload (default 2GB) |
-| `UPLOAD_EXPIRY_HOURS` | frontend | Ceiling on how long a shared link can stay valid — the sender picks 1h/1d/3d/7d, capped at this (default 168h/7 days) |
+| `NEXT_PUBLIC_AD_CLIENT` | frontend (public) | AdSense publisher id. Unset = no ad script, no slots, no gates |
+| `NEXT_PUBLIC_AD_HOUSE` | frontend (public) | `1` draws labelled placeholders instead of real ads, for reviewing layout before an ad account exists |
 
 See `.env.local.example` for the full annotated list.
 
-### Setting up Cloudflare R2 (for the "share a link" fallback)
+### Ads
 
-1. In the Cloudflare dashboard: **R2 → Create bucket** (e.g. `sendfilesfree-uploads`).
-2. **R2 → Manage API tokens → Create API token** with Object Read & Write permissions scoped to that bucket. This gives you `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; your Account ID is shown on the R2 overview page.
-3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after your `UPLOAD_EXPIRY_HOURS` ceiling (default 7 days) — **not shorter**, since senders can pick up to that long a retention window per file, and a tighter lifecycle rule would delete files out from under a link before its stated expiry. The app treats a link as dead once it's past its own `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
-4. **Required for large-file (multipart) uploads to work — set the bucket's CORS policy** to expose the `ETag` header, or every multipart upload will fail at the "complete" step with a CORS error. In the bucket's Settings → CORS Policy, add:
-   ```json
-   [
-     {
-       "AllowedOrigins": ["https://sharefilesfree.com"],
-       "AllowedMethods": ["PUT"],
-       "AllowedHeaders": ["*"],
-       "ExposeHeaders": ["ETag"]
-     }
-   ]
-   ```
-   Without `ExposeHeaders: ["ETag"]`, the browser's XHR can't read the ETag each part upload needs to report back — R2 accepts the upload but our client-side code can't complete it. **This specific requirement has not been tested against a live R2 bucket** (none exists yet in development) — verify it once real infra is up; the multipart logic itself (`src/lib/r2.ts`, `src/lib/linkTransfer.ts`) follows the standard S3-compatible multipart API and was reviewed carefully, but flagging this honestly rather than claiming full verification it didn't get.
-5. Set the four `R2_*` env vars and redeploy.
+Ads are the only revenue path — no login, no paywall, no direct charges — so
+they are part of the architecture rather than something sprinkled on at the end.
+Two mechanisms, and a rule about where each may appear.
 
-Without R2 configured, the app still works fully P2P — the "share a link" button just isn't offered.
+**Banner slots** (`<AdSlot>`) reserve their height before anything loads and
+don't fetch the ad script until they're near the viewport. Both properties are
+load-bearing: an ad arriving into unreserved space shifts the layout, layout
+shift moves Core Web Vitals, and Core Web Vitals move the search ranking that
+brings the tool traffic these ads are sold against.
 
-### A note on large-file uploads (resumable within a session)
+**Gates** (`<AdGate>`) put five seconds between an action and its result, on the
+two moments where the user is already waiting: revealing a code, and connecting
+as receiver. They are client-side, and honestly so — the service stores nothing,
+so there is no cost to protect behind them, only revenue to earn, and a server
+round trip to verify a five-second timer would buy nothing. (An earlier version
+signed a server receipt because the thing behind the gate was an upload we paid
+to store; that path is gone.)
 
-Files over 10MB use R2/S3's multipart upload API instead of a single PUT — each ~8MB part uploads (and retries, up to 4 times with backoff) independently, so a dropped connection only costs the one failed part, not the whole file. **Scope**: this recovers from a mid-session network blip, not a fully closed tab reopened days later (that would need persisting the upload ID and re-selecting the identical file from disk — a materially bigger feature, not attempted here).
+**An ad is never longer than the wait it plays over.** Five seconds is what fits
+in front of a connection that takes a second or two; anything longer would be
+manufacturing friction rather than filling it.
+
+**Tool pages carry banners only, never a gate.** Nothing stands between a
+visitor and using a tool or saving its result. That's a product rule: the tools
+promise "no queue, no watermark, no daily limit", and they're the best ad
+inventory on the site precisely because they're frictionless. Ads pay for the
+tools; they don't tax them.
+
+Three constraints worth knowing before changing any of this:
+
+- **Gates are user-initiated and render in flow, never as a full-screen
+  countdown on page load.** A "prestitial with countdown" is on the Coalition
+  for Better Ads disallowed list for mobile web, and repeat violations get ads
+  blocked across the whole site by Chrome — which costs far more than any unit
+  earns. There is deliberately no site-wide unit in the root layout either —
+  one slot per page keeps ad density well under the threshold those standards
+  care about.
+- **Nobody is ever blocked.** If no ad can be served — blocker, no fill,
+  offline — the wait still runs (otherwise the gate is decoration) but the user
+  always gets through, and any failure in our own ad plumbing passes them
+  straight on.
+- **Every gate is the same five seconds.** There is no ladder any more: with no
+  storage, no action costs more to serve than any other, so nothing justifies
+  asking one person for longer than another. (The cost-scaled version, which
+  priced ads against bytes x time, is in git history with the storage path.)
 
 ## Project layout
 
@@ -118,26 +161,21 @@ Files over 10MB use R2/S3's multipart upload API instead of a single PUT — eac
 src/
   app/
     page.tsx                 Home (/, send tab default)
-    receive/page.tsx         /receive?code=123456 — deep link into the receive tab
-    download/[token]/page.tsx  Link-fallback download page
+    receive/page.tsx         /receive#123456 — deep link into the receive tab
     privacy/, terms/         Legal pages (linked in the footer + sitemap)
     not-found.tsx, error.tsx  Branded 404 / error boundaries
     icon.tsx, apple-icon.tsx, opengraph-image.tsx, manifest.ts  Generated in code — no design tool needed
     robots.ts, sitemap.ts    SEO metadata routes
     api/
-      turn-credentials/      Mints short-lived TURN credentials (see comments in route.ts)
-      upload-url/            Issues a presigned R2 upload URL + token for the link fallback
-      file/[token]/          Looks up a shared link's metadata + a fresh presigned download URL (or {requiresPassword:true})
-      file/[token]/unlock/   Verifies a password-protected link's password before releasing the download URL
-      report/[token]/        Abuse report — immediately disables a shared link
-  components/     UI: SendPanel, ReceivePanel, CodeDisplay, LinkShare, DownloadPanel, ProgressBar, ToolsPanel, Button, icons.tsx, Home
+      turn-credentials/      Mints short-lived TURN credentials (see comments in route.ts) — the only API route
+  components/     UI: SendPanel, ReceivePanel, CodeDisplay, ProgressBar, ToolsPanel, Button, icons.tsx, Home
+    ads/            AdSlot (reserved-space banner), AdGate (the five-second gate), adNetwork.ts (the one file that knows about AdSense)
     tools/          Per-tool UI — 14 tools, see the Tools table above; most use the shared SimpleConversionTool
                     shell (FileDropZone → options → ToolResultCard), Organize/Split have bespoke thumbnail UIs
   lib/
     peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine, with retry-with-backoff on connect (no UI deps)
-    linkTransfer.ts   Browser-side upload-with-progress for the link fallback
-    r2.ts             Cloudflare R2 client (presigned URLs, metadata sidecar objects, password hashing)
-    rateLimit.ts      Shared in-memory per-IP throttle for the upload/TURN-credential/report/unlock APIs
+    ads.ts            Ad policy: where gates appear, how long they run, banner sizes
+    rateLimit.ts      In-memory per-IP throttle for the TURN-credential route
     sanitize.ts       Filename sanitization (prevents header injection in Content-Disposition)
     format.ts         Byte-size formatting helper
     tools/            All 14 conversion/compression functions — pure browser-API logic, no UI (see the Tools table above)
@@ -152,7 +190,7 @@ deploy/
   signaling.service  systemd unit for the signaling server
   Caddyfile.example  Reverse proxy + automatic HTTPS config
 .github/workflows/ci.yml  Runs lint, build, and both test suites on every push
-DEPLOYMENT.md    Full step-by-step deployment runbook (domain → VPS → DNS → R2 → TURN → AdSense)
+DEPLOYMENT.md    Full step-by-step deployment runbook (domain → VPS → DNS → TURN → AdSense)
 ```
 
 ### A couple of dependency notes worth knowing about

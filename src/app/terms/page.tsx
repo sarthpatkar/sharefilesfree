@@ -13,8 +13,8 @@ const SECTIONS: LegalSection[] = [
     heading: "The service",
     body: (
       <p>
-        ShareFilesFree lets you transfer files between devices without creating an account, either directly
-        (peer-to-peer) or via a temporary shared link. It&rsquo;s provided free of charge and supported by
+        ShareFilesFree lets you transfer files directly between two devices without creating an account. Files pass
+        browser to browser and are never stored by us. It&rsquo;s provided free of charge and supported by
         advertising.
       </p>
     ),
@@ -31,10 +31,10 @@ const SECTIONS: LegalSection[] = [
           <li>anything used to harass, defraud, or impersonate another person.</li>
         </ul>
         <p>
-          Every shared link includes a &ldquo;Report this file&rdquo; option that immediately disables it. We may also
-          disable links or block usage patterns we reasonably believe violate these terms, without prior notice — this
-          is a small, automated service without a moderation team, so enforcement is necessarily limited and
-          best-effort.
+          We hold no copy of anything you send, so we cannot inspect, retrieve, or remove a file after the fact —
+          there is nothing on our side to remove. What we can do is block usage patterns we reasonably believe
+          violate these terms, without prior notice. This is a small, automated service without a moderation team,
+          and responsibility for what you transfer rests entirely with you.
         </p>
       </>
     ),

@@ -17,7 +17,17 @@ import crypto from "node:crypto";
 const PORT = process.env.PORT || 8080;
 
 // How long an unclaimed room code stays valid before it's swept away.
-const ROOM_TTL_MS = 10 * 60 * 1000; // 10 minutes, matches Send Anywhere's key lifetime.
+//
+// An hour, not the ten minutes this started with. The reason is that the
+// "receiver isn't online right now" fallback used to be an upload to rented
+// storage, and that path is gone: there is no longer anywhere for a file to
+// wait except the sender's own machine. So the room has to do that job — the
+// sender leaves the tab open and the code keeps working while they do.
+//
+// This costs nothing (a room is a few bytes and two socket references) and,
+// unlike the path it replaces, the file still never touches this server. What
+// it does cost is exposure, and that is paid for below — see GLOBAL_FAIL_LIMIT.
+const ROOM_TTL_MS = 60 * 60 * 1000;
 
 // Basic per-IP abuse throttle: cap how many rooms one IP can open per window.
 const ROOM_CREATE_LIMIT = 30;
@@ -26,9 +36,7 @@ const ROOM_CREATE_WINDOW_MS = 60 * 1000;
 // Codes are only 6 digits (1,000,000 combinations) — without a throttle here,
 // an attacker could brute-force an active stranger's room code by just
 // guessing rapidly. This limit is generous enough for a human mistyping a
-// code a few times, but makes guessing impractical: even with only one room
-// open at a time, 20 guesses/minute needs tens of thousands of minutes for a
-// realistic chance, far outside a code's 10-minute lifetime.
+// code a few times, but makes guessing impractical from any single address.
 const JOIN_ATTEMPT_LIMIT = 20;
 const JOIN_ATTEMPT_WINDOW_MS = 60 * 1000;
 
@@ -43,9 +51,22 @@ const JOIN_ATTEMPT_WINDOW_MS = 60 * 1000;
 //   - A guesser learns nothing from being throttled: a wrong code answers the
 //     same either way.
 //
-// At this ceiling, working through a meaningful share of 1,000,000 codes takes
-// hours, against a room that lives ten minutes.
-const GLOBAL_FAIL_LIMIT = 200;
+// This ceiling is what pays for the hour-long room above, and the arithmetic
+// is the whole reason it moved. What matters is not how long a room lives but
+// how many guesses can be thrown at it in that time:
+//
+//   before  10-minute room, 200 fails / 10s  ->  up to  12,000 guesses per room
+//   now     60-minute room,  30 fails / 10s  ->  up to  10,800 guesses per room
+//
+// With R rooms open, a guess lands with probability R/1,000,000, so expected
+// break-ins per room-lifetime went from 0.012R to 0.0108R. A room that lives
+// six times longer is fractionally SAFER than it was, rather than six times
+// more exposed. Lengthen the room again and this number has to come down again,
+// or the code has to get longer.
+//
+// Cutting it cannot lock out a real receiver: a join naming a live room is
+// resolved before any limiter is consulted, so only wrong codes are counted.
+const GLOBAL_FAIL_LIMIT = 30;
 const GLOBAL_FAIL_WINDOW_MS = 10 * 1000;
 let globalFails = { count: 0, windowStart: 0 };
 

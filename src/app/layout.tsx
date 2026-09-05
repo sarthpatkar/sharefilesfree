@@ -46,6 +46,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${outfit.variable} ${sigmar.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        {/* No site-wide ad unit here, deliberately. A slot in the root layout
+            lands on EVERY page including /download/[token], which is the one
+            page that must carry none (see the note on AdPurpose in lib/ads.ts).
+            Ads are placed per page instead, one to a page — which also keeps ad
+            density well under the threshold the Better Ads standards care
+            about. */}
         {children}
         <ServiceWorkerRegister />
       </body>

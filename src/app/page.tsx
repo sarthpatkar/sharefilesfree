@@ -7,6 +7,7 @@ import { WhyFree } from "@/components/landing/WhyFree";
 import { Faq } from "@/components/landing/Faq";
 import { ClosingCta } from "@/components/landing/ClosingCta";
 import { FAQ_ITEMS } from "@/components/landing/faqData";
+import { AdSlot } from "@/components/ads/AdSlot";
 
 /**
  * FAQPage structured data, generated from the same array the accordion
@@ -51,6 +52,9 @@ export default function Page() {
         <Hero />
         <HowItWorks />
         <ToolsShowcase />
+        {/* Below the fold by construction — nothing above it competes with the
+            hero for the first paint. */}
+        <AdSlot slotId="home-mid" format="leaderboard" className="px-5 py-10 sm:px-8" />
         <WhyFree />
         <Faq />
         <ClosingCta />

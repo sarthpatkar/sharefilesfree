@@ -38,39 +38,13 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    heading: "“Share a link” transfers",
-    body: (
-      <>
-        <p>
-          If you choose to generate a shareable link instead (for a receiver who isn&rsquo;t online right now), your
-          file is uploaded once to Cloudflare R2 storage. It is:
-        </p>
-        <ul>
-          <li>given an unguessable, randomly generated link — we don&rsquo;t index it or make it discoverable;</li>
-          <li>
-            automatically deleted after the expiry you choose (up to 7 days), or immediately if you enable
-            &ldquo;delete after first download&rdquo;;
-          </li>
-          <li>
-            optionally protected by a password you set, which we store only as a one-way cryptographic hash — we
-            cannot recover it, and neither can anyone who gains access to our storage;
-          </li>
-          <li>
-            deleted immediately, for everyone, if someone uses the &ldquo;Report this file&rdquo; link on the
-            download page.
-          </li>
-        </ul>
-      </>
-    ),
-  },
-  {
     heading: "What we log",
     body: (
       <p>
-        To prevent abuse (e.g. someone trying to flood the service with uploads), we temporarily track IP addresses
+        To prevent abuse (e.g. someone trying to flood the service with transfers), we temporarily track IP addresses
         against simple rate limits in server memory. This data is not persisted to a database, not sold, and not used
-        for advertising profiling. If a file is reported as abusive, we may retain a basic record of that report
-        (filename and reporting IP) to review patterns of misuse.
+        for advertising profiling. We operate no file storage, so there are no files, filenames or transfer histories
+        to log, retain, or be asked for.
       </p>
     ),
   },

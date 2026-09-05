@@ -15,7 +15,7 @@ export interface FaqItem {
 export const FAQ_ITEMS: FaqItem[] = [
   {
     q: "Can you see the files I send?",
-    a: "No — and not in the “we promise not to look” way. When you send with a code, your file is locked before it leaves your device and only opens on theirs. We never hold a copy, so there is nothing on our side to lose, to sell, or to be asked to hand over. Use a shareable link instead and the file waits in locked storage, then deletes itself on the schedule you choose.",
+    a: "No — and not in the “we promise not to look” way. Your file is locked before it leaves your device and only opens on theirs. We never hold a copy, because there is nowhere on our side for one to go: we run no file storage at all. There is nothing to lose, nothing to sell, and nothing anyone can ask us to hand over.",
   },
   {
     q: "How do you make money if everything is free?",
@@ -23,7 +23,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is there a file size limit?",
-    a: "Not when you send with a code. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A shareable link does have a cap, because that route parks your file on storage we rent, and that costs real money.",
+    a: "None at all. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. This isn't generosity, it's arithmetic: a transfer that never touches our machines costs us nothing however big it is, so there is no number we'd gain anything by capping it at.",
   },
   {
     q: "Do I really not need an account?",
@@ -31,7 +31,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "What if the person I'm sending to isn't online right now?",
-    a: "Wait about twenty seconds on the sending screen and the option to make a shareable link appears instead. They can open it hours later, and you can put a password on it, choose when it expires, or have it delete itself the moment it's been downloaded once.",
+    a: "Leave the tab open and your code keeps working for an hour, so they can pick it up when they get to it — the file waits on your own device, not ours. What we can't do is hold it for you after you close the page. That's the honest cost of never storing anything: if both of you can't be online within the hour, use something that keeps a copy, and know that it's keeping one.",
   },
   {
     q: "Does the other person need the same browser or an app?",
@@ -43,6 +43,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "What stops people abusing an anonymous file service?",
-    a: "Limits on how much any one connection can send, short expiry on anything stored, links that can't be guessed and are never listed anywhere, and a one-tap report on every download page that pulls the file immediately. Files sent straight between two people never reach us, so those we can't check — that's a genuine trade-off of the private route, and we'd rather name it than pretend it isn't there.",
+    a: "Honestly: very little, and by design. Files pass directly between two browsers and never reach us, so there is nothing for us to scan even if we wanted to. What we do have are limits on how many transfers one connection can start, codes that expire and can't be guessed, and no storage at all — nothing can sit here waiting to be found by anyone. That's a genuine trade-off of the private route, and we'd rather name it than pretend it isn't there.",
   },
 ];

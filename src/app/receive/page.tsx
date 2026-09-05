@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ReceivePanel } from "@/components/ReceivePanel";
+import { AdSlot } from "@/components/ads/AdSlot";
 
 export const metadata: Metadata = {
   title: "Receive a file — enter your 6-digit code — ShareFilesFree",
@@ -52,6 +53,7 @@ export default async function ReceivePage() {
               <ReceivePanel />
             </div>
           </div>
+          <AdSlot slotId="receive-page" format="leaderboard" className="pb-14" />
         </div>
       </main>
       <SiteFooter />

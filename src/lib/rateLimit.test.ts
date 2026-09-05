@@ -1,5 +1,7 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
-import { isRateLimited, clientIpFromHeaders } from "./rateLimit";
+import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
+import { isRateLimited, wouldExceedByteBudget, chargeByteBudget, clientIpFromHeaders, __resetRateLimits } from "./rateLimit";
+
+const GB = 1024 ** 3;
 
 describe("isRateLimited", () => {
   afterEach(() => {
@@ -48,5 +50,57 @@ describe("clientIpFromHeaders", () => {
 
   it("falls back to 'unknown' with no relevant headers", () => {
     expect(clientIpFromHeaders(new Headers())).toBe("unknown");
+  });
+});
+
+describe("byte budget", () => {
+  beforeEach(() => __resetRateLimits());
+
+  /** What the upload route does: check, then charge only if it goes ahead. */
+  function upload(key: string, bytes: number, budget = 20 * GB, windowMs = 60_000) {
+    if (wouldExceedByteBudget(key, bytes, budget, windowMs)) return false;
+    chargeByteBudget(key, bytes, windowMs);
+    return true;
+  }
+
+  it("allows uploads that fit inside the budget", () => {
+    expect(upload("ip", 5 * GB)).toBe(true);
+    expect(upload("ip", 5 * GB)).toBe(true);
+    expect(upload("ip", 5 * GB)).toBe(true);
+  });
+
+  it("refuses the one that would cross it", () => {
+    expect(upload("ip", 15 * GB)).toBe(true);
+    expect(upload("ip", 10 * GB)).toBe(false);
+  });
+
+  it("doesn't charge for a request it refused", () => {
+    expect(upload("ip", 15 * GB)).toBe(true);
+    expect(upload("ip", 10 * GB)).toBe(false);
+    expect(upload("ip", 4 * GB)).toBe(true);
+  });
+
+  it("doesn't charge for a request that fails somewhere later", () => {
+    // A sender whose ad won't load must not burn their own hour on attempts
+    // that never produced an upload URL.
+    for (let i = 0; i < 10; i++) expect(wouldExceedByteBudget("ip", 6 * GB, 20 * GB, 60_000)).toBe(false);
+    expect(upload("ip", 18 * GB)).toBe(true);
+  });
+
+  it("refuses a single request bigger than the whole budget", () => {
+    expect(upload("ip", 50 * GB)).toBe(false);
+  });
+
+  it("keeps one caller's budget away from another's", () => {
+    expect(upload("a", 20 * GB)).toBe(true);
+    expect(upload("b", 20 * GB)).toBe(true);
+  });
+
+  it("starts fresh once the window has passed", () => {
+    expect(upload("ip", 20 * GB, 20 * GB, 1)).toBe(true);
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 1000);
+    expect(upload("ip", 20 * GB, 20 * GB, 1)).toBe(true);
+    vi.useRealTimers();
   });
 });

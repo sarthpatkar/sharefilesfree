@@ -5,6 +5,8 @@ import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus
 import { formatBytes } from "@/lib/format";
 import { ProgressBar } from "./ProgressBar";
 import { Button } from "./Button";
+import { AdGate } from "./ads/AdGate";
+import { AdSlot } from "./ads/AdSlot";
 import { zip } from "fflate";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
@@ -31,6 +33,8 @@ export function ReceivePanel() {
   // ToolResultCard.tsx for the verified version of this bug.
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
   const [zipping, setZipping] = useState(false);
+  /** Set once the folder has been chosen and the ad is playing — see connectWithDestination. */
+  const [gateOpen, setGateOpen] = useState(false);
   // Chosen before connecting, because showDirectoryPicker needs a user gesture
   // and files arrive long after the last click. Held in a ref as well as state
   // so connect() reads the current handle rather than a stale closure.
@@ -141,6 +145,10 @@ export function ReceivePanel() {
       return;
     }
 
+    // Order matters, and not for the reason it looks like: showDirectoryPicker
+    // needs the user gesture from this very click, and an await on our own ad
+    // API would spend it. So the folder is chosen first, and the ad plays
+    // after — by which point there is no gesture left to lose.
     if (canPickFolder && window.showDirectoryPicker) {
       try {
         const handle = await window.showDirectoryPicker({ mode: "readwrite", id: "sharefilesfree-received" });
@@ -152,7 +160,7 @@ export function ReceivePanel() {
       }
     }
 
-    connect(code);
+    setGateOpen(true);
   }
 
   function connect(targetCode: string) {
@@ -221,6 +229,7 @@ export function ReceivePanel() {
     setReceived([]);
     setError(null);
     setNotice(null);
+    setGateOpen(false);
   }
 
   if (status === "idle") {
@@ -237,7 +246,7 @@ export function ReceivePanel() {
             Enter the 6-digit code from the sender
           </label>
           <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-            It&apos;s on their screen right now. A code works for ten minutes, then the sender needs a new one.
+            It&apos;s on their screen right now. A code works for an hour while the sender keeps their page open, then they need a new one.
           </p>
         </div>
         {/* Display-scale, underlined rather than boxed — this is the single
@@ -257,9 +266,21 @@ export function ReceivePanel() {
             {error}
           </p>
         )}
-        <Button type="submit" className="self-start">
-          Connect
-        </Button>
+        {gateOpen ? (
+          <AdGate
+            purpose="receive-connect"
+            waitingFor="Your file"
+            onPass={() => {
+              setGateOpen(false);
+              connect(code);
+            }}
+            onCancel={() => setGateOpen(false)}
+          />
+        ) : (
+          <Button type="submit" className="self-start">
+            Connect
+          </Button>
+        )}
 
         {/* Says what the next tap does. On a phone there is no folder picker in
             any browser, so promising one there would be a lie — this reads
@@ -309,6 +330,13 @@ export function ReceivePanel() {
           </div>
           <ProgressBar fraction={progress.size ? progress.sent / progress.size : 0} />
         </div>
+      )}
+
+      {/* Receiving is a wait the user is already sitting through — the same
+          reasoning as the sender's waiting screen. Nothing is gated here; the
+          files land whether or not an ad ever fills. */}
+      {(status === "transferring" || status === "connected" || status === "negotiating") && (
+        <AdSlot slotId="receive-progress" format="rectangle" />
       )}
 
       {bufferedFiles.length > 1 && (
