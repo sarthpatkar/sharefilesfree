@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes } from "@/lib/format";
 import { ProgressBar } from "./ProgressBar";
@@ -29,6 +29,24 @@ export function ReceivePanel() {
   // ToolResultCard.tsx for the verified version of this bug.
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
   const [zipping, setZipping] = useState(false);
+  // Chosen before connecting, because showDirectoryPicker needs a user gesture
+  // and files arrive long after the last click. Held in a ref as well as state
+  // so connect() reads the current handle rather than a stale closure.
+  const [saveDir, setSaveDir] = useState<SffDirectoryHandle | null>(null);
+  const saveDirRef = useRef<SffDirectoryHandle | null>(null);
+  // Not `typeof window !== "undefined"` — that is a server/client branch, and
+  // it renders different markup on each side, which is precisely the hydration
+  // mismatch React warns about. useSyncExternalStore exists for this: it takes
+  // a separate server snapshot, so both sides render the same thing and the
+  // client swaps in the real answer after hydration.
+  const canPickFolder = useSyncExternalStore(
+    () => () => {},
+    () => typeof window.showDirectoryPicker === "function",
+    () => false,
+  );
+  // Files streamed straight to disk have no blob, so they can't be re-saved or
+  // zipped — they are already where the user asked for them.
+  const bufferedFiles = received.filter((f) => f.blob);
 
   /**
    * Saves every file at once. Browsers rate-limit and sometimes silently drop
@@ -37,7 +55,7 @@ export function ReceivePanel() {
    * rest, which looks exactly like a broken button.
    */
   function saveAll() {
-    received.forEach((file, index) => {
+    bufferedFiles.forEach((file, index) => {
       const url = objectUrls.get(file.id);
       if (!url) return;
       window.setTimeout(() => {
@@ -59,7 +77,7 @@ export function ReceivePanel() {
    * entries is a corrupt zip.
    */
   async function downloadZip() {
-    if (received.length === 0 || zipping) return;
+    if (bufferedFiles.length === 0 || zipping) return;
     setZipping(true);
     setError(null);
     try {
@@ -67,6 +85,7 @@ export function ReceivePanel() {
       const usedNames = new Set<string>();
 
       for (const file of received) {
+        if (!file.blob) continue; // already written to disk; nothing to zip
         let name = file.name;
         if (usedNames.has(name)) {
           const dot = name.lastIndexOf(".");
@@ -77,7 +96,7 @@ export function ReceivePanel() {
           name = `${stem} (${n})${ext}`;
         }
         usedNames.add(name);
-        entries[name] = [new Uint8Array(await file.blob.arrayBuffer()), { level: 0 }];
+        entries[name] = [new Uint8Array(await file.blob!.arrayBuffer()), { level: 0 }];
       }
 
       const archive = await new Promise<Uint8Array>((resolve, reject) => {
@@ -101,6 +120,18 @@ export function ReceivePanel() {
     }
   }
 
+  async function chooseFolder() {
+    if (!window.showDirectoryPicker) return;
+    try {
+      const handle = await window.showDirectoryPicker({ mode: "readwrite", id: "sharefilesfree-received" });
+      saveDirRef.current = handle;
+      setSaveDir(handle);
+      setError(null);
+    } catch {
+      // The user dismissed the picker. Not an error worth reporting.
+    }
+  }
+
   function connect(targetCode: string) {
     if (targetCode.length !== 6) {
       setError("Enter the 6-digit code exactly as shown on the sender's screen.");
@@ -114,12 +145,17 @@ export function ReceivePanel() {
       },
       onProgress: setProgress,
       onFileReceived: (file) => {
-        const url = URL.createObjectURL(file.blob);
-        setObjectUrls((prev) => new Map(prev).set(file.id, url));
+        // A streamed file has no blob — its bytes went to disk and were never
+        // held anywhere we could point a URL at.
+        if (file.blob) {
+          const url = URL.createObjectURL(file.blob);
+          setObjectUrls((prev) => new Map(prev).set(file.id, url));
+        }
         setReceived((prev) => [...prev, file]);
       },
       onError: setError,
     });
+    transfer.setSaveDirectory(saveDirRef.current);
     transferRef.current = transfer;
     transfer.connectAsReceiver(targetCode);
   }
@@ -190,6 +226,27 @@ export function ReceivePanel() {
             {error}
           </p>
         )}
+        {/* Offered before connecting, not after: the folder picker needs a user
+            gesture, and files start arriving with no click anywhere near them.
+            Chromium only — Firefox and Safari get the buffered path, which is
+            why this is an extra option rather than the only route. */}
+        {canPickFolder && (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={chooseFolder}
+              className="sff-nudge self-start bg-y-max px-5 py-3 text-[14px] font-bold leading-none text-black"
+            >
+              {saveDir ? `Saving into "${saveDir.name}"` : "Choose a folder to save into"}
+            </button>
+            <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
+              {saveDir
+                ? "Files will be written straight into that folder as they arrive — nothing is held in memory, so size stops mattering."
+                : "Optional. Pick a folder and files write straight to disk as they arrive, with no size ceiling. Otherwise they're held in the browser until you save them."}
+            </p>
+          </div>
+        )}
+
         <Button type="submit" className="self-start">
           Connect
         </Button>
@@ -220,11 +277,11 @@ export function ReceivePanel() {
         </div>
       )}
 
-      {received.length > 1 && (
+      {bufferedFiles.length > 1 && (
         // Only shown for more than one file — with a single file these two
         // buttons would both just repeat the Save beside it.
         <div className="flex w-full flex-wrap items-center gap-3">
-          <Button onClick={saveAll}>Save all {received.length}</Button>
+          <Button onClick={saveAll}>Save all {bufferedFiles.length}</Button>
           <Button variant="ghost" onClick={downloadZip} disabled={zipping}>
             {zipping ? "Building zip…" : "Download as ZIP"}
           </Button>
@@ -242,13 +299,19 @@ export function ReceivePanel() {
               className={`flex items-center justify-between gap-4 px-4 py-3 ${i % 2 === 0 ? "bg-lime-pale" : "bg-lime-4"}`}
             >
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-black">{f.name}</span>
-              <a
-                href={objectUrls.get(f.id)}
-                download={f.name}
-                className="sff-nudge shrink-0 bg-red px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
-              >
-                Save
-              </a>
+              {f.blob ? (
+                <a
+                  href={objectUrls.get(f.id)}
+                  download={f.name}
+                  className="sff-nudge shrink-0 bg-red px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
+                >
+                  Save
+                </a>
+              ) : (
+                <span className="shrink-0 bg-lime-3 px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-black">
+                  Saved
+                </span>
+              )}
             </li>
           ))}
         </ul>

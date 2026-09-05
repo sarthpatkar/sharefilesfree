@@ -24,7 +24,14 @@ export interface IncomingFile {
   id: string;
   name: string;
   size: number;
-  blob: Blob;
+  /**
+   * Present only when the file was buffered. When the receiver chose a folder
+   * up front, the bytes went straight to disk and were never held anywhere we
+   * could hand back — that case sets savedTo instead.
+   */
+  blob?: Blob;
+  /** Name of the folder the file was written into, when streaming to disk. */
+  savedTo?: string;
 }
 
 export interface FileProgress {
@@ -89,6 +96,30 @@ const COALESCE_BYTES = 8 * 1024 * 1024;
 import { sanitizeFilename } from "./sanitize";
 import { formatBytes } from "./format";
 
+/**
+ * Finds a name not already taken in the folder. Overwriting a file the user
+ * already had, because a stranger happened to send something with the same
+ * name, would be the worst kind of surprise — so "report.pdf" becomes
+ * "report (2).pdf" instead.
+ */
+async function uniqueNameIn(dir: SffDirectoryHandle, name: string): Promise<string> {
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+
+  for (let n = 1; n < 1000; n++) {
+    const candidate = n === 1 ? name : `${stem} (${n})${ext}`;
+    try {
+      await dir.getFileHandle(candidate);
+      // It resolved, so the name is taken — try the next one.
+    } catch {
+      // NotFoundError is the good case: nothing is using this name.
+      return candidate;
+    }
+  }
+  return `${stem} (${Date.now()})${ext}`;
+}
+
 // TURN credentials are fetched fresh per session from our own API rather
 // than baked into the client bundle — see /api/turn-credentials for why a
 // hardcoded NEXT_PUBLIC_ credential would be an open invitation to abuse.
@@ -146,6 +177,8 @@ export class PeerTransfer {
   /** Timestamp of the last progress callback — see emitProgress. */
   private lastProgressAt = 0;
   private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Chosen by the receiver before connecting — see setSaveDirectory. */
+  private saveDir: SffDirectoryHandle | null = null;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -160,6 +193,18 @@ export class PeerTransfer {
       /** Chunks not yet sealed into a segment — never more than COALESCE_BYTES of them. */
       pending: ArrayBuffer[];
       pendingBytes: number;
+      /** Set when this file is being written straight to the folder the user picked. */
+      streaming: boolean;
+      writable: SffWritableFileStream | null;
+      /**
+       * Serialises every disk operation for this file. Opening the handle is
+       * async but chunks start arriving immediately, so each write is appended
+       * to this chain — that guarantees they land in the order they arrived,
+       * which for a file is the whole ballgame.
+       */
+      chain: Promise<void>;
+      /** The name actually used on disk, which may be suffixed to avoid a collision. */
+      savedName: string;
     }
   >();
 
@@ -344,18 +389,51 @@ export class PeerTransfer {
           parts: [],
           pending: [],
           pendingBytes: 0,
+          streaming: false,
+          writable: null,
+          chain: Promise.resolve(),
+          savedName: "",
         });
-        // Warn before the transfer rather than after it fails at 90%. The quota
-        // is what this origin may store on this device — the honest ceiling on
-        // "any size", and it is much smaller on a phone than on a laptop.
-        void this.warnIfOverStorageQuota(Math.max(0, Number(msg.size) || 0));
+
+        const entry = this.incoming.get(msg.id)!;
+        if (this.saveDir) {
+          // Straight to disk. Nothing accumulates anywhere, so the file's size
+          // stops being a question about this device's memory at all.
+          entry.streaming = true;
+          const dir = this.saveDir;
+          entry.chain = (async () => {
+            const name = await uniqueNameIn(dir, entry.name);
+            entry.savedName = name;
+            const handle = await dir.getFileHandle(name, { create: true });
+            entry.writable = await handle.createWritable();
+          })();
+        } else {
+          // Buffered path: warn before the transfer rather than after it fails
+          // at 90%. The quota is what this origin may store on this device —
+          // the honest ceiling, and far smaller on a phone than on a laptop.
+          void this.warnIfOverStorageQuota(Math.max(0, Number(msg.size) || 0));
+        }
         this.callbacks.onStatus?.("transferring");
       } else if (msg.type === "file-end") {
         const entry = this.incoming.get(msg.id);
         if (!entry) return;
+        this.incoming.delete(msg.id);
+
+        if (entry.streaming) {
+          const folder = this.saveDir?.name ?? "the chosen folder";
+          entry.chain
+            .then(() => entry.writable?.close())
+            .then(() => {
+              this.callbacks.onFileReceived?.({ id: msg.id, name: entry.savedName || entry.name, size: entry.size, savedTo: folder });
+            })
+            .catch(() => {
+              this.callbacks.onError?.(`Could not finish writing ${entry.name} to ${folder}. The folder may have been moved, or permission withdrawn.`);
+            });
+          return;
+        }
+
         const blob = new Blob([...entry.parts, ...entry.pending], { type: entry.mime });
         this.callbacks.onFileReceived?.({ id: msg.id, name: entry.name, size: entry.size, blob });
-        this.incoming.delete(msg.id);
       } else if (msg.type === "batch-end") {
         this.callbacks.onStatus?.("done");
       }
@@ -379,9 +457,20 @@ export class PeerTransfer {
       return;
     }
 
+    entry.received += data.byteLength;
+
+    if (entry.streaming) {
+      // Appending to the chain rather than awaiting keeps this handler
+      // synchronous — the data channel's onmessage must not block — while
+      // still writing strictly in arrival order.
+      const bytes = new Uint8Array(data);
+      entry.chain = entry.chain.then(() => entry.writable?.write(bytes)).then(() => undefined);
+      this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+      return;
+    }
+
     entry.pending.push(data);
     entry.pendingBytes += data.byteLength;
-    entry.received += data.byteLength;
 
     // Seal what has piled up into a Blob segment and drop the buffers. This is
     // the whole memory story: live heap stays at COALESCE_BYTES no matter how
@@ -393,6 +482,15 @@ export class PeerTransfer {
     }
 
     this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+  }
+
+  /**
+   * Hands the transfer a folder to write incoming files into, chosen by the
+   * receiver before connecting. It has to be before: the picker needs a user
+   * gesture, and files arrive long after the last click.
+   */
+  setSaveDirectory(handle: SffDirectoryHandle | null) {
+    this.saveDir = handle;
   }
 
   /**
