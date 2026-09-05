@@ -74,7 +74,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          General questions: <span className="font-mono text-ink">hello@sharefilesfree.com</span>.
+          Anything at all: <span className="font-mono text-ink">contact@sharefilesfree.com</span>.
         </p>
         <p>
           For a formal complaint, a grievance officer is named on the{" "}

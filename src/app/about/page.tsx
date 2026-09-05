@@ -78,11 +78,12 @@ const SECTIONS: LegalSection[] = [
           no investment, and answers to nobody but the people using it.
         </p>
         <p>
-          For anything at all —{" "}
+          One address reaches it all — <span className="font-mono text-ink">contact@sharefilesfree.com</span>, or
+          the{" "}
           <Link href="/contact" className="link">
-            get in touch
+            contact page
           </Link>
-          .
+          , which also names the grievance officer required under India&rsquo;s IT Rules.
         </p>
       </>
     ),

@@ -27,7 +27,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Do I really not need an account?",
-    a: "None at all. No sign-up, no login, no email box — not here and not on any of the 19 tools. No account also means no mailing list, no password of yours to leak, and no history with your name on it.",
+    a: "None at all. No sign-up, no login, no email box — not here and not on any of the tools. No account also means no mailing list, no password of yours to leak, and no history with your name on it.",
   },
   {
     q: "What if the person I'm sending to isn't online right now?",

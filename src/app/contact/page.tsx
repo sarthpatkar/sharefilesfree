@@ -11,6 +11,20 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "September 5, 2026";
 
 /**
+ * One published address for everything, deliberately.
+ *
+ * Nothing in Rule 3(2) asks for a dedicated grievance mailbox — it asks for the
+ * officer's name and contact details, and one working address is contact
+ * details. Three addresses that all land in the same inbox would be theatre.
+ *
+ * The domain also runs a catch-all, so anything sent to support@, abuse@,
+ * legal@, privacy@ or a misspelling of any of them still arrives. That matters
+ * more than usual here: a complaint bouncing because someone typed "grievence@"
+ * is the one delivery failure that can't be afforded.
+ */
+const CONTACT_EMAIL = "contact@sharefilesfree.com";
+
+/**
  * PLACEHOLDER — replace before this page goes live.
  *
  * Rule 3(2) of the IT (Intermediary Guidelines and Digital Media Ethics Code)
@@ -27,17 +41,17 @@ const LAST_UPDATED = "September 5, 2026";
  */
 const GRIEVANCE_OFFICER = {
   name: "[ your full name ]",
-  email: "grievance@sharefilesfree.com",
+  email: CONTACT_EMAIL,
 };
 
 const SECTIONS: LegalSection[] = [
   {
-    heading: "General questions",
+    heading: "One address for everything",
     body: (
       <p>
-        Anything about how the service works, a bug, or a suggestion:{" "}
-        <span className="font-mono text-ink">hello@sharefilesfree.com</span>. It is one person reading these, so a
-        reply may take a few days.
+        Anything at all — how the service works, a bug, a suggestion, a privacy request, or a formal complaint:{" "}
+        <span className="font-mono text-ink">{CONTACT_EMAIL}</span>. It is one person reading these, so a reply may
+        take a few days.
       </p>
     ),
   },
@@ -46,7 +60,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          <span className="font-mono text-ink">privacy@sharefilesfree.com</span>, and see the{" "}
+          Same address, and see the{" "}
           <Link href="/privacy" className="link">
             privacy policy
           </Link>{" "}
@@ -123,7 +137,7 @@ export default function ContactPage() {
         </p>
       }
       sections={SECTIONS}
-      footnote="Email addresses on this page must be live before the site is promoted — an unpublished or unmonitored grievance contact is the same as not having one."
+      footnote="This address must be live and read before the site is promoted — an unmonitored grievance contact is the same as not having one."
     />
   );
 }

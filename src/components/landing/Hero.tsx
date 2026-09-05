@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { TOOLS } from "../tools/registry";
 import { SendPanel } from "../SendPanel";
 import { ReceivePanel } from "../ReceivePanel";
 import { takeHandoffFile } from "@/lib/handoff";
@@ -12,7 +13,7 @@ const FACTS = [
   { k: "File size", v: "As big as you like" },
   { k: "Sign-up", v: "There isn't one" },
   { k: "Who sees it", v: "The two of you" },
-  { k: "Also free", v: "19 tools, no watermark" },
+  { k: "Also free", v: `${TOOLS.length} tools, no watermark` },
 ];
 
 /* The three things people actually hesitate over, answered right beside the
@@ -83,7 +84,7 @@ export function Hero() {
               your file goes straight to them and never touches us. That&apos;s a sentence almost nobody else can
               write without an asterisk. Same for the{" "}
               <Link href="/tools" className="link">
-                19 free tools
+                {TOOLS.length} free tools
               </Link>
               , which never see your files either.
             </p>

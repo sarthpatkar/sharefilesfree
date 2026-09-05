@@ -110,7 +110,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <p>
         Questions about this policy or a data request:{" "}
-        <span className="font-mono text-ink">privacy@sharefilesfree.com</span>. For a formal complaint, the{" "}
+        <span className="font-mono text-ink">contact@sharefilesfree.com</span>. For a formal complaint, the{" "}
         <Link href="/contact" className="link">
           grievance officer
         </Link>{" "}

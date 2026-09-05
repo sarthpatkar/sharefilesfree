@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sigmar, Outfit } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { AdsNotice } from "@/components/ads/AdsNotice";
 import "./globals.css";
 
 /**
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             density well under the threshold the Better Ads standards care
             about. */}
         {children}
+        <AdsNotice />
         <ServiceWorkerRegister />
       </body>
     </html>

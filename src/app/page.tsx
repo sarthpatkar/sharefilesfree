@@ -27,6 +27,33 @@ function FaqJsonLd() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;
 }
 
+/**
+ * Organization data, with a real contact point.
+ *
+ * Two audiences read this. Search engines use it for the knowledge panel and
+ * sitelinks; ad-network and marketplace reviewers use it as one more signal
+ * that a site is a real operation with a way to reach someone rather than a
+ * thin content farm. Both want the same thing, which is why one block serves
+ * both — and why the contact address in it has to be the live one.
+ */
+function OrgJsonLd() {
+  const json = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "ShareFilesFree",
+    url: "https://sharefilesfree.com",
+    description:
+      "Free peer-to-peer file transfer with no account and no size limit, plus browser-based file tools. Files pass directly between devices and are never stored.",
+    contactPoint: {
+      "@type": "ContactPoint",
+      email: "contact@sharefilesfree.com",
+      contactType: "customer support",
+      availableLanguage: ["English"],
+    },
+  };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;
+}
+
 function AppJsonLd() {
   const json = {
     "@context": "https://schema.org",
@@ -47,6 +74,7 @@ export default function Page() {
     <>
       <FaqJsonLd />
       <AppJsonLd />
+      <OrgJsonLd />
       <SiteHeader />
       <main className="flex flex-1 flex-col">
         <Hero />

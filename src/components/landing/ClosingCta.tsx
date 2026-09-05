@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TOOLS } from "../tools/registry";
 
 export function ClosingCta() {
   return (
@@ -41,7 +42,7 @@ export function ClosingCta() {
             href="/tools"
             className="sff-nudge inline-flex items-center bg-yellow px-7 py-3.5 text-[15px] font-bold leading-none text-black"
           >
-            Explore the 19 tools
+            Explore the {TOOLS.length} tools
           </Link>
         </div>
       </div>
