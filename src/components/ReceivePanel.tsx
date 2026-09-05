@@ -170,7 +170,7 @@ export function ReceivePanel() {
         }}
         className="flex flex-col gap-6"
       >
-        <label htmlFor="code-input" className="font-mono text-[11px] uppercase tracking-[0.24em] text-ink-soft">
+        <label htmlFor="code-input" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
           Enter the 6-digit code from the sender
         </label>
         {/* Display-scale, underlined rather than boxed — this is the single
@@ -183,10 +183,10 @@ export function ReceivePanel() {
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
-          className="w-full bg-lime px-5 py-4 text-center text-[2.6rem] font-bold tabular-nums tracking-[0.2em] text-black outline-none placeholder:text-black/25 sm:text-5xl"
+          className="w-full bg-lime-3 px-5 py-4 text-center text-[2.6rem] font-bold tabular-nums tracking-[0.2em] text-black outline-none placeholder:text-black/35 focus:outline-2 focus:outline-offset-2 focus:outline-red sm:text-5xl"
         />
         {error && (
-          <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">
+          <p role="alert" className="bg-red px-4 py-3 text-[14px] font-semibold leading-[1.45] text-y-pale">
             {error}
           </p>
         )}
@@ -199,11 +199,11 @@ export function ReceivePanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p role="status" aria-live="polite" className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">
+      <p role="status" aria-live="polite" className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
         {STATUS_LABEL[status] ?? status}
       </p>
       {error && (
-        <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">
+        <p role="alert" className="bg-red px-4 py-3 text-[14px] font-semibold leading-[1.45] text-y-pale">
           {error}
         </p>
       )}
@@ -211,8 +211,8 @@ export function ReceivePanel() {
       {status === "transferring" && progress && (
         <div className="w-full">
           <div className="mb-2 flex items-baseline justify-between gap-4">
-            <p className="truncate text-sm text-ink">{progress.name}</p>
-            <p className="shrink-0 font-mono text-xs tabular-nums text-ink-soft">
+            <p className="truncate text-[14px] font-semibold text-black">{progress.name}</p>
+            <p className="shrink-0 text-[13px] font-semibold tabular-nums text-black opacity-55">
               {formatBytes(progress.sent)} / {formatBytes(progress.size)}
             </p>
           </div>
@@ -232,16 +232,20 @@ export function ReceivePanel() {
       )}
 
       {received.length > 0 && (
-        // A ruled list, not a stack of bordered rows — same device as the
-        // sender's staged-file list.
-        <ul className="flex w-full flex-col border-t border-ink">
-          {received.map((f) => (
-            <li key={f.id} className="flex items-center justify-between gap-4 border-b border-rule py-3 text-sm">
-              <span className="truncate text-ink">{f.name}</span>
+        // Alternating flat tints, not ruled rows: in this system the field
+        // boundary is the divider, so a hairline would be a second grammar
+        // saying the same thing.
+        <ul className="flex w-full flex-col">
+          {received.map((f, i) => (
+            <li
+              key={f.id}
+              className={`flex items-center justify-between gap-4 px-4 py-3 ${i % 2 === 0 ? "bg-lime-pale" : "bg-lime-4"}`}
+            >
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-black">{f.name}</span>
               <a
                 href={objectUrls.get(f.id)}
                 download={f.name}
-                className="sff-press shrink-0 bg-ink px-4 py-2 text-xs font-medium leading-none text-paper shadow-[3px_3px_0_var(--accent)] hover:bg-accent"
+                className="sff-nudge shrink-0 bg-red px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
               >
                 Save
               </a>

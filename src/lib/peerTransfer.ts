@@ -70,6 +70,10 @@ const BUFFERED_AMOUNT_LOW_WATERMARK = 2 * 1024 * 1024; // 2MB
 // thread. The UI cannot show more than a few updates a second anyway.
 const PROGRESS_INTERVAL_MS = 60;
 
+// How long the signaling socket is kept open after the data channel opens, so
+// ICE can finish trickling and upgrade off the relay if a direct path exists.
+const SIGNALING_GRACE_MS = 15 * 1000;
+
 import { sanitizeFilename } from "./sanitize";
 
 // TURN credentials are fetched fresh per session from our own API rather
@@ -128,6 +132,7 @@ export class PeerTransfer {
   private closedByUser = false;
   /** Timestamp of the last progress callback — see emitProgress. */
   private lastProgressAt = 0;
+  private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -196,9 +201,15 @@ export class PeerTransfer {
           this.handleSignal(msg.data);
           break;
         case "peer-left":
+          // The peer connection was left open here. It could never connect
+          // again — the other side is gone — so it sat gathering nothing and
+          // eventually reported "failed", which is the abandoned connection
+          // that shows up in webrtc-internals with no candidates at all.
+          this.teardownPeer();
           this.callbacks.onStatus?.("error", "The other side disconnected.");
           break;
         case "room-expired":
+          this.teardownPeer();
           this.callbacks.onError?.("Nobody joined in time. Generate a new code.");
           break;
         case "error":
@@ -275,8 +286,19 @@ export class PeerTransfer {
 
     channel.onopen = () => {
       this.callbacks.onStatus?.("connected");
-      // Signaling server's job is done — everything from here is direct P2P.
-      this.ws?.close();
+      // Signaling is NOT closed here, though it used to be.
+      //
+      // ICE keeps trickling candidates after the channel opens, and the first
+      // pair to succeed is very often the TURN relay — relay allocation
+      // typically beats hole-punching. Closing the socket at this moment threw
+      // away every candidate still in flight, so a connection that could have
+      // upgraded to a direct path stayed on the relay for the whole transfer,
+      // paying relay latency and Cloudflare bandwidth for files that never
+      // needed either.
+      //
+      // So the socket stays open until ICE has actually settled, and is closed
+      // by a hard deadline regardless so it never lingers.
+      this.scheduleSignalingClose();
     };
 
     channel.onmessage = (event) => this.handleChannelMessage(event.data);
@@ -413,7 +435,48 @@ export class PeerTransfer {
     });
   }
 
+  /**
+   * Closes the signaling socket once ICE has settled rather than the moment the
+   * data channel opens, so late candidates can still arrive and let the
+   * connection upgrade off the relay. The deadline is a backstop: if ICE never
+   * reaches a terminal state we still stop talking to the server.
+   */
+  private scheduleSignalingClose() {
+    if (this.signalingCloseTimer !== null) return;
+
+    const closeNow = () => {
+      if (this.signalingCloseTimer !== null) {
+        clearTimeout(this.signalingCloseTimer);
+        this.signalingCloseTimer = null;
+      }
+      this.ws?.close();
+    };
+
+    const pc = this.pc;
+    if (pc) {
+      pc.addEventListener("icegatheringstatechange", () => {
+        // Both sides done gathering means no further candidates exist to trade.
+        if (pc.iceGatheringState === "complete" && pc.iceConnectionState === "completed") closeNow();
+      });
+    }
+
+    this.signalingCloseTimer = setTimeout(closeNow, SIGNALING_GRACE_MS);
+  }
+
+  /** Tears down the peer connection without marking the whole transfer closed by the user. */
+  private teardownPeer() {
+    this.channel?.close();
+    this.pc?.close();
+    this.channel = null;
+    this.pc = null;
+    this.pcReady = null;
+  }
+
   close() {
+    if (this.signalingCloseTimer !== null) {
+      clearTimeout(this.signalingCloseTimer);
+      this.signalingCloseTimer = null;
+    }
     this.closedByUser = true; // suppress any in-flight retry from firing after a deliberate close
     this.channel?.close();
     this.pc?.close();

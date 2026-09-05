@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SendPanel } from "../SendPanel";
+import { ReceivePanel } from "../ReceivePanel";
 import { takeHandoffFile } from "@/lib/handoff";
 import { CyclingWord } from "./CyclingWord";
 
@@ -95,14 +96,21 @@ export function Hero() {
           >
             {/* Heading sits on the page ground, not inside a panel — the drop
                 zone below is the only block here, so nothing is nested. */}
-            <div className="mb-5 flex items-baseline justify-between gap-4">
+            <div className="mb-5">
               <h2 className="font-display text-[21px] leading-none text-red">Send a file now</h2>
-              <Link href="/receive" className="link shrink-0 text-[15px] text-red">
-                Got a code?
-              </Link>
             </div>
 
             <SendPanel initialFile={handoffFile} />
+
+            {/* Receiving is right here rather than a link away. It replaced a
+                "Got a code?" link that pointed at /receive — with the input
+                itself sitting a few centimetres below, the link was one extra
+                navigation to reach a control already on screen. /receive still
+                exists for the QR and for people who land there directly. */}
+            <div className="mt-10">
+              <h2 className="mb-5 font-display text-[21px] leading-none text-red">Or receive a file</h2>
+              <ReceivePanel />
+            </div>
 
             <dl className="mt-6 flex flex-col gap-4">
               {ANSWERS.map(([q, a]) => (

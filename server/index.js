@@ -32,6 +32,34 @@ const ROOM_CREATE_WINDOW_MS = 60 * 1000;
 const JOIN_ATTEMPT_LIMIT = 20;
 const JOIN_ATTEMPT_WINDOW_MS = 60 * 1000;
 
+// The per-IP limit above is worthless against someone with a thousand IPs, and
+// a botnet is cheap. So failed joins are also counted globally. Two properties
+// make this safe to run:
+//
+//   - Only FAILURES count. A join that names a real, unclaimed room is let
+//     through no matter how loud the noise is, so an attacker cannot flood the
+//     limiter to lock out real users — which is the usual reason not to have a
+//     global limit at all.
+//   - A guesser learns nothing from being throttled: a wrong code answers the
+//     same either way.
+//
+// At this ceiling, working through a meaningful share of 1,000,000 codes takes
+// hours, against a room that lives ten minutes.
+const GLOBAL_FAIL_LIMIT = 200;
+const GLOBAL_FAIL_WINDOW_MS = 10 * 1000;
+let globalFails = { count: 0, windowStart: 0 };
+
+/** Counts a failed join globally and reports whether the ceiling is now exceeded. */
+function globalFailureExceeded() {
+  const now = Date.now();
+  if (now - globalFails.windowStart > GLOBAL_FAIL_WINDOW_MS) {
+    globalFails = { count: 1, windowStart: now };
+    return false;
+  }
+  globalFails.count += 1;
+  return globalFails.count > GLOBAL_FAIL_LIMIT;
+}
+
 /** @type {Map<string, { sender: import("ws").WebSocket, receiver: import("ws").WebSocket | null, createdAt: number }>} */
 const rooms = new Map();
 
@@ -140,18 +168,28 @@ wss.on("connection", (ws, req) => {
       }
 
       case "join-room": {
-        if (isRateLimited(`join:${ip}`, JOIN_ATTEMPT_LIMIT, JOIN_ATTEMPT_WINDOW_MS)) {
-          return send(ws, { type: "error", message: "Too many attempts. Try again in a minute." });
-        }
-        const room = rooms.get(msg.code);
+        // Deliberately ordered: look the room up BEFORE consulting any limiter.
+        // The old order charged every attempt, successful ones included, against
+        // a per-IP budget — so a household behind one NAT could lock itself out
+        // by receiving a few files, while an attacker spread over many IPs was
+        // barely inconvenienced. Limits now apply only to attempts that failed,
+        // which is the only kind a guesser can make.
+        const code = typeof msg.code === "string" && /^\d{6}$/.test(msg.code) ? msg.code : null;
+        const room = code ? rooms.get(code) : undefined;
+
         if (!room) {
+          const tooManyFromThisIp = isRateLimited(`join:${ip}`, JOIN_ATTEMPT_LIMIT, JOIN_ATTEMPT_WINDOW_MS);
+          const tooManyOverall = globalFailureExceeded();
+          if (tooManyFromThisIp || tooManyOverall) {
+            return send(ws, { type: "error", message: "Too many attempts. Try again in a minute." });
+          }
           return send(ws, { type: "error", message: "That code is invalid or has expired." });
         }
         if (room.receiver) {
           return send(ws, { type: "error", message: "That code has already been claimed." });
         }
         room.receiver = ws;
-        ws.roomCode = msg.code;
+        ws.roomCode = code;
         send(room.sender, { type: "peer-joined" });
         send(ws, { type: "peer-joined" });
         break;
