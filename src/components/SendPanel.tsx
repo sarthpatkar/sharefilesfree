@@ -9,6 +9,8 @@ import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { LinkShare } from "./LinkShare";
 import { Button } from "./Button";
+import { AdGate } from "./ads/AdGate";
+import { AdSlot } from "./ads/AdSlot";
 import { FileDropZone } from "./tools/FileDropZone";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
@@ -45,6 +47,9 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [progress, setProgress] = useState<Map<string, FileProgress>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [showLinkOffer, setShowLinkOffer] = useState(false);
+  // Which action is currently waiting behind an ad. The gate renders where the
+  // result would have appeared, so the user is never covered by an overlay.
+  const [gate, setGate] = useState<null | "code" | "link">(null);
   const transferRef = useRef<PeerTransfer | null>(null);
   const startedSendingRef = useRef(false);
 
@@ -106,7 +111,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     return new File([zipped as BlobPart], "files.zip", { type: "application/zip" });
   }
 
-  async function createLink() {
+  async function createLink(adReceipt: string | null) {
     setLinkStatus("uploading");
     setLinkError(null);
     try {
@@ -115,6 +120,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
         password: linkPassword,
         expiryHours: linkExpiryHours,
         burnAfterDownload: linkBurnAfterDownload,
+        adReceipt,
       });
       setLinkResult(result);
       setLinkStatus("ready");
@@ -136,6 +142,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setLinkResult(null);
     setLinkError(null);
     setLinkStatus("configuring");
+    setGate(null);
     setLinkPassword("");
     setLinkExpiryHours(24);
     setLinkBurnAfterDownload(false);
@@ -166,9 +173,21 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                 </li>
               ))}
             </ul>
-            <Button onClick={startSending} className="self-start">
-              Get a code to share
-            </Button>
+            {gate === "code" ? (
+              <AdGate
+                purpose="reveal-code"
+                waitingFor="Your code"
+                onPass={() => {
+                  setGate(null);
+                  startSending();
+                }}
+                onCancel={() => setGate(null)}
+              />
+            ) : (
+              <Button onClick={() => setGate("code")} className="self-start">
+                Get a code to share
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -234,9 +253,29 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
               />
               Delete after first download
             </label>
-            <Button onClick={createLink} disabled={files.length > 1 && !linkZipFiles} className="self-start">
-              Create link
-            </Button>
+            {gate === "link" ? (
+              // Priced on bytes x retention, so the ad load matches what
+              // holding this file actually costs — see lib/ads.ts.
+              <AdGate
+                purpose="link-upload"
+                bytes={totalSize}
+                hours={linkExpiryHours}
+                waitingFor="Your link"
+                onPass={(receipt) => {
+                  setGate(null);
+                  void createLink(receipt);
+                }}
+                onCancel={() => setGate(null)}
+              />
+            ) : (
+              <Button
+                onClick={() => setGate("link")}
+                disabled={files.length > 1 && !linkZipFiles}
+                className="self-start"
+              >
+                Create link
+              </Button>
+            )}
           </div>
         )}
         {linkStatus === "uploading" && (
@@ -289,6 +328,10 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           </p>
         </div>
       )}
+      {/* The sender waits here for as long as it takes the other person to
+          type six digits — dead time that already existed, so filling it costs
+          nobody a second they weren't already spending. */}
+      {status === "waiting-for-peer" && <AdSlot slotId="send-waiting" format="rectangle" className="my-2" />}
       {showLinkOffer && status === "waiting-for-peer" && (
         <Button variant="ghost" onClick={switchToLinkFallback} className="text-accent hover:text-accent-hover">
           Receiver not online? Get a shareable link instead

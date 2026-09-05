@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sigmar, Outfit } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { AdSlot } from "@/components/ads/AdSlot";
 import "./globals.css";
 
 /**
@@ -47,6 +48,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${outfit.variable} ${sigmar.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {children}
+        {/* The site-wide unit. Deliberately in normal flow at the foot of the
+            page rather than fixed to the bottom of the viewport: an oversized
+            sticky ad is a Coalition for Better Ads violation on mobile web,
+            and a violation gets ads blocked across the whole site by Chrome —
+            which would cost far more than the unit earns. */}
+        <AdSlot slotId="site-footer" format="anchor" className="px-5 py-6 sm:px-8" />
         <ServiceWorkerRegister />
       </body>
     </html>

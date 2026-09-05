@@ -14,6 +14,7 @@ import {
   MULTIPART_THRESHOLD,
 } from "@/lib/r2";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
+import { consumeAdReceipt } from "@/lib/adGate";
 import { sanitizeFilename } from "@/lib/sanitize";
 
 // scrypt's cost scales with input size, so an unbounded password is a cheap
@@ -65,6 +66,17 @@ export async function POST(request: Request) {
   const requestedHours = Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS;
   const expiryHours = Math.min(Math.max(requestedHours, 1), maxExpiryHours);
   const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
+
+  // The ad gate, enforced. Checked here rather than trusted in the browser
+  // because this is the request that starts costing money — a gate that lives
+  // only in the page is bypassed by anyone willing to type `curl`, which is
+  // exactly the population worth gating. The receipt is priced for a specific
+  // size and retention (see consumeAdReceipt), so the size re-checked above is
+  // the one it has to cover: watching the ads for a 10MB file cannot buy a
+  // 50GB upload. No-ops entirely on a deployment with no ad network.
+  if (!consumeAdReceipt(body?.adReceipt, { purpose: "link-upload", bytes: size, hours: expiryHours })) {
+    return NextResponse.json({ error: "That ad wasn't completed. Try again." }, { status: 402 });
+  }
 
   const token = randomBytes(16).toString("hex"); // unguessable — this is the only thing standing between a link and the file
   const { hash, salt } = typeof password === "string" && password.length > 0 ? hashPassword(password) : { hash: undefined, salt: undefined };

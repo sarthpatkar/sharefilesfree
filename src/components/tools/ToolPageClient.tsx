@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getToolBySlug, TOOLS } from "./registry";
 import { setHandoffFile } from "@/lib/handoff";
 import { IconArrowLeft } from "../icons";
+import { AdSlot } from "../ads/AdSlot";
 
 /** Client wrapper so the tool itself (and its "Send this file" handoff) can run interactively, while the route stays a Server Component for metadata and static params. */
 export function ToolPageClient({ slug }: { slug: string }) {
@@ -56,6 +57,16 @@ export function ToolPageClient({ slug }: { slug: string }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Banner only, and never in the way of the tool. Tool pages carry no ad
+          gate of any kind: nothing stands between a visitor and using a tool or
+          saving its result. That is a product rule, not an oversight — the
+          tools' whole promise is "no queue, no watermark, no daily limit", and
+          they are the site's best ad inventory precisely because they're
+          frictionless. Ads pay for the tools; they don't tax them. */}
+      <div className="bg-yellow px-5 pb-12 sm:px-8">
+        <AdSlot slotId="tool-page" format="leaderboard" />
       </div>
 
       <section className="bg-lime-4">

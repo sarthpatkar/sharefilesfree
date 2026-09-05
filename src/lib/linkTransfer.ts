@@ -19,6 +19,8 @@ export interface LinkUploadOptions {
   password?: string;
   expiryHours?: number;
   burnAfterDownload?: boolean;
+  /** One-use proof the ad gate was actually sat through — see lib/adGate.ts. */
+  adReceipt?: string | null;
 }
 
 const MAX_PART_RETRIES = 4;
@@ -111,6 +113,7 @@ export async function uploadFileForLink(file: File, onProgress?: (p: UploadProgr
     password: options.password || undefined,
     expiryHours: options.expiryHours,
     burnAfterDownload: options.burnAfterDownload,
+    adReceipt: options.adReceipt ?? undefined,
   });
 
   if (start.mode === "multipart") {

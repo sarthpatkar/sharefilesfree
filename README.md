@@ -84,8 +84,52 @@ Both run automatically on every push via GitHub Actions (`.github/workflows/ci.y
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | frontend (server-side only) | Cloudflare R2 access for the link-sharing fallback |
 | `MAX_UPLOAD_BYTES` | frontend | Caps worst-case storage cost per upload (default 2GB) |
 | `UPLOAD_EXPIRY_HOURS` | frontend | Ceiling on how long a shared link can stay valid — the sender picks 1h/1d/3d/7d, capped at this (default 168h/7 days) |
+| `NEXT_PUBLIC_AD_CLIENT` | frontend (public) | AdSense publisher id. Unset = no ad script, no slots, no gates |
+| `NEXT_PUBLIC_AD_HOUSE` | frontend (public) | `1` draws labelled placeholders instead of real ads, for reviewing layout before an ad account exists |
 
 See `.env.local.example` for the full annotated list.
+
+### Ads
+
+Ads are the only revenue path — no login, no paywall, no direct charges — so
+they are part of the architecture rather than something sprinkled on at the end.
+Two mechanisms, and a rule about where each may appear.
+
+**Banner slots** (`<AdSlot>`) reserve their height before anything loads and
+don't fetch the ad script until they're near the viewport. Both properties are
+load-bearing: an ad arriving into unreserved space shifts the layout, layout
+shift moves Core Web Vitals, and Core Web Vitals move the search ranking that
+brings the tool traffic these ads are sold against.
+
+**Gates** (`<AdGate>`) put a few seconds between an action and its result. They
+appear only on the transfer flow (revealing a code, connecting as receiver) and
+the link/R2 path (uploading, downloading). The gate on `/api/upload-url` is
+enforced *server-side* against a one-use receipt that is priced for a specific
+size and retention (`lib/adGate.ts`) — a gate that lived only in the browser
+would be skipped by exactly the people worth gating.
+
+**Tool pages carry banners only, never a gate.** Nothing stands between a
+visitor and using a tool or saving its result. That's a product rule: the tools
+promise "no queue, no watermark, no daily limit", and they're the best ad
+inventory on the site precisely because they're frictionless. Ads pay for the
+tools; they don't tax them.
+
+Three constraints worth knowing before changing any of this:
+
+- **Gates are user-initiated and render in flow, never as a full-screen
+  countdown on page load.** A "prestitial with countdown" is on the Coalition
+  for Better Ads disallowed list for mobile web, and repeat violations get ads
+  blocked across the whole site by Chrome — which costs far more than any unit
+  earns. Same reason the site-wide footer unit is in normal flow rather than
+  stuck to the bottom of the viewport.
+- **Nobody is ever blocked.** If no ad can be served — blocker, no fill,
+  offline — the wait still runs (otherwise the gate is decoration) but the user
+  always gets through, and any failure in our own ad plumbing passes them
+  straight on.
+- **Ad load on the link path scales with bytes × time, not bytes**, because
+  that's what R2 actually bills. A 40GB file kept six hours costs one ad; the
+  same file kept a week costs four. Tune the whole ladder from
+  `USD_RECOVERED_PER_AD` in `lib/ads.ts`.
 
 ### Setting up Cloudflare R2 (for the "share a link" fallback)
 
