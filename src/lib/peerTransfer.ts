@@ -74,7 +74,20 @@ const PROGRESS_INTERVAL_MS = 60;
 // ICE can finish trickling and upgrade off the relay if a direct path exists.
 const SIGNALING_GRACE_MS = 15 * 1000;
 
+// Received chunks are sealed into a Blob segment every time this much has piled
+// up. Previously every chunk of a file was held as an ArrayBuffer until the
+// file completed, so peak JS heap was the entire file — and then Blob
+// construction briefly doubled it. That is the real ceiling behind "any size":
+// a 4GB file needed ~8GB of heap on the receiving device, which no phone has
+// and few laptops will give a single tab.
+//
+// A Blob is a handle to storage the browser manages and can page to disk, and
+// combining Blobs doesn't copy their bytes. So sealing as we go keeps live heap
+// at this constant regardless of file size.
+const COALESCE_BYTES = 8 * 1024 * 1024;
+
 import { sanitizeFilename } from "./sanitize";
+import { formatBytes } from "./format";
 
 // TURN credentials are fetched fresh per session from our own API rather
 // than baked into the client bundle — see /api/turn-credentials for why a
@@ -137,7 +150,17 @@ export class PeerTransfer {
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
     string,
-    { name: string; size: number; mime: string; received: number; chunks: ArrayBuffer[] }
+    {
+      name: string;
+      size: number;
+      mime: string;
+      received: number;
+      /** Sealed Blob segments. A Blob is a handle the browser can page to disk, not bytes on the JS heap. */
+      parts: Blob[];
+      /** Chunks not yet sealed into a segment — never more than COALESCE_BYTES of them. */
+      pending: ArrayBuffer[];
+      pendingBytes: number;
+    }
   >();
 
   constructor(role: "sender" | "receiver", callbacks: PeerTransferCallbacks) {
@@ -318,13 +341,19 @@ export class PeerTransfer {
           size: Math.max(0, Number(msg.size) || 0),
           mime: typeof msg.mime === "string" ? msg.mime.slice(0, 255) : "application/octet-stream",
           received: 0,
-          chunks: [],
+          parts: [],
+          pending: [],
+          pendingBytes: 0,
         });
+        // Warn before the transfer rather than after it fails at 90%. The quota
+        // is what this origin may store on this device — the honest ceiling on
+        // "any size", and it is much smaller on a phone than on a laptop.
+        void this.warnIfOverStorageQuota(Math.max(0, Number(msg.size) || 0));
         this.callbacks.onStatus?.("transferring");
       } else if (msg.type === "file-end") {
         const entry = this.incoming.get(msg.id);
         if (!entry) return;
-        const blob = new Blob(entry.chunks, { type: entry.mime });
+        const blob = new Blob([...entry.parts, ...entry.pending], { type: entry.mime });
         this.callbacks.onFileReceived?.({ id: msg.id, name: entry.name, size: entry.size, blob });
         this.incoming.delete(msg.id);
       } else if (msg.type === "batch-end") {
@@ -350,9 +379,44 @@ export class PeerTransfer {
       return;
     }
 
-    entry.chunks.push(data);
+    entry.pending.push(data);
+    entry.pendingBytes += data.byteLength;
     entry.received += data.byteLength;
+
+    // Seal what has piled up into a Blob segment and drop the buffers. This is
+    // the whole memory story: live heap stays at COALESCE_BYTES no matter how
+    // big the file is.
+    if (entry.pendingBytes >= COALESCE_BYTES) {
+      entry.parts.push(new Blob(entry.pending));
+      entry.pending = [];
+      entry.pendingBytes = 0;
+    }
+
     this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+  }
+
+  /**
+   * Checks the declared size against what this origin is actually allowed to
+   * store on this device, and warns up front if it won't fit. Advisory only —
+   * the estimate is deliberately imprecise and some browsers grant more when
+   * asked — so it never refuses a transfer, it just stops the failure from
+   * being a surprise three gigabytes in.
+   */
+  private async warnIfOverStorageQuota(declaredSize: number) {
+    try {
+      if (declaredSize <= 0 || !navigator.storage?.estimate) return;
+      const { quota, usage } = await navigator.storage.estimate();
+      if (typeof quota !== "number") return;
+      const headroom = quota - (usage ?? 0);
+      if (declaredSize > headroom) {
+        this.callbacks.onStatus?.(
+          "transferring",
+          `This file is larger than the space this browser will give the page (about ${formatBytes(headroom)}). It may fail near the end — a desktop browser will have far more room.`,
+        );
+      }
+    } catch {
+      // Storage estimation is best-effort; never let it break a transfer.
+    }
   }
 
   /**
