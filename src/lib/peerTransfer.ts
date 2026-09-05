@@ -49,6 +49,14 @@ export interface PeerTransferCallbacks {
   /** Fired once per file, once fully received (receiver side only). */
   onFileReceived?: (file: IncomingFile) => void;
   onError?: (message: string) => void;
+  /**
+   * Something worth telling the user that is not a failure — currently the
+   * storage-headroom warning. It needs its own channel: routing it through
+   * onStatus meant the message rode along as a detail on a non-error status,
+   * and the UI only reads detail when the status IS an error, so it was
+   * silently dropped every time.
+   */
+  onNotice?: (message: string) => void;
 }
 
 // Chunk size is negotiated, not guessed. SCTP tells us the real per-message
@@ -516,9 +524,8 @@ export class PeerTransfer {
       if (typeof quota !== "number") return;
       const headroom = quota - (usage ?? 0);
       if (declaredSize > headroom) {
-        this.callbacks.onStatus?.(
-          "transferring",
-          `This file is larger than the space this browser will give the page (about ${formatBytes(headroom)}). It may fail near the end — a desktop browser will have far more room.`,
+        this.callbacks.onNotice?.(
+          `This file is bigger than the space this browser will give the page (about ${formatBytes(headroom)}), so it may not finish. Receiving it on a laptop, or picking a folder to save into, avoids the limit.`,
         );
       }
     } catch {

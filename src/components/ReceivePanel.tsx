@@ -21,6 +21,8 @@ export function ReceivePanel() {
   const [progress, setProgress] = useState<FileProgress | null>(null);
   const [received, setReceived] = useState<IncomingFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /** A warning that isn't a failure — see onNotice. */
+  const [notice, setNotice] = useState<string | null>(null);
   const transferRef = useRef<PeerTransfer | null>(null);
   // Object URLs are created exactly once per received file, at receipt time —
   // not inline in JSX during render. Creating them during render (even
@@ -106,7 +108,7 @@ export function ReceivePanel() {
       const url = URL.createObjectURL(new Blob([archive as BlobPart], { type: "application/zip" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `sharefilesfree-${received.length}-files.zip`;
+      link.download = `sharefilesfree-${bufferedFiles.length}-files.zip`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -159,6 +161,7 @@ export function ReceivePanel() {
       return;
     }
     setError(null);
+    setNotice(null);
     const transfer = new PeerTransfer("receiver", {
       onStatus: (s, detail) => {
         setStatus(s);
@@ -175,6 +178,7 @@ export function ReceivePanel() {
         setReceived((prev) => [...prev, file]);
       },
       onError: setError,
+      onNotice: setNotice,
     });
     transfer.setSaveDirectory(saveDirRef.current);
     transferRef.current = transfer;
@@ -216,6 +220,7 @@ export function ReceivePanel() {
     setProgress(null);
     setReceived([]);
     setError(null);
+    setNotice(null);
   }
 
   if (status === "idle") {
@@ -277,6 +282,12 @@ export function ReceivePanel() {
       {/* Where the files are going, stated once they're actually going
           somewhere. Before connecting this would be a setting; here it is a
           fact, and it's the answer to "so where did it save it?". */}
+      {notice && (
+        <p className="bg-y-max px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+          {notice}
+        </p>
+      )}
+
       {saveDir && (
         <p className="bg-lime-4 px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
           Saving into <span className="font-bold">{saveDir.name}</span> as each file arrives.
