@@ -10,6 +10,27 @@
 // Nothing here runs unless an env var says so, so a deployment with no ad
 // account behaves exactly as it did before: no script, no slot, no gate.
 
+/**
+ * BEFORE SETTING THIS FOR EUROPEAN TRAFFIC — read this.
+ *
+ * The privacy policy commits, in writing, that ads will not be served to
+ * visitors in the EEA or UK until a proper consent mechanism exists. Serving
+ * Google ads there requires a Google-certified CMP collecting granular consent
+ * before any ad tag fires; the notice bar in AdsNotice.tsx informs, it does not
+ * consent, and does not qualify.
+ *
+ * Nothing in this file enforces that geographically — there is no geo check
+ * here, and setting the publisher id below turns ads on for everyone. So the
+ * commitment currently lives in a promise rather than in code, which is only
+ * acceptable while the answer is "no ads anywhere". The moment that changes,
+ * one of two things has to happen first: a certified CMP, or a country gate
+ * (Cloudflare passes CF-IPCountry on every request, which is the cheap way to
+ * build one).
+ *
+ * Turning ads on without doing either would make a written privacy commitment
+ * false, which is a worse problem than having no ads.
+ */
+
 /** Set to an AdSense publisher id (ca-pub-...) to serve real ads. */
 export function adClientId(): string | null {
   return process.env.NEXT_PUBLIC_AD_CLIENT || null;

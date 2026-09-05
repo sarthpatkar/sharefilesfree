@@ -74,8 +74,13 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          ShareFilesFree is built and operated by one independent developer in India. It is not a company, has taken
-          no investment, and answers to nobody but the people using it.
+          ShareFilesFree is built and run by <strong>Sarth Patkar</strong>, one developer in India. No company, no
+          investors, no growth team — and nobody to answer to except the people using it.
+        </p>
+        <p>
+          Every decision here follows from one rule: <strong>the safest copy of your file is the one that was never
+          made.</strong> So we don&rsquo;t make one. Your file goes straight to the person you sent it to, and
+          nothing is left behind to leak, to sell, or for anyone to demand later.
         </p>
         <p>
           One address reaches it all — <span className="font-mono text-ink">contact@sharefilesfree.com</span>, or

@@ -25,22 +25,19 @@ const LAST_UPDATED = "September 5, 2026";
 const CONTACT_EMAIL = "contact@sharefilesfree.com";
 
 /**
- * PLACEHOLDER — replace before this page goes live.
- *
  * Rule 3(2) of the IT (Intermediary Guidelines and Digital Media Ethics Code)
  * Rules, 2021 requires an intermediary to publish the NAME and contact details
- * of a grievance officer, not just an address to write to. It applies to every
- * intermediary regardless of size, and satisfying it is a condition of the
+ * of a grievance officer, not merely an address to write to. It binds every
+ * intermediary regardless of size, and meeting it is a condition of the
  * safe-harbour protection in section 79 of the IT Act — which is what makes
  * running an anonymous transfer service viable at all.
  *
- * A real person's name has to go here, and for a solo operator that person is
- * the operator. That is a genuine personal cost of running this lawfully and
- * should be a deliberate decision, not something filled in by default — which
- * is why it is left blank rather than guessed at.
+ * This must stay identical to the founder named on /about. A site that gives
+ * one name in its marketing and a different one in its compliance pages reads
+ * as evasive, and undermines both.
  */
 const GRIEVANCE_OFFICER = {
-  name: "[ your full name ]",
+  name: "Sarth Patkar",
   email: CONTACT_EMAIL,
 };
 
@@ -80,7 +77,9 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           Designated under Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics
-          Code) Rules, 2021.
+          Code) Rules, 2021. That is an Indian requirement, and it applies because this service is operated from
+          India — not because of where you are. Wherever you&rsquo;re writing from, this is the address, and the same
+          timelines apply.
         </p>
         <ul>
           <li>

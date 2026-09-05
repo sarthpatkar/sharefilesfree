@@ -61,6 +61,23 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    heading: "Which law applies",
+    body: (
+      <>
+        <p>
+          ShareFilesFree is operated from India, and these terms are governed by Indian law. Any dispute arising from
+          them is subject to the exclusive jurisdiction of the competent courts in Maharashtra, India.
+        </p>
+        <p>
+          That holds wherever you are using the service from. It doesn&rsquo;t take away rights your own country
+          gives you that can&rsquo;t be contracted out of — consumer protections in particular usually survive a
+          clause like this one — and it isn&rsquo;t meant to. It exists so that if something ever does go wrong,
+          both of us already know where it gets sorted out.
+        </p>
+      </>
+    ),
+  },
+  {
     heading: "Changes",
     body: (
       <p>

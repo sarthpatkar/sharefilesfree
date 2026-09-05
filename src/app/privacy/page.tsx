@@ -93,6 +93,38 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    heading: "Wherever you're reading this from",
+    body: (
+      <>
+        <p>
+          This service is operated from India and used from everywhere. Two different sets of rules follow from that,
+          and they apply at the same time.
+        </p>
+        <p>
+          India&rsquo;s Digital Personal Data Protection Act applies to us because we are here. Your rights under it,
+          and the grievance route required by India&rsquo;s IT Rules, are open to you whatever country you are in —
+          see the{" "}
+          <Link href="/contact" className="link">
+            contact page
+          </Link>
+          .
+        </p>
+        <p>
+          If you are in the UK or the European Economic Area, the GDPR applies to us in respect of your data. Our
+          lawful basis for handling the one thing we handle — your IP address, against rate limits — is legitimate
+          interest: keeping the service working for everyone by preventing abuse. You have the right to ask what we
+          hold about you, to have it erased, and to object. In practice the answer will be short, because after an
+          hour there is nothing left to hold.
+        </p>
+        <p>
+          One commitment while we are on the subject: advertising in the EEA and UK requires a proper consent
+          mechanism, not a notice bar. No ads run anywhere on this site today. They will not be switched on for
+          visitors in those regions until that mechanism is in place.
+        </p>
+      </>
+    ),
+  },
+  {
     heading: "Children’s privacy",
     body: <p>ShareFilesFree isn&rsquo;t directed at children, and we don&rsquo;t knowingly collect data from them.</p>,
   },
