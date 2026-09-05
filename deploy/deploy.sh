@@ -29,6 +29,7 @@
 #   sff-deploy              deploy origin's latest, if there is anything new
 #   sff-deploy --force      rebuild and redeploy even if nothing changed
 #   sff-deploy --rollback   put the previous build back
+#   sff-deploy --help       this
 set -Eeuo pipefail
 
 APP_DIR="/home/sendfilesfree/sendfilesfree"
@@ -62,8 +63,33 @@ wait_for_health() {
   return 1
 }
 
+usage() {
+  cat <<'EOF'
+sff-deploy — deploy sharefilesfree.com
+
+  sff-deploy              deploy origin's latest, if there is anything new
+  sff-deploy --force      rebuild and redeploy even if nothing changed
+  sff-deploy --rollback   put the previous build back
+  sff-deploy --help       this
+
+EOF
+}
+
+# Arguments are matched exhaustively, and anything unrecognised stops here.
+# The first version treated "not --rollback" as "deploy", so `sff-deploy
+# --help` began deploying — a typo was a release.
+MODE="deploy"
+case "${1:-}" in
+  "")          MODE="deploy" ;;
+  --force)     MODE="force" ;;
+  --rollback)  MODE="rollback" ;;
+  -h|--help)   usage; exit 0 ;;
+  *)           usage; die "unknown argument: $1" ;;
+esac
+[[ $# -le 1 ]] || { usage; die "too many arguments"; }
+
 # --- rollback -------------------------------------------------------------
-if [[ "${1:-}" == "--rollback" ]]; then
+if [[ "$MODE" == "rollback" ]]; then
   [[ -d "$PREV_DIR" ]] || die "no previous build kept at $APP_DIR/$PREV_DIR"
   log "Putting the previous build back"
   as_app rm -rf "$LIVE_DIR"
@@ -76,7 +102,7 @@ if [[ "${1:-}" == "--rollback" ]]; then
 fi
 
 FORCE=false
-[[ "${1:-}" == "--force" ]] && FORCE=true
+[[ "$MODE" == "force" ]] && FORCE=true
 
 # --- fetch ----------------------------------------------------------------
 log "Fetching"
