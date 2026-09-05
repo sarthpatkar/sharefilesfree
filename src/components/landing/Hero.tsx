@@ -9,7 +9,7 @@ import { CyclingWord } from "./CyclingWord";
 
 /* Outcomes, not specifications. What someone gets, in their words. */
 const FACTS = [
-  { k: "File size", v: "The whole 4GB video" },
+  { k: "File size", v: "As big as you like" },
   { k: "Sign-up", v: "There isn't one" },
   { k: "Who sees it", v: "The two of you" },
   { k: "Also free", v: "19 tools, no watermark" },

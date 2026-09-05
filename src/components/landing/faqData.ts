@@ -23,7 +23,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is there a file size limit?",
-    a: "Not when you send with a code. Your file goes straight across, so we aren't paying for the megabytes and have no reason to count them — send the whole 4GB video. A shareable link does have a cap, because that route parks your file on storage we rent and that costs real money.",
+    a: "Not when you send with a code. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A shareable link does have a cap, because that route parks your file on storage we rent, and that costs real money.",
   },
   {
     q: "Do I really not need an account?",
