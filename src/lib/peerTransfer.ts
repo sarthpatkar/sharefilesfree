@@ -80,6 +80,14 @@ const READ_SLICE_SIZE = 4 * 1024 * 1024;
 const BUFFERED_AMOUNT_HIGH_WATERMARK = 8 * 1024 * 1024; // 8MB
 const BUFFERED_AMOUNT_LOW_WATERMARK = 2 * 1024 * 1024; // 2MB
 
+// Chrome's data channel has a hard send-queue ceiling of 16MB, and send()
+// THROWS once buffered data passes it — "RTCDataChannel send queue is full",
+// reproduced while benchmarking watermarks. The watermarks above stay well
+// under it, but "well under" is an argument, not a guarantee: a stalled
+// bufferedamountlow event would walk us into an exception that aborts a
+// transfer mid-file. This is the guarantee.
+const BUFFERED_AMOUNT_HARD_CEILING = 12 * 1024 * 1024;
+
 // Progress used to fire once per chunk — ~1,850 React state updates for a
 // 29MB file, each one a re-render competing with the transfer for the main
 // thread. The UI cannot show more than a few updates a second anyway.
@@ -187,6 +195,16 @@ export class PeerTransfer {
   private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
   /** Chosen by the receiver before connecting — see setSaveDirectory. */
   private saveDir: SffDirectoryHandle | null = null;
+  /** Assembles files on disk off the main thread — see fileSink.worker.ts. */
+  private sink: Worker | null = null;
+  /** id -> the file-start details we need when the worker hands the file back. */
+  private sunkFiles = new Map<string, { name: string; size: number }>();
+  /**
+   * The file currently receiving chunks. Looked up per chunk, and it used to be
+   * found by spreading the whole incoming Map into an array and popping it —
+   * an allocation for every chunk of every file, on the hot path.
+   */
+  private activeIncomingId: string | null = null;
   /**
    * Set whenever WE close the signaling socket, so onclose can tell a deliberate
    * shutdown from a dropped connection. It used to infer that from "is the data
@@ -212,6 +230,8 @@ export class PeerTransfer {
       pendingBytes: number;
       /** Set when this file is being written straight to the folder the user picked. */
       streaming: boolean;
+      /** Set when the OPFS worker is assembling this file on disk instead. */
+      sunk: boolean;
       writable: SffWritableFileStream | null;
       /**
        * Serialises every disk operation for this file. Opening the handle is
@@ -407,12 +427,14 @@ export class PeerTransfer {
           pending: [],
           pendingBytes: 0,
           streaming: false,
+          sunk: false,
           writable: null,
           chain: Promise.resolve(),
           savedName: "",
         });
 
         const entry = this.incoming.get(msg.id)!;
+        this.activeIncomingId = msg.id;
         if (this.saveDir) {
           // Straight to disk. Nothing accumulates anywhere, so the file's size
           // stops being a question about this device's memory at all.
@@ -424,10 +446,16 @@ export class PeerTransfer {
             const handle = await dir.getFileHandle(name, { create: true });
             entry.writable = await handle.createWritable();
           })();
+        } else if (this.ensureSink()) {
+          // No folder chosen, but the file is still assembled on disk by the
+          // worker instead of in this page's memory. This is the path phones
+          // take, and it is why size is no longer bounded by RAM there.
+          entry.sunk = true;
+          this.sunkFiles.set(msg.id, { name: entry.name, size: entry.size });
+          this.sink!.postMessage({ type: "open", id: msg.id, name: entry.name });
         } else {
-          // Buffered path: warn before the transfer rather than after it fails
-          // at 90%. The quota is what this origin may store on this device —
-          // the honest ceiling, and far smaller on a phone than on a laptop.
+          // Nothing but memory available. Warn before the transfer rather than
+          // after it fails at 90%.
           void this.warnIfOverStorageQuota(Math.max(0, Number(msg.size) || 0));
         }
         this.callbacks.onStatus?.("transferring");
@@ -435,6 +463,13 @@ export class PeerTransfer {
         const entry = this.incoming.get(msg.id);
         if (!entry) return;
         this.incoming.delete(msg.id);
+
+        if (entry.sunk) {
+          // onFileReceived fires when the worker reports the file closed, not
+          // here — the last writes may still be in flight.
+          this.sink?.postMessage({ type: "close", id: msg.id, mime: entry.mime });
+          return;
+        }
 
         if (entry.streaming) {
           const folder = this.saveDir?.name ?? "the chosen folder";
@@ -457,12 +492,13 @@ export class PeerTransfer {
       return;
     }
 
-    // Binary chunk: attribute it to whichever file is currently in flight.
-    // Since transfers are sequential (one file at a time), this is simply
-    // the most recently started, not-yet-finished entry.
-    const active = [...this.incoming.entries()].pop();
-    if (!active) return;
-    const [id, entry] = active;
+    // Binary chunk: it belongs to the file currently in flight, since transfers
+    // are sequential. That used to be found by spreading the whole Map into an
+    // array and popping it — an allocation on every chunk of every file, on the
+    // hottest path in the program. The id is simply remembered instead.
+    const id = this.activeIncomingId;
+    const entry = id ? this.incoming.get(id) : undefined;
+    if (!id || !entry) return;
 
     // A peer that keeps sending past the size it declared is not a peer with a
     // bug, it is a peer trying to exhaust this tab's memory — we buffer every
@@ -475,6 +511,15 @@ export class PeerTransfer {
     }
 
     entry.received += data.byteLength;
+
+    if (entry.sunk) {
+      // Transferred, not copied: the page gives the buffer away and the worker
+      // writes it, so bytes never accumulate here and the assembly work is off
+      // the thread that has to keep draining the data channel.
+      this.sink?.postMessage({ type: "write", id, buffer: data }, [data]);
+      this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+      return;
+    }
 
     if (entry.streaming) {
       // Appending to the chain rather than awaiting keeps this handler
@@ -499,6 +544,36 @@ export class PeerTransfer {
     }
 
     this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+  }
+
+  /**
+   * The OPFS sink, started on first use. Returns null where the platform can't
+   * support it, and the caller falls back to assembling in memory.
+   */
+  private ensureSink(): Worker | null {
+    if (this.sink) return this.sink;
+    if (typeof Worker === "undefined" || !navigator.storage?.getDirectory) return null;
+    try {
+      this.sink = new Worker(new URL("./fileSink.worker.ts", import.meta.url));
+      this.sink.onmessage = (event: MessageEvent) => {
+        const msg = event.data as { type: string; id: string; file?: File; message?: string };
+        if (msg.type === "done" && msg.file) {
+          const meta = this.sunkFiles.get(msg.id);
+          this.sunkFiles.delete(msg.id);
+          if (!meta) return;
+          // A File from OPFS references bytes on disk rather than holding them,
+          // so handing it on as the blob costs no memory at any size.
+          this.callbacks.onFileReceived?.({ id: msg.id, name: meta.name, size: meta.size, blob: msg.file });
+        } else if (msg.type === "failed") {
+          this.sunkFiles.delete(msg.id);
+          this.callbacks.onError?.(msg.message || "Could not write the file to storage.");
+        }
+      };
+      return this.sink;
+    } catch {
+      this.sink = null;
+      return null;
+    }
   }
 
   /**
@@ -571,8 +646,26 @@ export class PeerTransfer {
         while (position < buffer.byteLength) {
           await this.waitForBufferedAmountLow();
           if (this.channel.readyState !== "open") return;
+
+          // Never hand the channel more than it will hold, whatever the event
+          // did or didn't fire. Polling here rather than trusting the event is
+          // the difference between a pause and a thrown exception.
+          while (this.channel.bufferedAmount > BUFFERED_AMOUNT_HARD_CEILING) {
+            await new Promise((r) => setTimeout(r, 20));
+            if (this.channel.readyState !== "open") return;
+          }
+
           const length = Math.min(chunkSize, buffer.byteLength - position);
-          this.channel.send(new Uint8Array(buffer, position, length));
+          try {
+            this.channel.send(new Uint8Array(buffer, position, length));
+          } catch (err) {
+            this.callbacks.onError?.(
+              err instanceof Error && err.message.includes("full")
+                ? "The connection couldn't keep up and the transfer stopped. Try again."
+                : "The connection dropped mid-transfer. Try again.",
+            );
+            return;
+          }
           position += length;
           this.emitProgress({ id, name: file.name, size: file.size, sent: offset + position });
         }
@@ -657,7 +750,9 @@ export class PeerTransfer {
       this.signalingCloseTimer = null;
     }
     this.signalingClosedByUs = true;
-    this.closedByUser = true; // suppress any in-flight retry from firing after a deliberate close
+    this.closedByUser = true;
+    this.sink?.terminate();
+    this.sink = null; // suppress any in-flight retry from firing after a deliberate close
     this.channel?.close();
     this.pc?.close();
     this.ws?.close();

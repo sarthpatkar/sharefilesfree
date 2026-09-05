@@ -267,7 +267,7 @@ export function ReceivePanel() {
         <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
           {canPickFolder
             ? "Press Connect and you'll be asked where to save. Files go straight into the folder you pick, however big they are. Keep this page open until they arrive."
-            : "Press Connect to start. Files come into this browser, and you save each one when it lands. Keep this page open until they arrive."}
+            : "Press Connect to start. Files are written to storage as they arrive, whatever their size, and you save each one when it lands. Keep this page open until they arrive."}
         </p>
       </form>
     );
