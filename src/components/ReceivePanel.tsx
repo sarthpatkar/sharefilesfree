@@ -120,16 +120,37 @@ export function ReceivePanel() {
     }
   }
 
-  async function chooseFolder() {
-    if (!window.showDirectoryPicker) return;
-    try {
-      const handle = await window.showDirectoryPicker({ mode: "readwrite", id: "sharefilesfree-received" });
-      saveDirRef.current = handle;
-      setSaveDir(handle);
-      setError(null);
-    } catch {
-      // The user dismissed the picker. Not an error worth reporting.
+  /**
+   * Connect, asking where to save first.
+   *
+   * The picker must be opened from inside this handler, before anything is
+   * awaited: it requires transient user activation, and the Connect click is
+   * the activation. That is also why the order is Connect-then-choose rather
+   * than choose-then-Connect — there is no later moment with a gesture
+   * attached, because files arrive on their own.
+   *
+   * Dismissing the dialog is a legitimate answer, not an error: it means
+   * "hold them in the browser and let me save them myself", which is the only
+   * behaviour available on mobile, Firefox and Safari anyway.
+   */
+  async function connectWithDestination() {
+    if (code.length !== 6) {
+      setError("Enter the 6-digit code exactly as shown on the sender's screen.");
+      return;
     }
+
+    if (canPickFolder && window.showDirectoryPicker) {
+      try {
+        const handle = await window.showDirectoryPicker({ mode: "readwrite", id: "sharefilesfree-received" });
+        saveDirRef.current = handle;
+        setSaveDir(handle);
+      } catch {
+        saveDirRef.current = null;
+        setSaveDir(null);
+      }
+    }
+
+    connect(code);
   }
 
   function connect(targetCode: string) {
@@ -202,7 +223,7 @@ export function ReceivePanel() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          connect(code);
+          void connectWithDestination();
         }}
         className="flex flex-col gap-6"
       >
@@ -226,30 +247,18 @@ export function ReceivePanel() {
             {error}
           </p>
         )}
-        {/* Offered before connecting, not after: the folder picker needs a user
-            gesture, and files start arriving with no click anywhere near them.
-            Chromium only — Firefox and Safari get the buffered path, which is
-            why this is an extra option rather than the only route. */}
-        {canPickFolder && (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={chooseFolder}
-              className="sff-nudge self-start bg-y-max px-5 py-3 text-[14px] font-bold leading-none text-black"
-            >
-              {saveDir ? `Saving into "${saveDir.name}"` : "Choose a folder to save into"}
-            </button>
-            <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-              {saveDir
-                ? "Files will be written straight into that folder as they arrive — nothing is held in memory, so size stops mattering."
-                : "Optional. Pick a folder and files write straight to disk as they arrive, with no size ceiling. Otherwise they're held in the browser until you save them."}
-            </p>
-          </div>
-        )}
-
         <Button type="submit" className="self-start">
           Connect
         </Button>
+
+        {/* Says what the next tap does. On a phone there is no folder picker in
+            any browser, so promising one there would be a lie — this reads
+            differently depending on what the device can actually do. */}
+        <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
+          {canPickFolder
+            ? "You'll be asked where to save. Files are written straight into that folder as they arrive, so their size doesn't matter."
+            : "Files are held in this browser until you save them, so very large ones depend on the space your browser will give this page."}
+        </p>
       </form>
     );
   }
@@ -259,6 +268,15 @@ export function ReceivePanel() {
       <p role="status" aria-live="polite" className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
         {STATUS_LABEL[status] ?? status}
       </p>
+
+      {/* Where the files are going, stated once they're actually going
+          somewhere. Before connecting this would be a setting; here it is a
+          fact, and it's the answer to "so where did it save it?". */}
+      {saveDir && (
+        <p className="bg-lime-4 px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+          Saving into <span className="font-bold">{saveDir.name}</span> as each file arrives.
+        </p>
+      )}
       {error && (
         <p role="alert" className="bg-red px-4 py-3 text-[14px] font-semibold leading-[1.45] text-y-pale">
           {error}
