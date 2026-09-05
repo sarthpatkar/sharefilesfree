@@ -16,18 +16,28 @@ import crypto from "node:crypto";
 
 const PORT = process.env.PORT || 8080;
 
-// How long an unclaimed room code stays valid before it's swept away.
+// How long an unclaimed room code stays valid. The sender picks from this list;
+// ten minutes is the default and anything longer is opt-in.
 //
-// An hour, not the ten minutes this started with. The reason is that the
-// "receiver isn't online right now" fallback used to be an upload to rented
-// storage, and that path is gone: there is no longer anywhere for a file to
-// wait except the sender's own machine. So the room has to do that job — the
-// sender leaves the tab open and the code keeps working while they do.
-//
-// This costs nothing (a room is a few bytes and two socket references) and,
-// unlike the path it replaces, the file still never touches this server. What
-// it does cost is exposure, and that is paid for below — see GLOBAL_FAIL_LIMIT.
-const ROOM_TTL_MS = 60 * 60 * 1000;
+// The upload fallback used to be where a file waited for a receiver who wasn't
+// around. That path is gone, so the room does the job instead: the sender keeps
+// the tab open and the code keeps working. A room costs a few bytes and two
+// socket references, so length is not a resource question — it is a brute-force
+// question, and it is answered by the code getting longer with the clock (see
+// generateRoomCode).
+const ROOM_TTL_CHOICES_MIN = [10, 30, 60, 120];
+const DEFAULT_ROOM_TTL_MIN = 10;
+
+/** A room longer than this gets a longer code — see generateRoomCode. */
+const SHORT_CODE_MAX_MIN = 10;
+
+function clampRoomTtlMinutes(requested) {
+  const n = Number(requested);
+  if (!Number.isFinite(n)) return DEFAULT_ROOM_TTL_MIN;
+  // Snap to the nearest allowed value rather than trusting an arbitrary number,
+  // so a hand-crafted client can't ask for a week.
+  return ROOM_TTL_CHOICES_MIN.includes(n) ? n : DEFAULT_ROOM_TTL_MIN;
+}
 
 // Basic per-IP abuse throttle: cap how many rooms one IP can open per window.
 const ROOM_CREATE_LIMIT = 30;
@@ -51,22 +61,23 @@ const JOIN_ATTEMPT_WINDOW_MS = 60 * 1000;
 //   - A guesser learns nothing from being throttled: a wrong code answers the
 //     same either way.
 //
-// This ceiling is what pays for the hour-long room above, and the arithmetic
-// is the whole reason it moved. What matters is not how long a room lives but
-// how many guesses can be thrown at it in that time:
+// What matters is not how long a room lives but how many guesses can be thrown
+// at it in that time, against how large the code space is. Both halves move
+// together here, which is why a two-hour room is safer than the ten-minute one
+// this started with:
 //
-//   before  10-minute room, 200 fails / 10s  ->  up to  12,000 guesses per room
-//   now     60-minute room,  30 fails / 10s  ->  up to  10,800 guesses per room
+//   originally  10 min, 6 digits, 200 fails/10s -> 12,000 guesses / 1e6 = 0.012 R
+//   now  (10m)  10 min, 6 digits, 100 fails/10s ->  6,000 guesses / 1e6 = 0.006 R
+//   now (120m) 120 min, 8 digits, 100 fails/10s -> 72,000 guesses / 1e8 = 0.0007 R
 //
-// With R rooms open, a guess lands with probability R/1,000,000, so expected
-// break-ins per room-lifetime went from 0.012R to 0.0108R. A room that lives
-// six times longer is fractionally SAFER than it was, rather than six times
-// more exposed. Lengthen the room again and this number has to come down again,
-// or the code has to get longer.
+// where R is the number of rooms open and the result is the expected number of
+// lucky guesses per room lifetime. Both current cases beat the original. Change
+// either the durations or the code lengths and this arithmetic has to be redone
+// — that is the whole point of writing it down.
 //
-// Cutting it cannot lock out a real receiver: a join naming a live room is
+// Tightening this cannot lock out a real receiver: a join naming a live room is
 // resolved before any limiter is consulted, so only wrong codes are counted.
-const GLOBAL_FAIL_LIMIT = 30;
+const GLOBAL_FAIL_LIMIT = 100;
 const GLOBAL_FAIL_WINDOW_MS = 10 * 1000;
 let globalFails = { count: 0, windowStart: 0 };
 
@@ -81,7 +92,7 @@ function globalFailureExceeded() {
   return globalFails.count > GLOBAL_FAIL_LIMIT;
 }
 
-/** @type {Map<string, { sender: import("ws").WebSocket, receiver: import("ws").WebSocket | null, createdAt: number }>} */
+/** @type {Map<string, { sender: import("ws").WebSocket, receiver: import("ws").WebSocket | null, createdAt: number, ttlMs: number }>} */
 const rooms = new Map();
 
 /** @type {Map<string, { count: number, windowStart: number }>} */
@@ -104,11 +115,24 @@ function isRateLimited(key, limit, windowMs) {
   return entry.count > limit;
 }
 
-function generateRoomCode() {
-  // 6 digits, matches the "6-digit key" UX pattern from Send Anywhere.
+/**
+ * Six digits for a short room, eight for a long one.
+ *
+ * The length tracks the clock because the threat does: a code that is guessable
+ * for two hours needs a bigger haystack than one that is guessable for ten
+ * minutes. Six digits is a million combinations, eight is a hundred million.
+ *
+ * It costs nothing in usability, and that is not a coincidence. A ten-minute
+ * code exists to be read aloud to someone standing there. Nobody asks for two
+ * hours unless the other person ISN'T there — in which case the code is being
+ * sent as a link or a QR anyway, and its length is invisible.
+ */
+function generateRoomCode(ttlMinutes) {
+  const digits = ttlMinutes > SHORT_CODE_MAX_MIN ? 8 : 6;
+  const ceiling = 10 ** digits;
   let code;
   do {
-    code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+    code = crypto.randomInt(0, ceiling).toString().padStart(digits, "0");
   } while (rooms.has(code));
   return code;
 }
@@ -138,7 +162,7 @@ function cleanupRoomsFor(ws) {
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms.entries()) {
-    if (!room.receiver && now - room.createdAt > ROOM_TTL_MS) {
+    if (!room.receiver && now - room.createdAt > room.ttlMs) {
       send(room.sender, { type: "room-expired" });
       rooms.delete(code);
     }
@@ -181,10 +205,11 @@ wss.on("connection", (ws, req) => {
         if (isRateLimited(`create:${ip}`, ROOM_CREATE_LIMIT, ROOM_CREATE_WINDOW_MS)) {
           return send(ws, { type: "error", message: "Too many rooms created. Try again in a minute." });
         }
-        const code = generateRoomCode();
-        rooms.set(code, { sender: ws, receiver: null, createdAt: Date.now() });
+        const ttlMinutes = clampRoomTtlMinutes(msg.ttlMinutes);
+        const code = generateRoomCode(ttlMinutes);
+        rooms.set(code, { sender: ws, receiver: null, createdAt: Date.now(), ttlMs: ttlMinutes * 60 * 1000 });
         ws.roomCode = code;
-        send(ws, { type: "room-created", code });
+        send(ws, { type: "room-created", code, ttlMinutes, expiresAt: Date.now() + ttlMinutes * 60 * 1000 });
         break;
       }
 
@@ -195,7 +220,7 @@ wss.on("connection", (ws, req) => {
         // by receiving a few files, while an attacker spread over many IPs was
         // barely inconvenienced. Limits now apply only to attempts that failed,
         // which is the only kind a guesser can make.
-        const code = typeof msg.code === "string" && /^\d{6}$/.test(msg.code) ? msg.code : null;
+        const code = typeof msg.code === "string" && /^(\d{6}|\d{8})$/.test(msg.code) ? msg.code : null;
         const room = code ? rooms.get(code) : undefined;
 
         if (!room) {

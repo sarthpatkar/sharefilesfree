@@ -78,9 +78,48 @@ async function main() {
   console.log("✅ join-room brute-force attempts get rate limited:", sawRateLimitError);
   if (!sawRateLimitError) throw new Error("expected join-room flooding to eventually be rate limited");
 
+  // A code's length has to track how long it stays guessable — six digits for
+  // the ten-minute default, eight for anything longer. This is the property the
+  // whole longer-room feature rests on, so it gets asserted rather than assumed.
+  const shortSender = connect();
+  await new Promise((r) => shortSender.once("open", r));
+  shortSender.send(JSON.stringify({ type: "create-room", ttlMinutes: 10 }));
+  const shortRoom = await once(shortSender, (m) => m.type === "room-created");
+  console.log("✅ 10-minute room gets a 6-digit code:", /^\d{6}$/.test(shortRoom.code), shortRoom.code);
+  if (!/^\d{6}$/.test(shortRoom.code)) throw new Error("expected a 6-digit code for a 10-minute room");
+
+  const longSender = connect();
+  await new Promise((r) => longSender.once("open", r));
+  longSender.send(JSON.stringify({ type: "create-room", ttlMinutes: 120 }));
+  const longRoom = await once(longSender, (m) => m.type === "room-created");
+  console.log("✅ 2-hour room gets an 8-digit code:", /^\d{8}$/.test(longRoom.code), longRoom.code);
+  if (!/^\d{8}$/.test(longRoom.code)) throw new Error("expected an 8-digit code for a 120-minute room");
+  console.log("✅ room-created reports when it expires:", longRoom.ttlMinutes === 120 && longRoom.expiresAt > Date.now());
+
+  // An arbitrary duration must snap to the default rather than being honoured,
+  // or a hand-crafted client could ask for a room that lives for a week.
+  const greedy = connect();
+  await new Promise((r) => greedy.once("open", r));
+  greedy.send(JSON.stringify({ type: "create-room", ttlMinutes: 100000 }));
+  const greedyRoom = await once(greedy, (m) => m.type === "room-created");
+  console.log("✅ an unlisted duration snaps to the default:", greedyRoom.ttlMinutes === 10);
+  if (greedyRoom.ttlMinutes !== 10) throw new Error("expected an unlisted ttl to fall back to 10 minutes");
+
+  // The longer code has to be joinable, or the feature is decorative.
+  const longReceiver = connect();
+  await new Promise((r) => longReceiver.once("open", r));
+  longReceiver.send(JSON.stringify({ type: "join-room", code: longRoom.code }));
+  const joinedLong = await once(longReceiver, (m) => m.type === "peer-joined" || m.type === "error");
+  console.log("✅ an 8-digit code can be joined:", joinedLong.type === "peer-joined");
+  if (joinedLong.type !== "peer-joined") throw new Error("expected an 8-digit code to be joinable");
+
   sender.close();
   stranger.close();
   flooder.close();
+  shortSender.close();
+  longSender.close();
+  longReceiver.close();
+  greedy.close();
   console.log("\nAll signaling protocol checks passed.");
   process.exit(0);
 }

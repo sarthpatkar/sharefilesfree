@@ -65,8 +65,8 @@ export function WhyFree() {
           <p className="text-[15.5px] font-medium leading-[1.6] text-yellow">
             <span className="text-[13px] font-bold uppercase tracking-[0.14em] text-lime-max">The part we&apos;d rather say than hide:</span>{" "}
             both devices have to be open at the same time. We store nothing, anywhere, so there is no copy sitting on
-            a server waiting for someone to collect it later. Leave the tab open and your code lasts an hour; close
-            it and the transfer is gone. That is the price of the rest of this page being true.
+            a server waiting for someone to collect it later. Your code can last up to two hours while your tab stays
+            open; close it and the transfer is gone. That is the price of the rest of this page being true.
           </p>
         </div>
       </div>

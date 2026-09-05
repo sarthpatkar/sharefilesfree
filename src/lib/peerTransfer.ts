@@ -43,7 +43,8 @@ export interface FileProgress {
 
 export interface PeerTransferCallbacks {
   onStatus?: (status: TransferStatus, detail?: string) => void;
-  onCode?: (code: string) => void;
+  /** Fires once the signaling server has issued a code, with when it stops working. */
+  onCode?: (code: string, expiresAt: number) => void;
   /** Fired repeatedly while a file is being sent or received. */
   onProgress?: (progress: FileProgress) => void;
   /** Fired once per file, once fully received (receiver side only). */
@@ -250,10 +251,17 @@ export class PeerTransfer {
     this.callbacks = callbacks;
   }
 
-  /** Sender: open a socket and request a fresh room code. */
-  connectAsSender() {
+  /**
+   * Sender: open a socket and request a fresh room code.
+   *
+   * `ttlMinutes` is how long the code should keep working while this tab stays
+   * open. The server snaps it to an allowed value and picks the code length to
+   * match — a longer-lived code is a longer code, because it is guessable for
+   * longer. See generateRoomCode in /server.
+   */
+  connectAsSender(ttlMinutes = 10) {
     this.callbacks.onStatus?.("connecting-signal");
-    this.openSocket(() => this.send({ type: "create-room" }));
+    this.openSocket(() => this.send({ type: "create-room", ttlMinutes }));
   }
 
   /** Receiver: open a socket and try to join an existing room by code. */
@@ -295,7 +303,7 @@ export class PeerTransfer {
       switch (msg.type) {
         case "room-created":
           this.roomCode = msg.code;
-          this.callbacks.onCode?.(msg.code);
+          this.callbacks.onCode?.(msg.code, msg.expiresAt);
           this.callbacks.onStatus?.("waiting-for-peer");
           break;
         case "peer-joined":

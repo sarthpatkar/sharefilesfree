@@ -9,7 +9,7 @@ import { IconCheck, IconLink } from "./icons";
  * reading these six digits aloud across a room, so they get display-scale
  * type in separated cells rather than a line of small text in a card.
  */
-export function CodeDisplay({ code }: { code: string }) {
+export function CodeDisplay({ code, expiresAt }: { code: string; expiresAt?: number | null }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -34,7 +34,7 @@ export function CodeDisplay({ code }: { code: string }) {
     <div className="flex w-full flex-col items-center gap-7">
       <div className="flex flex-col items-center gap-2">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
-          Read this out, or send the link
+          {code.length > 6 ? "Send the link or the QR" : "Read this out, or send the link"}
         </p>
         {/* The failure mode nobody expects the first time: the file travels
             between the two browsers, so closing this page stops the transfer
@@ -42,15 +42,22 @@ export function CodeDisplay({ code }: { code: string }) {
         <p className="max-w-xs text-center text-[13px] font-medium leading-[1.5] text-black opacity-55">
           They type it in at sharefilesfree.com. Leave this page open until the transfer finishes — the file goes
           from here to them, so closing it stops it.
+          {expiresAt ? ` Works until ${new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}
         </p>
       </div>
 
-      {/* Six ruled cells — reads as a code to be transcribed, not as a label. */}
+      {/* Ruled cells — reads as a code to be transcribed, not as a label. Six of
+          them normally; eight when the sender asked for a longer-lived code, which
+          is why the cells narrow rather than the row overflowing on a phone. */}
       <div className="flex" role="text" aria-label={`Code ${code.split("").join(" ")}`}>
         {code.split("").map((digit, i) => (
           <span
             key={i}
-            className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink text-[2rem] font-bold tabular-nums text-black last:border-r sm:h-20 sm:w-14 sm:text-[2.6rem]"
+            className={`flex items-center justify-center border-b-2 border-l border-ink font-bold tabular-nums text-black last:border-r ${
+              code.length > 6
+                ? "h-[58px] w-[34px] text-[1.6rem] sm:h-20 sm:w-12 sm:text-[2.2rem]"
+                : "h-[68px] w-[46px] text-[2rem] sm:h-20 sm:w-14 sm:text-[2.6rem]"
+            }`}
           >
             {digit}
           </span>

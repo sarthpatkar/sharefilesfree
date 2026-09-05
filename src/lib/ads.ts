@@ -20,15 +20,38 @@ export type AdPurpose =
   | "receive-connect"; // receiver clicks connect -> short ad -> transfer starts
 
 /**
- * How long one gate runs.
+ * The baseline gate.
  *
- * Five seconds, and the reason it's short is the rule the whole file answers
- * to: AN AD MUST NEVER BE LONGER THAN THE WAIT IT PLAYS OVER. Both gated
- * moments sit in front of a connection that takes a second or two, so five is
- * the most that can be filled rather than manufactured. The long rewarded
- * format belonged to uploads, which took minutes and no longer exist.
+ * Five seconds, and the reason it's short is the rule this file answers to: AN
+ * AD MUST NEVER BE LONGER THAN THE WAIT IT PLAYS OVER. Both gated moments sit
+ * in front of a connection that takes a second or two, so five is the most that
+ * can be filled rather than manufactured.
  */
 export const GATE_SECONDS = 5;
+
+/**
+ * What a longer-lived code costs, in seconds of ad.
+ *
+ * This is the one place the rule above bends, and deliberately: a two-hour code
+ * is not a wait being filled, it is something extra the sender chose to ask
+ * for. That makes it a rewarded exchange rather than a toll — the default
+ * always costs the baseline five seconds, and nobody is ever made to watch
+ * longer for the thing they came here to do.
+ *
+ * Being honest about what is being paid for: a long room costs us almost
+ * nothing to hold. This is not cost recovery, it is the site's only source of
+ * income attached to the one feature people will want more of.
+ */
+export const ROOM_DURATION_ADS: Record<number, number> = {
+  10: GATE_SECONDS,
+  30: 10,
+  60: 15,
+  120: 20,
+};
+
+/** The durations a sender may choose, shortest first. Must match the server's list. */
+export const ROOM_DURATION_CHOICES = [10, 30, 60, 120] as const;
+export const DEFAULT_ROOM_DURATION = 10;
 
 export interface AdPlan {
   purpose: AdPurpose;
@@ -36,8 +59,17 @@ export interface AdPlan {
   totalMs: number;
 }
 
-export function planFor(purpose: AdPurpose): AdPlan {
-  return { purpose, seconds: GATE_SECONDS, totalMs: GATE_SECONDS * 1000 };
+export interface AdPlanInput {
+  /** For "reveal-code": how long the sender asked the code to stay valid. */
+  roomMinutes?: number;
+}
+
+export function planFor(purpose: AdPurpose, input: AdPlanInput = {}): AdPlan {
+  const seconds =
+    purpose === "reveal-code" && input.roomMinutes
+      ? (ROOM_DURATION_ADS[input.roomMinutes] ?? GATE_SECONDS)
+      : GATE_SECONDS;
+  return { purpose, seconds, totalMs: seconds * 1000 };
 }
 
 /**

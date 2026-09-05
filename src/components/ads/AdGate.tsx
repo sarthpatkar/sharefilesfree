@@ -8,6 +8,8 @@ import { adsEnabled, houseAdsOnly, mountBanner } from "./adNetwork";
 
 interface AdGateProps {
   purpose: AdPurpose;
+  /** For "reveal-code": how long the sender asked the code to last. */
+  roomMinutes?: number;
   /** What the user is waiting for, e.g. "Your code". Shown so the wait has a stated reason. */
   waitingFor: string;
   onPass: () => void;
@@ -39,8 +41,8 @@ interface AdGateProps {
  * here, only revenue to earn, and a server round trip to verify a five-second
  * timer would buy exactly nothing.
  */
-export function AdGate({ purpose, waitingFor, onPass, onCancel }: AdGateProps) {
-  const plan = planFor(purpose);
+export function AdGate({ purpose, roomMinutes, waitingFor, onPass, onCancel }: AdGateProps) {
+  const plan = planFor(purpose, { roomMinutes });
   const [msLeft, setMsLeft] = useState(plan.totalMs);
   const [filled, setFilled] = useState<boolean | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);

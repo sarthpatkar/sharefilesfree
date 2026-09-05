@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes } from "@/lib/format";
+import { DEFAULT_ROOM_DURATION, ROOM_DURATION_ADS, ROOM_DURATION_CHOICES } from "@/lib/ads";
+import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { Button } from "./Button";
@@ -34,6 +36,14 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
 
   const [status, setStatus] = useState<TransferStatus>("idle");
   const [code, setCode] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  /**
+   * How long the code should keep working. Ten minutes covers the case this is
+   * built for — reading six digits to someone who is right there. Longer is for
+   * when they aren't, and is opt-in because the file waits on THIS device the
+   * whole time.
+   */
+  const [roomMinutes, setRoomMinutes] = useState<number>(DEFAULT_ROOM_DURATION);
   const [progress, setProgress] = useState<Map<string, FileProgress>>(new Map());
   const [error, setError] = useState<string | null>(null);
   // Which action is currently waiting behind an ad. The gate renders where the
@@ -42,7 +52,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const transferRef = useRef<PeerTransfer | null>(null);
   const startedSendingRef = useRef(false);
 
-  function startSending() {
+  function startSending(minutes: number) {
     setError(null);
     startedSendingRef.current = false;
     const transfer = new PeerTransfer("sender", {
@@ -54,12 +64,15 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           transfer.sendFiles(files).catch((e) => setError(e.message));
         }
       },
-      onCode: setCode,
+      onCode: (c, expires) => {
+        setCode(c);
+        setExpiresAt(expires);
+      },
       onProgress: (p) => setProgress((prev) => new Map(prev).set(p.id, p)),
       onError: setError,
     });
     transferRef.current = transfer;
-    transfer.connectAsSender();
+    transfer.connectAsSender(minutes);
   }
 
   function reset() {
@@ -68,10 +81,16 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setFiles([]);
     setStatus("idle");
     setCode(null);
+    setExpiresAt(null);
+    setRoomMinutes(DEFAULT_ROOM_DURATION);
     setProgress(new Map());
     setError(null);
     setGate(null);
   }
+
+  // From the moment a code exists until the last byte lands, this tab IS the
+  // transfer — see useKeepOpen.
+  useKeepOpen(status === "waiting-for-peer" || status === "negotiating" || status === "connected" || status === "transferring");
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
   const totalSent = [...progress.values()].reduce((sum, p) => sum + p.sent, 0);
@@ -100,17 +119,47 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
             {gate === "code" ? (
               <AdGate
                 purpose="reveal-code"
+                roomMinutes={roomMinutes}
                 waitingFor="Your code"
                 onPass={() => {
                   setGate(null);
-                  startSending();
+                  startSending(roomMinutes);
                 }}
                 onCancel={() => setGate(null)}
               />
             ) : (
-              <Button onClick={() => setGate("code")} className="self-start">
-                Get a code to share
-              </Button>
+              <div className="flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5 text-[13px] font-medium text-black">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] opacity-55">
+                    How long should the code work?
+                  </span>
+                  <select
+                    value={roomMinutes}
+                    onChange={(e) => setRoomMinutes(Number(e.target.value))}
+                    className="max-w-xs border-2 border-black bg-transparent px-3 py-2.5 text-[14px] font-semibold text-black outline-none focus:border-red"
+                  >
+                    {ROOM_DURATION_CHOICES.map((m) => (
+                      <option key={m} value={m}>
+                        {m < 60 ? `${m} minutes` : `${m / 60} hour${m === 60 ? "" : "s"}`}
+                        {" · "}
+                        {ROOM_DURATION_ADS[m]}s ad
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <p className="max-w-md text-[13px] font-medium leading-[1.5] text-black opacity-55">
+                  {roomMinutes === DEFAULT_ROOM_DURATION
+                    ? "Ten minutes is right when they're with you or already waiting. Your file never leaves this device, so this page has to stay open until they collect it."
+                    : `Your code will be 8 digits instead of 6 — a code that works for ${
+                        roomMinutes < 60 ? `${roomMinutes} minutes` : `${roomMinutes / 60} hour${roomMinutes === 60 ? "" : "s"}`
+                      } is one a stranger has longer to guess, so it gets a bigger haystack. Send it as a link or QR rather than reading it out. This page must stay open the whole time — your file is waiting here, not on a server.`}
+                </p>
+
+                <Button onClick={() => setGate("code")} className="self-start">
+                  Get a code to share
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -139,7 +188,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           {error}
         </p>
       )}
-      {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} />}
+      {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} expiresAt={expiresAt} />}
       {(status === "transferring" || status === "connected") && (
         <div className="w-full max-w-md">
           <ProgressBar fraction={totalSize ? totalSent / totalSize : 0} />
@@ -153,7 +202,9 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           the tab has to stay open. An hour is what the code is good for. */}
       {status === "waiting-for-peer" && (
         <p className="max-w-md bg-y-max px-4 py-3 text-center text-[13px] font-semibold leading-[1.45] text-black">
-          Keep this page open — your file is waiting here, not on a server. The code works for the next hour.
+          Keep this page open — your file is waiting on this device, not on a server. Close the tab and the transfer
+          is gone.
+          {expiresAt ? ` The code stops working at ${new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}
         </p>
       )}
 

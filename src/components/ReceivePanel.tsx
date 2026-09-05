@@ -3,11 +3,21 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes } from "@/lib/format";
+import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
 import { Button } from "./Button";
 import { AdGate } from "./ads/AdGate";
 import { AdSlot } from "./ads/AdSlot";
 import { zip } from "fflate";
+
+/**
+ * A code is six digits, or eight when the sender asked it to keep working for
+ * longer — the extra digits are what make a long-lived code safe to leave
+ * guessable (see generateRoomCode in /server).
+ */
+function isCompleteCode(value: string): boolean {
+  return /^(\d{6}|\d{8})$/.test(value);
+}
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
@@ -53,6 +63,10 @@ export function ReceivePanel() {
   // Files streamed straight to disk have no blob, so they can't be re-saved or
   // zipped — they are already where the user asked for them.
   const bufferedFiles = received.filter((f) => f.blob);
+
+  // Files land on this device as they arrive, so closing the page mid-transfer
+  // loses whatever hasn't finished — the same guard the sender gets.
+  useKeepOpen(status === "negotiating" || status === "connected" || status === "transferring");
 
   /**
    * Saves every file at once. Browsers rate-limit and sometimes silently drop
@@ -140,8 +154,8 @@ export function ReceivePanel() {
    * behaviour available on mobile, Firefox and Safari anyway.
    */
   async function connectWithDestination() {
-    if (code.length !== 6) {
-      setError("Enter the 6-digit code exactly as shown on the sender's screen.");
+    if (!isCompleteCode(code)) {
+      setError("Enter the code exactly as shown on the sender's screen — 6 digits, or 8 for a longer-lived one.");
       return;
     }
 
@@ -164,8 +178,8 @@ export function ReceivePanel() {
   }
 
   function connect(targetCode: string) {
-    if (targetCode.length !== 6) {
-      setError("Enter the 6-digit code exactly as shown on the sender's screen.");
+    if (!isCompleteCode(targetCode)) {
+      setError("Enter the code exactly as shown on the sender's screen — 6 digits, or 8 for a longer-lived one.");
       return;
     }
     setError(null);
@@ -207,7 +221,7 @@ export function ReceivePanel() {
   // it's a one-time bootstrap).
   useEffect(() => {
     const fromHash = window.location.hash.replace(/^#/, "").trim();
-    if (!/^\d{6}$/.test(fromHash)) return;
+    if (!isCompleteCode(fromHash)) return;
     window.history.replaceState(null, "", window.location.pathname);
     // Both state updates go inside the timeout: setting state synchronously in
     // an effect cascades renders, and this is a one-time bootstrap either way.
@@ -243,10 +257,11 @@ export function ReceivePanel() {
       >
         <div className="flex flex-col gap-2">
           <label htmlFor="code-input" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
-            Enter the 6-digit code from the sender
+            Enter the code from the sender
           </label>
           <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-            It&apos;s on their screen right now. A code works for an hour while the sender keeps their page open, then they need a new one.
+            It&apos;s on their screen right now. Usually six digits; eight if they chose to keep it working for
+            longer. Either way it only works while their page stays open.
           </p>
         </div>
         {/* Display-scale, underlined rather than boxed — this is the single
@@ -255,9 +270,9 @@ export function ReceivePanel() {
           id="code-input"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={6}
+          maxLength={8}
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
           placeholder="000000"
           className="w-full bg-lime-3 px-5 py-4 text-center text-[2.6rem] font-bold tabular-nums tracking-[0.2em] text-black outline-none placeholder:text-black/35 focus:outline-2 focus:outline-offset-2 focus:outline-red sm:text-5xl"
         />
@@ -287,8 +302,8 @@ export function ReceivePanel() {
             differently depending on what the device can actually do. */}
         <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
           {canPickFolder
-            ? "Press Connect and you'll be asked where to save. Files go straight into the folder you pick, however big they are. Keep this page open until they arrive."
-            : "Press Connect to start. Files are written to storage as they arrive, whatever their size, and you save each one when it lands. Keep this page open until they arrive."}
+            ? "Press Connect and you'll be asked where to save. Files go straight into the folder you pick, however big they are. Keep this page open until they arrive — closing it stops the transfer, and there's no copy on a server to resume from."
+            : "Press Connect to start. Files are written to storage as they arrive, whatever their size, and you save each one when it lands. Keep this page open until they arrive — closing it stops the transfer, and there's no copy on a server to resume from."}
         </p>
       </form>
     );

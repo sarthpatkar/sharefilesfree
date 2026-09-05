@@ -76,6 +76,12 @@ export function SiteFooter() {
             Your files go straight to the other person — we never keep a copy
           </p>
           <nav className="flex items-center gap-6">
+            <Link href="/about" className="sff-nudge text-[14px] font-semibold text-yellow">
+              About
+            </Link>
+            <Link href="/contact" className="sff-nudge text-[14px] font-semibold text-yellow">
+              Contact
+            </Link>
             <Link href="/privacy" className="sff-nudge text-[14px] font-semibold text-yellow">
               Privacy
             </Link>

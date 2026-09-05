@@ -15,7 +15,7 @@ const STEPS = [
   },
   {
     title: "Done.",
-    body: "It's already on their screen, at whatever speed your connection can manage. Not around right now? Leave the tab open and the code keeps working for an hour.",
+    body: "It's already on their screen, at whatever speed your connection can manage. Not around right now? Ask for a longer code — up to two hours — and leave the tab open.",
   },
 ];
 

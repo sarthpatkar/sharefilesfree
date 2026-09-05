@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage, type LegalSection } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
@@ -71,10 +72,19 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Contact",
     body: (
-      <p>
-        Questions, or to report abuse beyond the in-product report link:{" "}
-        <span className="font-mono text-ink">abuse@sharefilesfree.com</span>.
-      </p>
+      <>
+        <p>
+          General questions: <span className="font-mono text-ink">hello@sharefilesfree.com</span>.
+        </p>
+        <p>
+          For a formal complaint, a grievance officer is named on the{" "}
+          <Link href="/contact" className="link">
+            contact page
+          </Link>{" "}
+          as required by Rule 3(2) of India&rsquo;s IT (Intermediary Guidelines and Digital Media Ethics Code) Rules,
+          2021. Complaints are acknowledged within 24 hours and resolved within 15 days.
+        </p>
+      </>
     ),
   },
 ];

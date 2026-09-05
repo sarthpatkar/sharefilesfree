@@ -78,13 +78,14 @@ export function Hero() {
               className="sff-stamp mt-8 max-w-lg text-[17px] font-medium leading-[1.6] text-black sm:text-[19px]"
               style={{ "--i": 2 } as React.CSSProperties}
             >
-              Your file is on their screen before you&apos;ve finished reading out the code. No account. No app. No
-              2GB ceiling that suddenly wants your card details. And the moment it lands, it&apos;s gone from here —
-              along with{" "}
+              Your file is on their screen before you&apos;ve finished reading out the code. No account. No app.
+              And <strong className="font-bold">no size limit</strong> — not a generous one, none at all, because
+              your file goes straight to them and never touches us. That&apos;s a sentence almost nobody else can
+              write without an asterisk. Same for the{" "}
               <Link href="/tools" className="link">
                 19 free tools
-              </Link>{" "}
-              that work the same way.
+              </Link>
+              , which never see your files either.
             </p>
           </div>
 

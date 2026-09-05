@@ -47,8 +47,12 @@ export function ToolPageClient({ slug }: { slug: string }) {
               )}
               <p className="mt-5 max-w-md text-[16px] font-medium leading-[1.6] text-black">{tool.description}</p>
               <p className="mt-6 max-w-md bg-lime p-5 text-[15px] font-semibold leading-[1.5] text-black">
-                This runs on your own device. Your file never goes anywhere — no queue, no size limit, nothing to
-                delete afterwards.
+                This runs on your own device. Your file never goes anywhere — no upload, no queue, no size limit,
+                nothing to delete afterwards. The same is true of{" "}
+                <Link href="/#send" className="link">
+                  sending a file
+                </Link>
+                : any size, straight to the other device.
               </p>
             </header>
 

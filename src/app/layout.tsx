@@ -29,15 +29,21 @@ const outfit = Outfit({
   display: "swap",
 });
 
-const title = "ShareFilesFree — Send big files free, no sign-up";
+const title = "ShareFilesFree — Send any size file free, no sign-up";
 const description =
-  "Send any file to any device with a six-digit code. No account, no app, no size limit. Plus 19 free tools to fix your file before it goes.";
+  "Send a file of any size to any device with a short code. No account, no app, and no size limit — not a generous one, none at all, because your file never touches our servers. Plus 19 free tools that run on your own device.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sharefilesfree.com"),
   title,
   description,
-  keywords: ["send large files free", "file sharing no signup", "free file transfer", "send big files"],
+  keywords: [
+    "send large files free",
+    "no size limit file transfer",
+    "file sharing no signup",
+    "free file transfer",
+    "send big files",
+  ],
   openGraph: { title, description, url: "/", siteName: "ShareFilesFree", type: "website" },
   twitter: { card: "summary_large_image", title, description },
 };

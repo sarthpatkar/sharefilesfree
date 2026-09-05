@@ -31,7 +31,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "What if the person I'm sending to isn't online right now?",
-    a: "Leave the tab open and your code keeps working for an hour, so they can pick it up when they get to it — the file waits on your own device, not ours. What we can't do is hold it for you after you close the page. That's the honest cost of never storing anything: if both of you can't be online within the hour, use something that keeps a copy, and know that it's keeping one.",
+    a: "Choose a longer code when you create it — ten minutes by default, up to two hours — and leave the tab open. They can pick it up whenever they get to it, and the file waits on your own device rather than ours. A longer code is eight digits instead of six, because something guessable for two hours needs a bigger haystack, so send it as a link or QR rather than reading it out. What we can't do is hold the file after you close the page. That's the honest cost of never storing anything: if you can't both be online within two hours, use something that keeps a copy — and know that it's keeping one.",
   },
   {
     q: "Does the other person need the same browser or an app?",
