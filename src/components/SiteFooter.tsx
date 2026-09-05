@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TOOLS } from "./tools/registry";
 import { DonateLink } from "./DonateLink";
-import { IconSend } from "./icons";
+import { IconHeart, IconSend } from "./icons";
 
 /**
  * Shared footer, on a mid-yellow field. Also does real work for search: it links
@@ -85,6 +85,16 @@ export function SiteFooter() {
             <DonateLink />
           </nav>
         </div>
+
+        {/* Colophon. The heart is the icon set's, not an emoji — and it carries
+            the word "love" for a screen reader, which an emoji would read out
+            as "red heart". */}
+        <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em] text-black">
+          <span className="opacity-55">Made with</span>
+          <IconHeart aria-hidden className="mx-1.5 inline-block h-3.5 w-3.5 align-[-2px] text-red" />
+          <span className="sr-only">love</span>
+          <span className="opacity-55">from Sindhudurg, Maharashtra, India</span>
+        </p>
       </div>
     </footer>
   );

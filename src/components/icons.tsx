@@ -146,6 +146,14 @@ export function IconSend(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconHeart(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 20.5 4.2 12.9a4.8 4.8 0 0 1 0-6.9 5 5 0 0 1 7 0l.8.8.8-.8a5 5 0 0 1 7 0 4.8 4.8 0 0 1 0 6.9Z" />
+    </svg>
+  );
+}
+
 export function IconTool(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
