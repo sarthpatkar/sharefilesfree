@@ -44,7 +44,17 @@ sharefilesfree.com {
 	@immutable path /_next/static/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 
-	reverse_proxy localhost:3000
+	reverse_proxy localhost:3000 {
+		# A deploy restarts the app, and for the second or two it takes, every
+		# request would otherwise fail — Cloudflare turns that into a 522 for
+		# real visitors. Observed live on 5 Sep 2026. Retrying a refused
+		# upstream for a few seconds turns a visible error into a short pause.
+		#
+		# This only retries connections that were refused outright, so a
+		# request that already started streaming is never replayed.
+		lb_try_duration 10s
+		lb_try_interval 250ms
+	}
 }
 
 # --- www redirects to the apex ---------------------------------------------

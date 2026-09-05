@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Where the build output goes. Normally .next, but a deploy overrides it so
+  // the new build lands somewhere else entirely and the running server keeps
+  // serving the old one untouched. Building in place overwrote .next while the
+  // live process was still reading from it, which for the length of a build
+  // meant requests for chunks that had just been deleted. The deploy script
+  // swaps the finished directory into place with a rename instead.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+
   turbopack: {
     // Pin the workspace root so Turbopack doesn't get confused by an
     // unrelated package-lock.json sitting in the parent (home) directory.
