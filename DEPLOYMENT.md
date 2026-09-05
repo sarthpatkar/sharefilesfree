@@ -3,7 +3,7 @@
 **Status: live.** The site is deployed and serving. This document describes the
 setup as it actually exists, what is still outstanding, and how to change it.
 
-Last verified 4 September 2026.
+Last verified 5 September 2026.
 
 ---
 
@@ -16,7 +16,7 @@ Cloudflare (DNS + proxy, all records orange/proxied)
  └─ signal.sharefilesfree.com   → Hostinger VPS 62.72.29.23 : Caddy → localhost:8080 (signaling)
 
 Cloudflare R2          → NOT YET CONFIGURED (link fallback disabled)
-Cloudflare Realtime TURN → NOT YET CONFIGURED (P2P has no relay fallback)
+Cloudflare Realtime TURN → LIVE (relay allocating; verified 5 Sep 2026)
 ```
 
 | | |
@@ -71,24 +71,46 @@ Hostinger's browser console. **Do not lose it.**
 
 ## Still outstanding
 
-### 1. Cloudflare TURN — do this before showing anyone
+### ~~1. Cloudflare TURN~~ — done, 5 September 2026
 
-Without a relay, direct P2P fails for roughly 20–30% of network pairs (more on
-corporate networks) with no fallback. Transfers will simply not connect for
-those users.
+`CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_API_TOKEN` are set in
+`/etc/sharefilesfree.env`. Runtime secrets, not `NEXT_PUBLIC_*`, so a restart
+applies them — no rebuild. Free up to 1,000 GB/month, and only relayed traffic
+counts against it.
 
-1. Cloudflare dashboard → **Calls** (also labelled **Realtime**) → **Create TURN key**.
-2. Copy the **TURN Key ID** and **API Token** — the token is shown once.
-3. On the server, add them to `/etc/sharefilesfree.env`:
-   ```
-   CLOUDFLARE_TURN_KEY_ID=...
-   CLOUDFLARE_TURN_API_TOKEN=...
-   ```
-4. `systemctl restart sharefilesfree`
+**Verify it, don't assume it.** `/api/turn-credentials` is written to fail soft:
+a missing variable, a wrong token and a Cloudflare outage all return the same
+`{"turnConfigured": false}`, and the browser silently drops to STUN-only. A
+broken relay is invisible from the site itself, because most networks connect
+directly anyway and never need it.
 
-These are runtime secrets, not `NEXT_PUBLIC_*`, so no rebuild is needed. The
-server mints a short-lived credential per session via `/api/turn-credentials`
-rather than shipping a permanent one to the browser. Free up to 1,000 GB/month.
+```bash
+curl -s https://sharefilesfree.com/api/turn-credentials    # expect turnConfigured: true
+```
+
+That only proves credentials are being issued. To prove the relay actually
+allocates, open a `RTCPeerConnection` with `iceTransportPolicy: "relay"` — which
+discards host and srflx candidates — and gather. Any candidate that survives came
+from the TURN server. Measured 5 Sep 2026: 8 relay candidates on Cloudflare's
+`104.30.0.0/16` edge, over UDP.
+
+**Rotating the key:** create the new key first, swap both values, restart, confirm
+`true`, and only then delete the old key in the dashboard — that order has no
+window where neither works.
+
+```bash
+sed -i '/^CLOUDFLARE_TURN_KEY_ID=/d;/^CLOUDFLARE_TURN_API_TOKEN=/d' /etc/sharefilesfree.env
+cat >> /etc/sharefilesfree.env <<'EOF'
+CLOUDFLARE_TURN_KEY_ID=...
+CLOUDFLARE_TURN_API_TOKEN=...
+EOF
+systemctl restart sharefilesfree
+```
+
+Two traps, both hit for real during setup. **No space after the `=`.** And don't
+paste an `ssh` line and the commands meant for the far end as one block — every
+line after `ssh` becomes its *stdin*, so on a first connection the host-fingerprint
+prompt eats the next line as its answer and nothing runs on the server.
 
 ### 2. Cloudflare R2 — the "receiver isn't online" link fallback
 
