@@ -246,7 +246,7 @@ export function ReceivePanel() {
             Enter the 6-digit code from the sender
           </label>
           <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-            It&apos;s on their screen right now. A code works for ten minutes, then the sender needs a new one.
+            It&apos;s on their screen right now. A code works for an hour while the sender keeps their page open, then they need a new one.
           </p>
         </div>
         {/* Display-scale, underlined rather than boxed — this is the single

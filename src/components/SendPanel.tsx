@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { zipSync } from "fflate";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
-import { uploadFileForLink, type UploadProgress } from "@/lib/linkTransfer";
 import { formatBytes } from "@/lib/format";
-import { forcesSingleDownload, retentionChoicesFor, retentionLabel } from "@/lib/retention";
-import { planFor } from "@/lib/ads";
-import { adsEnabled } from "./ads/adNetwork";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
-import { LinkShare } from "./LinkShare";
 import { Button } from "./Button";
 import { AdGate } from "./ads/AdGate";
 import { AdSlot } from "./ads/AdSlot";
@@ -25,14 +19,8 @@ const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   done: "All files sent.",
 };
 
-// How long to wait for a receiver before offering the "share a link instead"
-// fallback. Long enough that it doesn't flash for a receiver who's just
-// slow to type the code; short enough that nobody sits there wondering.
-const LINK_FALLBACK_DELAY_MS = 20_000;
-
 export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [files, setFiles] = useState<File[]>([]);
-  const [mode, setMode] = useState<"p2p" | "link">("p2p");
 
   // A file handed off from the Tools tab (e.g. "compress then send") lands here —
   // each hand-off is a fresh File instance, so this fires once per hand-off.
@@ -44,40 +32,18 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     return () => clearTimeout(timer);
   }, [initialFile]);
 
-  // --- P2P (default) path ---
   const [status, setStatus] = useState<TransferStatus>("idle");
   const [code, setCode] = useState<string | null>(null);
   const [progress, setProgress] = useState<Map<string, FileProgress>>(new Map());
   const [error, setError] = useState<string | null>(null);
-  const [showLinkOffer, setShowLinkOffer] = useState(false);
   // Which action is currently waiting behind an ad. The gate renders where the
   // result would have appeared, so the user is never covered by an overlay.
-  const [gate, setGate] = useState<null | "code" | "link">(null);
+  const [gate, setGate] = useState<null | "code">(null);
   const transferRef = useRef<PeerTransfer | null>(null);
   const startedSendingRef = useRef(false);
 
-  // --- Link fallback path (Phase 2: upload to R2, share a link for later) ---
-  const [linkStatus, setLinkStatus] = useState<"configuring" | "uploading" | "ready" | "error">("configuring");
-  const [linkProgress, setLinkProgress] = useState<UploadProgress>({ loaded: 0, total: 0 });
-  const [linkResult, setLinkResult] = useState<{ token: string; expiresAt: number } | null>(null);
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkPassword, setLinkPassword] = useState("");
-  const [linkExpiryHours, setLinkExpiryHours] = useState(24);
-  const [linkBurnAfterDownload, setLinkBurnAfterDownload] = useState(false);
-  // Multi-file link sharing only works if the files are bundled into one zip
-  // first — deliberately opt-in, unchecked by default, never automatic.
-  const [linkZipFiles, setLinkZipFiles] = useState(false);
-
-  useEffect(() => {
-    const delay = status === "waiting-for-peer" ? LINK_FALLBACK_DELAY_MS : 0;
-    const shouldOffer = status === "waiting-for-peer";
-    const timer = setTimeout(() => setShowLinkOffer(shouldOffer), delay);
-    return () => clearTimeout(timer);
-  }, [status]);
-
   function startSending() {
     setError(null);
-    setMode("p2p");
     startedSendingRef.current = false;
     const transfer = new PeerTransfer("sender", {
       onStatus: (s, detail) => {
@@ -96,74 +62,18 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     transfer.connectAsSender();
   }
 
-  function switchToLinkFallback() {
-    transferRef.current?.close();
-    transferRef.current = null;
-    setMode("link");
-    setLinkStatus("configuring");
-  }
-
-  async function buildLinkFile(): Promise<File> {
-    if (files.length === 1) return files[0];
-    // Multiple files, bundled by explicit user choice (see the checkbox below) —
-    // zipping is the only way multi-file link sharing works today, but it's
-    // never applied automatically.
-    const entries: Record<string, Uint8Array> = {};
-    for (const f of files) entries[f.name] = new Uint8Array(await f.arrayBuffer());
-    const zipped = zipSync(entries);
-    return new File([zipped as BlobPart], "files.zip", { type: "application/zip" });
-  }
-
-  async function createLink(adReceipt: string | null) {
-    setLinkStatus("uploading");
-    setLinkError(null);
-    try {
-      const fileToUpload = await buildLinkFile();
-      const result = await uploadFileForLink(fileToUpload, setLinkProgress, {
-        password: linkPassword,
-        expiryHours,
-        burnAfterDownload: linkBurnAfterDownload,
-        adReceipt,
-      });
-      setLinkResult(result);
-      setLinkStatus("ready");
-    } catch (e) {
-      setLinkError((e as Error).message);
-      setLinkStatus("error");
-    }
-  }
-
   function reset() {
     transferRef.current?.close();
     transferRef.current = null;
     setFiles([]);
-    setMode("p2p");
     setStatus("idle");
     setCode(null);
     setProgress(new Map());
     setError(null);
-    setLinkResult(null);
-    setLinkError(null);
-    setLinkStatus("configuring");
     setGate(null);
-    setLinkPassword("");
-    setLinkExpiryHours(24);
-    setLinkBurnAfterDownload(false);
-    setLinkZipFiles(false);
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-  // What this particular file is allowed to ask for — see lib/retention.ts.
-  // With ads on, the list runs past the window this file comes with, up to the
-  // longest one the ads could pay for; the extra hours cost extra ads.
-  const showAdCost = adsEnabled();
-  const singleDownloadForced = forcesSingleDownload(totalSize);
-  const retentionChoices = retentionChoicesFor(totalSize, { adsEnabled: showAdCost });
-  const longestChoice = retentionChoices.length > 0 ? retentionChoices[retentionChoices.length - 1] : 1;
-  // Adding a big file to the pile can put the chosen window out of reach.
-  // Derived rather than corrected in an effect, so the menu can never render a
-  // value it doesn't contain.
-  const expiryHours = retentionChoices.includes(linkExpiryHours) ? linkExpiryHours : longestChoice;
   const totalSent = [...progress.values()].reduce((sum, p) => sum + p.sent, 0);
 
   if (status === "idle") {
@@ -208,144 +118,6 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     );
   }
 
-  if (mode === "link") {
-    return (
-      <div className="flex flex-col items-center gap-6">
-        {linkStatus === "configuring" && (
-          <div className="flex w-full max-w-sm flex-col gap-5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-soft">
-              Optional protections
-            </p>
-            {files.length > 1 && (
-              <div className="flex flex-col gap-2 border-l-2 border-accent pl-3 text-sm text-ink-soft">
-                <label className="flex items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={linkZipFiles}
-                    onChange={(e) => setLinkZipFiles(e.target.checked)}
-                    className="h-4 w-4 accent-[var(--accent)]"
-                  />
-                  Bundle these {files.length} files into one .zip
-                </label>
-                {!linkZipFiles && (
-                  <p className="text-xs">
-                    A shareable link needs a single file — check the box above to bundle them, or go back and send
-                    them one at a time via a code instead.
-                  </p>
-                )}
-              </div>
-            )}
-            <label className="flex flex-col gap-1.5 text-sm text-ink-soft">
-              Password (optional)
-              <input
-                type="password"
-                value={linkPassword}
-                onChange={(e) => setLinkPassword(e.target.value)}
-                placeholder="Leave blank for no password"
-                className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none placeholder:text-ink-soft/70 focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm text-ink-soft">
-              Link expires after
-              <select
-                value={expiryHours}
-                onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
-                className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none focus:border-accent"
-              >
-                {retentionChoices.map((h) => {
-                  const slots = planFor("link-upload", { bytes: totalSize, hours: h }).slots;
-                  return (
-                    <option key={h} value={h}>
-                      {retentionLabel(h)}
-                      {showAdCost ? ` · ${slots} ad${slots === 1 ? "" : "s"}` : ""}
-                    </option>
-                  );
-                })}
-              </select>
-              <span className="text-xs">
-                {showAdCost
-                  ? `Storing a file is the only part of ShareFilesFree that costs us money, and it costs more for
-                     every hour it sits there — so a longer window is a couple more ads, and a big file reaches that
-                     point sooner. Sending with a code instead is free, unlimited, and instant.`
-                  : longestChoice < 168
-                    ? `A file this size can be kept for ${retentionLabel(longestChoice)}. Storing it is the only part
-                       of ShareFilesFree that costs us money, and a big file costs more for every hour it sits there —
-                       so the bigger it is, the shorter the window.`
-                    : ""}
-              </span>
-            </label>
-            <label className="flex items-center gap-2.5 text-sm text-ink-soft">
-              <input
-                type="checkbox"
-                checked={linkBurnAfterDownload || singleDownloadForced}
-                disabled={singleDownloadForced}
-                onChange={(e) => setLinkBurnAfterDownload(e.target.checked)}
-                className="h-4 w-4 accent-[var(--accent)]"
-              />
-              Delete after first download
-            </label>
-            {singleDownloadForced && (
-              // Stated plainly rather than quietly overridden on the server.
-              <p className="border-l-2 border-accent pl-3 text-xs text-ink-soft">
-                Files this big are always one-time links — the first download collects it and the link dies. It keeps
-                the big-file path useful for sending someone a video, and useless for handing the same file to a
-                thousand strangers. To share something with several people, send it with a code, or keep it under
-                2GB.
-              </p>
-            )}
-            {retentionChoices.length === 0 && (
-              // Caught before the ad rather than after it: nobody should sit
-              // through a countdown only to be told the file was never eligible.
-              <p className="bg-red px-4 py-3 text-[14px] font-semibold leading-[1.45] text-y-pale">
-                {formatBytes(totalSize)} is past what a shareable link can hold. Send it with a code instead — that
-                path goes straight to the other device and has no size limit at all.
-              </p>
-            )}
-            {gate === "link" ? (
-              // Priced on bytes x retention, so the ad load matches what
-              // holding this file actually costs — see lib/ads.ts.
-              <AdGate
-                purpose="link-upload"
-                bytes={totalSize}
-                hours={expiryHours}
-                waitingFor="Your link"
-                onPass={(receipt) => {
-                  setGate(null);
-                  void createLink(receipt);
-                }}
-                onCancel={() => setGate(null)}
-              />
-            ) : (
-              <Button
-                onClick={() => setGate("link")}
-                disabled={(files.length > 1 && !linkZipFiles) || retentionChoices.length === 0}
-                className="self-start"
-              >
-                Create link
-              </Button>
-            )}
-          </div>
-        )}
-        {linkStatus === "uploading" && (
-          <>
-            <p className="text-sm font-medium text-foreground">Uploading so the link works anytime…</p>
-            <div className="w-full max-w-md">
-              <ProgressBar fraction={linkProgress.total ? linkProgress.loaded / linkProgress.total : 0} />
-              <p className="mt-2 text-center text-sm text-muted">
-                {formatBytes(linkProgress.loaded)} / {formatBytes(linkProgress.total)}
-              </p>
-            </div>
-          </>
-        )}
-        {linkStatus === "error" && <p className="text-sm text-danger">{linkError}</p>}
-        {linkStatus === "ready" && linkResult && <LinkShare token={linkResult.token} expiresAt={linkResult.expiresAt} />}
-        <Button variant="ghost" onClick={reset}>
-          {linkStatus === "ready" ? "Send another file" : "Cancel"}
-        </Button>
-      </div>
-    );
-  }
-
   if (status === "done") {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
@@ -376,15 +148,19 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           </p>
         </div>
       )}
+      {/* The one thing a sender needs to know here, and the thing that
+          replaced the upload fallback: the file is waiting on THIS device, so
+          the tab has to stay open. An hour is what the code is good for. */}
+      {status === "waiting-for-peer" && (
+        <p className="max-w-md bg-y-max px-4 py-3 text-center text-[13px] font-semibold leading-[1.45] text-black">
+          Keep this page open — your file is waiting here, not on a server. The code works for the next hour.
+        </p>
+      )}
+
       {/* The sender waits here for as long as it takes the other person to
           type six digits — dead time that already existed, so filling it costs
           nobody a second they weren't already spending. */}
       {status === "waiting-for-peer" && <AdSlot slotId="send-waiting" format="rectangle" className="my-2" />}
-      {showLinkOffer && status === "waiting-for-peer" && (
-        <Button variant="ghost" onClick={switchToLinkFallback} className="text-accent hover:text-accent-hover">
-          Receiver not online? Get a shareable link instead
-        </Button>
-      )}
       <Button variant="ghost" onClick={reset}>
         Cancel
       </Button>

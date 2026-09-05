@@ -15,7 +15,7 @@ Cloudflare (DNS + proxy, all records orange/proxied)
  ├─ www.sharefilesfree.com      → 301 redirect to the apex
  └─ signal.sharefilesfree.com   → Hostinger VPS 62.72.29.23 : Caddy → localhost:8080 (signaling)
 
-Cloudflare R2          → NOT YET CONFIGURED (link fallback disabled)
+Cloudflare R2          → NONE. This service stores no files (see below)
 Cloudflare Realtime TURN → LIVE (relay allocating; verified 5 Sep 2026)
 ```
 
@@ -58,7 +58,7 @@ Hostinger's browser console. **Do not lose it.**
 |---|---|
 | `/home/sendfilesfree/sendfilesfree` | The git checkout, owned by `sendfilesfree` |
 | `/home/sendfilesfree/sendfilesfree/.env.production` | **Build-time** `NEXT_PUBLIC_*` values. Gitignored. Changing one requires a rebuild, not a restart. |
-| `/etc/sharefilesfree.env` | **Runtime** secrets (R2, TURN). Root-owned, `chmod 600`. Read by systemd before it drops privileges, so the app user never needs read access. |
+| `/etc/sharefilesfree.env` | **Runtime** secrets (TURN, and the AdSense client id when ads go live). Root-owned, `chmod 600`. Read by systemd before it drops privileges, so the app user never needs read access. |
 | `/etc/caddy/Caddyfile` | From `deploy/Caddyfile.example` |
 | `/etc/default/caddy` | Holds `CF_API_TOKEN`. Root-owned, `chmod 600`. |
 | `/etc/systemd/system/sharefilesfree.service` | From `deploy/app.service` |
@@ -69,95 +69,18 @@ Hostinger's browser console. **Do not lose it.**
 
 ---
 
-## Still outstanding
 
-### ~~1. Cloudflare TURN~~ — done, 5 September 2026
+## Storage: deliberately none
 
-`CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_API_TOKEN` are set in
-`/etc/sharefilesfree.env`. Runtime secrets, not `NEXT_PUBLIC_*`, so a restart
-applies them — no rebuild. Free up to 1,000 GB/month, and only relayed traffic
-counts against it.
+There is no R2 bucket, no upload endpoint, and no storage step in this deploy.
+Files pass browser to browser and are never held anywhere, which is why this
+runbook has no bucket to create, no lifecycle rule to configure, and no CORS
+policy to get wrong.
 
-**Verify it, don't assume it.** `/api/turn-credentials` is written to fail soft:
-a missing variable, a wrong token and a Cloudflare outage all return the same
-`{"turnConfigured": false}`, and the browser silently drops to STUN-only. A
-broken relay is invisible from the site itself, because most networks connect
-directly anyway and never need it.
-
-```bash
-curl -s https://sharefilesfree.com/api/turn-credentials    # expect turnConfigured: true
-```
-
-That only proves credentials are being issued. To prove the relay actually
-allocates, open a `RTCPeerConnection` with `iceTransportPolicy: "relay"` — which
-discards host and srflx candidates — and gather. Any candidate that survives came
-from the TURN server. Measured 5 Sep 2026: 8 relay candidates on Cloudflare's
-`104.30.0.0/16` edge, over UDP.
-
-**Rotating the key:** create the new key first, swap both values, restart, confirm
-`true`, and only then delete the old key in the dashboard — that order has no
-window where neither works.
-
-```bash
-sed -i '/^CLOUDFLARE_TURN_KEY_ID=/d;/^CLOUDFLARE_TURN_API_TOKEN=/d' /etc/sharefilesfree.env
-cat >> /etc/sharefilesfree.env <<'EOF'
-CLOUDFLARE_TURN_KEY_ID=...
-CLOUDFLARE_TURN_API_TOKEN=...
-EOF
-systemctl restart sharefilesfree
-```
-
-Two traps, both hit for real during setup. **No space after the `=`.** And don't
-paste an `ssh` line and the commands meant for the far end as one block — every
-line after `ssh` becomes its *stdin*, so on a first connection the host-fingerprint
-prompt eats the next line as its answer and nothing runs on the server.
-
-### 2. Cloudflare R2 — the "receiver isn't online" link fallback
-
-Until this is set, `isR2Configured()` returns false and only the P2P path is
-offered. The app works without it.
-
-1. Cloudflare → **R2 → Create bucket**, e.g. `sendfilesfree-uploads`.
-2. **R2 → Manage API tokens → Create API token**, permission **Object Read & Write**,
-   scoped to that bucket. Save the Access Key ID and Secret Access Key (shown once).
-   Your Account ID is on the R2 overview page.
-3. Bucket → **Settings → Object lifecycle rules** → delete objects after **7 days**.
-   Seven days is the longest window the retention ladder grants any file (see
-   the README's "Link size and retention"); anything shorter would delete files
-   before their stated expiry. **Don't skip it** — without it expired files sit
-   in the bucket forever and quietly cost money.
-4. Bucket → **Settings → CORS Policy** → allow `PUT` from
-   `https://sharefilesfree.com` with `ExposeHeaders: ["ETag"]`. Required for
-   files over 10 MB, which use multipart upload and need the browser to read back
-   each part's ETag. Exact JSON is in the README. **Never tested against a live
-   bucket** — verify large-file upload after configuring.
-5. Add to `/etc/sharefilesfree.env`, then `systemctl restart sharefilesfree`:
-   ```
-   R2_ACCOUNT_ID=...
-   R2_ACCESS_KEY_ID=...
-   R2_SECRET_ACCESS_KEY=...
-   R2_BUCKET_NAME=sendfilesfree-uploads
-   ```
-   `MAX_UPLOAD_BYTES` and `UPLOAD_EXPIRY_HOURS` are both optional — leave them
-   unset and the retention ladder decides (up to 50GB, kept for less the bigger
-   it is). Set `MAX_UPLOAD_BYTES` only to make the ceiling *smaller* than that.
-
-> **Before enabling R2, read this.** The link path currently uploads the
-> **plaintext file**. The optional password in `src/lib/r2.ts` gates the download
-> URL; it encrypts nothing. Cloudflare will hold readable copies of every file
-> that takes this path. The fix is client-side AES-GCM encryption with the key in
-> the URL fragment (fragments are never sent to a server). Until that ships, the
-> "your files never leave your device" claim is true of the P2P path only.
-
-### 3. Content-Security-Policy
-
-`next.config.ts` still ships no CSP. The blocker is that `tesseract.js` fetches
-its wasm core from `cdn.jsdelivr.net` at runtime, so any strict `script-src`
-breaks OCR. Self-host `tesseract.js-core` and the tessdata files first, then add
-the CSP — signaling is same-origin-ish through Cloudflare, so `connect-src` is
-tractable now.
-
----
+If storage is ever added back — see the README's "No storage, on purpose" for
+what that would mean legally — the full implementation is in git history on
+branch `ads-and-storage-policy` through commit `7ae4989`. Register a company
+before deploying it.
 
 ## Deploying an update
 
@@ -278,8 +201,9 @@ anyone can then DDoS or port-scan the box straight past Cloudflare. Measured on
 `ilovepdf.com` are all fully proxied.
 
 Proxied gives you a hidden origin, DDoS absorption, the free WAF, and asset
-caching at Cloudflare's Mumbai PoP. The cost is that Cloudflare terminates TLS —
-already true in practice, since R2 is intended to hold the files themselves.
+caching at Cloudflare's Mumbai PoP. The cost is that Cloudflare terminates TLS,
+which is worth weighing but costs less here than it would elsewhere: no file
+bytes ever cross this origin, only the page and the signaling handshake.
 
 Certificates therefore use **DNS-01**, which proves domain control via a TXT
 record and works fine behind the proxy. That needs the `caddy-dns/cloudflare`
