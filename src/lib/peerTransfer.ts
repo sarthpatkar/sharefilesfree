@@ -44,16 +44,33 @@ export interface PeerTransferCallbacks {
   onError?: (message: string) => void;
 }
 
-// 16KB keeps us well under the ~256KB per-message ceiling some browsers/OSes
-// still enforce on RTCDataChannel, and is the widely-recommended safe chunk
-// size for cross-browser compatibility.
-const CHUNK_SIZE = 16 * 1024;
+// Chunk size is negotiated, not guessed. SCTP tells us the real per-message
+// ceiling for this pair via pc.sctp.maxMessageSize (Chrome reports 256KB,
+// Firefox far more); 16KB was the safe floor for browsers that don't. Sending
+// 16KB messages when 256KB are allowed costs 16x the message count, and each
+// message carries its own SCTP overhead and event-loop turn — which is most of
+// why a 29MB file crawled.
+const CHUNK_FLOOR = 16 * 1024;
+const CHUNK_CEILING = 256 * 1024;
+
+// The file is read in slices this large and then sent as chunks carved out of
+// that one buffer. Previously every single 16KB chunk cost its own
+// Blob.slice().arrayBuffer() — roughly 1,850 async disk reads for a 29MB file,
+// which dominated the transfer time. Now that's 8 reads.
+const READ_SLICE_SIZE = 4 * 1024 * 1024;
 
 // Stop reading more chunks once the channel's send buffer backs up past
 // this many bytes, and resume once it drains below it. Without this a fast
 // sender can balloon browser memory / overwhelm a TURN relay.
-const BUFFERED_AMOUNT_HIGH_WATERMARK = 4 * 1024 * 1024; // 4MB
-const BUFFERED_AMOUNT_LOW_WATERMARK = 1 * 1024 * 1024; // 1MB
+const BUFFERED_AMOUNT_HIGH_WATERMARK = 8 * 1024 * 1024; // 8MB
+const BUFFERED_AMOUNT_LOW_WATERMARK = 2 * 1024 * 1024; // 2MB
+
+// Progress used to fire once per chunk — ~1,850 React state updates for a
+// 29MB file, each one a re-render competing with the transfer for the main
+// thread. The UI cannot show more than a few updates a second anyway.
+const PROGRESS_INTERVAL_MS = 60;
+
+import { sanitizeFilename } from "./sanitize";
 
 // TURN credentials are fetched fresh per session from our own API rather
 // than baked into the client bundle — see /api/turn-credentials for why a
@@ -109,6 +126,8 @@ export class PeerTransfer {
   private roomCode: string | null = null;
   private connectAttempt = 0;
   private closedByUser = false;
+  /** Timestamp of the last progress callback — see emitProgress. */
+  private lastProgressAt = 0;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -268,7 +287,17 @@ export class PeerTransfer {
     if (typeof data === "string") {
       const msg: ControlMessage = JSON.parse(data);
       if (msg.type === "file-start") {
-        this.incoming.set(msg.id, { name: msg.name, size: msg.size, mime: msg.mime, received: 0, chunks: [] });
+        // Everything in this message came from the peer, so none of it is
+        // trusted. The name is sanitized before it ever reaches a download
+        // attribute, and the size is clamped — it is used below as a hard
+        // ceiling on how much we will buffer for this file.
+        this.incoming.set(msg.id, {
+          name: sanitizeFilename(String(msg.name ?? "file")),
+          size: Math.max(0, Number(msg.size) || 0),
+          mime: typeof msg.mime === "string" ? msg.mime.slice(0, 255) : "application/octet-stream",
+          received: 0,
+          chunks: [],
+        });
         this.callbacks.onStatus?.("transferring");
       } else if (msg.type === "file-end") {
         const entry = this.incoming.get(msg.id);
@@ -288,9 +317,33 @@ export class PeerTransfer {
     const active = [...this.incoming.entries()].pop();
     if (!active) return;
     const [id, entry] = active;
+
+    // A peer that keeps sending past the size it declared is not a peer with a
+    // bug, it is a peer trying to exhaust this tab's memory — we buffer every
+    // chunk until the file completes, so without this the sender chooses how
+    // much RAM the receiver spends. Stop the transfer instead.
+    if (entry.received + data.byteLength > entry.size) {
+      this.callbacks.onError?.("The sender sent more data than it declared. Transfer stopped.");
+      this.close();
+      return;
+    }
+
     entry.chunks.push(data);
     entry.received += data.byteLength;
-    this.callbacks.onProgress?.({ id, name: entry.name, size: entry.size, sent: entry.received });
+    this.emitProgress({ id, name: entry.name, size: entry.size, sent: entry.received }, entry.received === entry.size);
+  }
+
+  /**
+   * Progress is throttled rather than emitted per chunk. Every call here is a
+   * React state update on the other side of the callback; at one per 16KB chunk
+   * a 29MB file queued ~1,850 re-renders that competed with the transfer itself
+   * for the main thread. Always emits the final value so the bar lands on 100%.
+   */
+  private emitProgress(progress: FileProgress, force = false) {
+    const now = Date.now();
+    if (!force && now - this.lastProgressAt < PROGRESS_INTERVAL_MS) return;
+    this.lastProgressAt = now;
+    this.callbacks.onProgress?.(progress);
   }
 
   /** Sender: stream one or more files over the open data channel, one at a time. */
@@ -306,21 +359,46 @@ export class PeerTransfer {
         JSON.stringify({ type: "file-start", id, name: file.name, size: file.size, mime: file.type } satisfies ControlMessage),
       );
 
+      const chunkSize = this.chunkSize();
       let offset = 0;
       while (offset < file.size) {
-        await this.waitForBufferedAmountLow();
-        const slice = file.slice(offset, offset + CHUNK_SIZE);
-        const buffer = await slice.arrayBuffer();
-        this.channel.send(buffer);
-        offset += buffer.byteLength;
-        this.callbacks.onProgress?.({ id, name: file.name, size: file.size, sent: offset });
+        // One read per 4MB, not one per chunk. The chunks below are views into
+        // this buffer rather than copies of it, so carving it up costs nothing.
+        const sliceEnd = Math.min(offset + READ_SLICE_SIZE, file.size);
+        const buffer = await file.slice(offset, sliceEnd).arrayBuffer();
+
+        let position = 0;
+        while (position < buffer.byteLength) {
+          await this.waitForBufferedAmountLow();
+          if (this.channel.readyState !== "open") return;
+          const length = Math.min(chunkSize, buffer.byteLength - position);
+          this.channel.send(new Uint8Array(buffer, position, length));
+          position += length;
+          this.emitProgress({ id, name: file.name, size: file.size, sent: offset + position });
+        }
+
+        offset = sliceEnd;
       }
+      this.emitProgress({ id, name: file.name, size: file.size, sent: file.size }, true);
 
       this.channel.send(JSON.stringify({ type: "file-end", id } satisfies ControlMessage));
     }
 
     this.channel.send(JSON.stringify({ type: "batch-end" } satisfies ControlMessage));
     this.callbacks.onStatus?.("done");
+  }
+
+  /**
+   * The largest message this pair actually agreed to carry. SCTP negotiates it
+   * and exposes it on pc.sctp.maxMessageSize; browsers that don't report it get
+   * the conservative 16KB floor that used to be hardcoded for everyone. Capped
+   * at 256KB because beyond that some stacks fragment anyway and a single
+   * failed send costs more than the extra throughput wins.
+   */
+  private chunkSize(): number {
+    const max = this.pc?.sctp?.maxMessageSize;
+    if (typeof max !== "number" || !Number.isFinite(max) || max <= 0) return CHUNK_FLOOR;
+    return Math.max(CHUNK_FLOOR, Math.min(CHUNK_CEILING, Math.floor(max)));
   }
 
   private waitForBufferedAmountLow(): Promise<void> {

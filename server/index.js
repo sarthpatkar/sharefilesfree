@@ -82,7 +82,10 @@ function cleanupRoomsFor(ws) {
   }
 }
 
-// Periodic sweep of stale, never-joined rooms.
+// Periodic sweep of stale, never-joined rooms — and of the rate-limit
+// buckets, which are keyed by IP and were never removed. Rooms expire, so the
+// rooms map stays bounded; the bucket map only ever grew, which on a
+// long-running process is an unbounded allocation an anonymous caller controls.
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms.entries()) {
@@ -90,6 +93,14 @@ setInterval(() => {
       send(room.sender, { type: "room-expired" });
       rooms.delete(code);
     }
+  }
+
+  // A bucket is dead once its window has passed — the next request from that
+  // IP would start a fresh one anyway. Both windows are a minute, so anything
+  // older than that is safe to drop.
+  const bucketMaxAge = Math.max(ROOM_CREATE_WINDOW_MS, JOIN_ATTEMPT_WINDOW_MS);
+  for (const [key, bucket] of rateLimitBuckets.entries()) {
+    if (now - bucket.windowStart > bucketMaxAge) rateLimitBuckets.delete(key);
   }
 }, 30 * 1000).unref();
 

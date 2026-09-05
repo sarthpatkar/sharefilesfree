@@ -10,13 +10,9 @@ export const metadata: Metadata = {
     "Enter the 6-digit code from the sender to receive a file directly in your browser. No account, no app install, no waiting on an upload.",
 };
 
-export default async function ReceivePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ code?: string }>;
-}) {
-  const { code } = await searchParams;
-
+export default async function ReceivePage() {
+  // No searchParams: the code arrives in the URL fragment, which never reaches
+  // the server, so ReceivePanel reads it on the client instead.
   return (
     <>
       <SiteHeader />
@@ -53,7 +49,7 @@ export default async function ReceivePage({
               className="sff-enter mt-14 pt-12 lg:col-span-7 lg:mt-0-0 lg:pl-16 lg:pt-0"
               style={{ "--i": 5 } as React.CSSProperties}
             >
-              <ReceivePanel initialCode={code} />
+              <ReceivePanel />
             </div>
           </div>
         </div>

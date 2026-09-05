@@ -13,7 +13,11 @@ export function CodeDisplay({ code }: { code: string }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const link = typeof window !== "undefined" ? `${window.location.origin}/receive?code=${code}` : "";
+  // The code goes in the fragment, not a query string. A fragment is never put
+  // on the wire — it doesn't reach our server, Caddy's access log, or
+  // Cloudflare's edge, and it isn't sent in a Referer header if the receiver
+  // clicks an outbound link. As ?code= it was written to every one of those.
+  const link = typeof window !== "undefined" ? `${window.location.origin}/receive#${code}` : "";
 
   useEffect(() => {
     let cancelled = false;
