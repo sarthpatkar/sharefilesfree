@@ -3,8 +3,10 @@ import {
   ABSOLUTE_MAX_HOURS,
   clampRetentionHours,
   MAX_LINK_BYTES,
+  forcesSingleDownload,
   maxPurchasableHours,
   maxRetentionHoursFor,
+  SINGLE_DOWNLOAD_ABOVE_BYTES,
   retentionChoicesFor,
   retentionLabel,
 } from "./retention";
@@ -130,5 +132,27 @@ describe("buying a longer window with ads", () => {
 
   it("still refuses a window past what even the maximum ads would cover", () => {
     expect(clampRetentionHours(168, 50 * GB, { adsEnabled: true })).toBeLessThan(168);
+  });
+});
+
+describe("one-time links for big files", () => {
+  it("leaves ordinary shares alone", () => {
+    expect(forcesSingleDownload(50 * 1024 * 1024)).toBe(false);
+    expect(forcesSingleDownload(SINGLE_DOWNLOAD_ABOVE_BYTES)).toBe(false);
+  });
+
+  it("forces it on everything the ladder calls large", () => {
+    // The control that makes a 50GB ceiling survivable: distribution needs one
+    // file and many downloaders, and a link that dies on first use has none.
+    expect(forcesSingleDownload(SINGLE_DOWNLOAD_ABOVE_BYTES + 1)).toBe(true);
+    expect(forcesSingleDownload(MAX_LINK_BYTES)).toBe(true);
+  });
+
+  it("applies to every file whose window is shorter than the maximum", () => {
+    // The two thresholds are set independently, so this checks they line up:
+    // anything held on a shortened window is also a one-time link.
+    for (const bytes of [3 * GB, 10 * GB, 30 * GB, MAX_LINK_BYTES]) {
+      if (maxRetentionHoursFor(bytes)! < 168) expect(forcesSingleDownload(bytes)).toBe(true);
+    }
   });
 });

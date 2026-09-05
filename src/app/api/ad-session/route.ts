@@ -9,7 +9,7 @@ import { startAdSession } from "@/lib/adGate";
 import type { AdPurpose } from "@/lib/ads";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
 
-const PURPOSES: AdPurpose[] = ["reveal-code", "receive-connect", "link-upload", "link-download"];
+const PURPOSES: AdPurpose[] = ["reveal-code", "receive-connect", "link-upload"];
 
 // Generous: a single visitor legitimately opens one of these per transfer, per
 // tool hand-off, and again on every retry. This is here to stop a script

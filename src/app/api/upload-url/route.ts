@@ -13,8 +13,8 @@ import {
   multipartPlan,
   MULTIPART_THRESHOLD,
 } from "@/lib/r2";
-import { clampRetentionHours, MAX_LINK_BYTES } from "@/lib/retention";
-import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
+import { clampRetentionHours, forcesSingleDownload, MAX_LINK_BYTES } from "@/lib/retention";
+import { isRateLimited, wouldExceedByteBudget, chargeByteBudget, clientIpFromHeaders } from "@/lib/rateLimit";
 import { adsEnabled, consumeAdReceipt } from "@/lib/adGate";
 import { sanitizeFilename } from "@/lib/sanitize";
 
@@ -36,6 +36,13 @@ const DEFAULT_EXPIRY_HOURS = 24;
 // a much lower-frequency action than opening a P2P session.
 const CREATE_LIMIT = 10;
 const CREATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+// And a second limit in the unit that actually matters. Ten uploads an hour was
+// a fine ceiling at a 2GB cap — 20GB, affordable to eat. At the current 50GB
+// ceiling the same ten uploads are half a terabyte an hour from one connection.
+// A real person moving real files never approaches this; a script parking a
+// library hits it within minutes.
+const CREATE_BYTE_BUDGET = 20 * 1024 * 1024 * 1024; // 20GB per IP per hour
 
 export async function POST(request: Request) {
   if (!isR2Configured()) {
@@ -64,6 +71,14 @@ export async function POST(request: Request) {
       { error: `File is too large for link sharing (max ${Math.round(maxBytes / 1024 ** 3)}GB).` },
       { status: 413 },
     );
+  }
+
+  // Checked here but charged only once the request is fully authorised (below),
+  // so a sender whose ad fails to load doesn't spend their own hour's quota on
+  // attempts that never produced an upload URL.
+  const budgetKey = `upload-bytes:${clientIpFromHeaders(request.headers)}`;
+  if (wouldExceedByteBudget(budgetKey, size, CREATE_BYTE_BUDGET, CREATE_WINDOW_MS)) {
+    return NextResponse.json({ error: "That's a lot of data from one connection in an hour. Try again later." }, { status: 429 });
   }
 
   // What a link really buys is TIME, so that's what gets rationed: the bigger
@@ -97,6 +112,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That ad wasn't completed. Try again." }, { status: 402 });
   }
 
+  chargeByteBudget(budgetKey, size, CREATE_WINDOW_MS);
+
   const token = randomBytes(16).toString("hex"); // unguessable — this is the only thing standing between a link and the file
   const { hash, salt } = typeof password === "string" && password.length > 0 ? hashPassword(password) : { hash: undefined, salt: undefined };
 
@@ -109,7 +126,11 @@ export async function POST(request: Request) {
     expiresAt,
     passwordHash: hash,
     passwordSalt: salt,
-    burnAfterDownload: Boolean(burnAfterDownload),
+    // Forced on above a size threshold, not merely defaulted: a large link that
+    // dies on first use is useless for distributing anything, and is still
+    // exactly what a large file is legitimately sent for. See
+    // forcesSingleDownload() for the reasoning.
+    burnAfterDownload: Boolean(burnAfterDownload) || forcesSingleDownload(size),
   });
   // Large files use multipart upload (resumable within the session — a
   // dropped connection only costs the failed part, not the whole transfer)

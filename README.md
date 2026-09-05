@@ -127,6 +127,18 @@ browser makes about itself. Part size scales with the file — a 50GB upload is
 ~1,000 parts of ~52MB rather than 6,400 of 8MB, which keeps it inside
 `/api/upload-part-url`'s rate limit.
 
+**Files over 2GB are always one-time links**, whether or not the sender ticks
+the box. This is the control that makes a 50GB ceiling survivable: distributing
+pirated or malicious material needs one file and many downloaders, and a link
+that dies on first use has none — while remaining exactly right for what large
+files are actually sent for. It costs a legitimate sender nothing and a
+distributor everything.
+
+**Uploads are also rate-limited by gigabytes, not just by count.** Ten uploads
+an hour was a fine ceiling at a 2GB cap; at 50GB the same ten are half a
+terabyte an hour from one connection. `/api/upload-url` now charges each
+authorised upload against a per-IP byte budget (20GB/hour).
+
 **Delete after first download** really deletes: the object and its metadata
 sidecar are removed an hour after the download URL is handed out. The hour is
 grace for a slow connection, since a download that starts inside the URL's
@@ -149,10 +161,20 @@ brings the tool traffic these ads are sold against.
 
 **Gates** (`<AdGate>`) put a few seconds between an action and its result. They
 appear only on the transfer flow (revealing a code, connecting as receiver) and
-the link/R2 path (uploading, downloading). The gate on `/api/upload-url` is
+on uploading to the link path. **Never on the download page** — that is the only
+page showing content we did not write and cannot vet, and running ads beside
+material that turns out to be infringing is a well-worn way to lose an ad
+account, taking the tools' revenue with it. The gate on `/api/upload-url` is
 enforced *server-side* against a one-use receipt that is priced for a specific
 size and retention (`lib/adGate.ts`) — a gate that lived only in the browser
 would be skipped by exactly the people worth gating.
+
+**An ad is never longer than the upload it plays over.** Fifteen seconds during
+a 2GB upload is free — the upload takes minutes and the ad hides inside it. The
+same fifteen seconds on a 5MB file turns a three-second action into a
+fifteen-second one, which manufactures friction rather than filling it. So
+uploads under 5MB are not gated at all, uploads under 50MB get the short ad, and
+only files big enough to hide a rewarded video behind get one.
 
 **Tool pages carry banners only, never a gate.** Nothing stands between a
 visitor and using a tool or saving its result. That's a product rule: the tools

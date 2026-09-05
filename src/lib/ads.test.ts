@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_SLOTS_PER_ACTION, planFor, storageCostUsd } from "./ads";
+import { MAX_SLOTS_PER_ACTION, planFor, storageCostUsd, UNGATED_UPLOAD_BYTES } from "./ads";
 
 const GB = 1024 ** 3;
 
@@ -35,8 +35,31 @@ describe("planFor", () => {
     expect(planFor("link-upload", { bytes: 2 * GB, hours: 168 }).slots).toBe(1);
   });
 
-  it("never asks for less than one ad on the path that costs money", () => {
-    expect(planFor("link-upload", { bytes: 1, hours: 1 }).slots).toBe(1);
+  it("doesn't gate an upload that's over before an ad could play", () => {
+    // The rule the whole ladder answers to: an ad must never be longer than the
+    // upload it plays over. A few megabytes are gone in seconds and cost a
+    // fraction of a cent to keep, so a fifteen-second ad would BE the wait.
+    expect(planFor("link-upload", { bytes: 1, hours: 168 }).slots).toBe(0);
+    expect(planFor("link-upload", { bytes: UNGATED_UPLOAD_BYTES - 1, hours: 168 }).totalMs).toBe(0);
+  });
+
+  it("shortens the ad for a file that uploads in seconds", () => {
+    const small = planFor("link-upload", { bytes: 20 * 1024 * 1024, hours: 168 });
+    expect(small.slots).toBe(1);
+    expect(small.secondsPerSlot).toBe(5);
+  });
+
+  it("uses the full rewarded length once the upload is long enough to hide it", () => {
+    const big = planFor("link-upload", { bytes: 500 * 1024 * 1024, hours: 168 });
+    expect(big.secondsPerSlot).toBe(15);
+  });
+
+  it("never asks a small file for more than one short ad, whatever the window", () => {
+    // Everything below the short-ad threshold costs a fraction of a cent even
+    // at the maximum week, so one ad always covers it many times over.
+    for (const bytes of [6 * 1024 * 1024, 20 * 1024 * 1024, 49 * 1024 * 1024]) {
+      expect(planFor("link-upload", { bytes, hours: 168 }).slots).toBe(1);
+    }
   });
 
   it("asks for more as the file gets more expensive to hold", () => {

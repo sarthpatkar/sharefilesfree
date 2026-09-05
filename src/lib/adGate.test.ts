@@ -94,3 +94,24 @@ describe("ad gate, with no network configured", () => {
     expect(consumeAdReceipt(undefined, { purpose: "link-upload", bytes: GB, hours: 24 })).toBe(true);
   });
 });
+
+describe("actions priced at no ads", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_AD_HOUSE = "1";
+    __resetAdGate();
+  });
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_AD_HOUSE;
+  });
+
+  it("lets a tiny upload through with no receipt at all", () => {
+    // Otherwise the ungated small-file path would start failing with a 402 the
+    // moment ads were switched on.
+    expect(consumeAdReceipt(undefined, { purpose: "link-upload", bytes: 1024, hours: 168 })).toBe(true);
+  });
+
+  it("still refuses a big upload with no receipt", () => {
+    expect(consumeAdReceipt(undefined, { purpose: "link-upload", bytes: GB, hours: 168 })).toBe(false);
+  });
+});

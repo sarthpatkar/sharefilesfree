@@ -5,7 +5,7 @@ import { zipSync } from "fflate";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
 import { uploadFileForLink, type UploadProgress } from "@/lib/linkTransfer";
 import { formatBytes } from "@/lib/format";
-import { retentionChoicesFor, retentionLabel } from "@/lib/retention";
+import { forcesSingleDownload, retentionChoicesFor, retentionLabel } from "@/lib/retention";
 import { planFor } from "@/lib/ads";
 import { adsEnabled } from "./ads/adNetwork";
 import { ProgressBar } from "./ProgressBar";
@@ -157,6 +157,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   // With ads on, the list runs past the window this file comes with, up to the
   // longest one the ads could pay for; the extra hours cost extra ads.
   const showAdCost = adsEnabled();
+  const singleDownloadForced = forcesSingleDownload(totalSize);
   const retentionChoices = retentionChoicesFor(totalSize, { adsEnabled: showAdCost });
   const longestChoice = retentionChoices.length > 0 ? retentionChoices[retentionChoices.length - 1] : 1;
   // Adding a big file to the pile can put the chosen window out of reach.
@@ -276,12 +277,22 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
             <label className="flex items-center gap-2.5 text-sm text-ink-soft">
               <input
                 type="checkbox"
-                checked={linkBurnAfterDownload}
+                checked={linkBurnAfterDownload || singleDownloadForced}
+                disabled={singleDownloadForced}
                 onChange={(e) => setLinkBurnAfterDownload(e.target.checked)}
                 className="h-4 w-4 accent-[var(--accent)]"
               />
               Delete after first download
             </label>
+            {singleDownloadForced && (
+              // Stated plainly rather than quietly overridden on the server.
+              <p className="border-l-2 border-accent pl-3 text-xs text-ink-soft">
+                Files this big are always one-time links — the first download collects it and the link dies. It keeps
+                the big-file path useful for sending someone a video, and useless for handing the same file to a
+                thousand strangers. To share something with several people, send it with a code, or keep it under
+                2GB.
+              </p>
+            )}
             {retentionChoices.length === 0 && (
               // Caught before the ad rather than after it: nobody should sit
               // through a countdown only to be told the file was never eligible.

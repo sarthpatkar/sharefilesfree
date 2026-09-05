@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Sigmar, Outfit } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
-import { AdSlot } from "@/components/ads/AdSlot";
 import "./globals.css";
 
 /**
@@ -47,13 +46,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${outfit.variable} ${sigmar.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        {/* No site-wide ad unit here, deliberately. A slot in the root layout
+            lands on EVERY page including /download/[token], which is the one
+            page that must carry none (see the note on AdPurpose in lib/ads.ts).
+            Ads are placed per page instead, one to a page — which also keeps ad
+            density well under the threshold the Better Ads standards care
+            about. */}
         {children}
-        {/* The site-wide unit. Deliberately in normal flow at the foot of the
-            page rather than fixed to the bottom of the viewport: an oversized
-            sticky ad is a Coalition for Better Ads violation on mobile web,
-            and a violation gets ads blocked across the whole site by Chrome —
-            which would cost far more than the unit earns. */}
-        <AdSlot slotId="site-footer" format="anchor" className="px-5 py-6 sm:px-8" />
         <ServiceWorkerRegister />
       </body>
     </html>

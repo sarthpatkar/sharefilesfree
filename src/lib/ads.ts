@@ -9,12 +9,21 @@
 // watermark, no daily limit") and the tools are the highest-volume, safest ad
 // inventory precisely because they're frictionless.
 
-/** Every action an ad can gate. Anything not on this list is not gateable. */
+/**
+ * Every action an ad can gate. Anything not on this list is not gateable.
+ *
+ * Downloading a shared link is deliberately ABSENT, and should stay absent.
+ * The download page is the only page on the site showing content we did not
+ * write and cannot vet, and running ads beside material that turns out to be
+ * infringing is a well-worn way to lose an ad account — which would take the
+ * tools' revenue with it. Small gain, total loss. It also spares the person
+ * downloading, who is someone else's guest and is meeting the site for the
+ * first time; the sender already paid for that transfer with an ad on upload.
+ */
 export type AdPurpose =
   | "reveal-code" // sender clicks "get a code" -> short ad -> code appears
   | "receive-connect" // receiver clicks connect -> short ad -> transfer starts
-  | "link-upload" // uploading to R2 — the only path that costs real money
-  | "link-download"; // downloading a shared link
+  | "link-upload"; // uploading to R2 — the only path that costs real money
 
 /**
  * Storage on R2, per GB per month. The only per-byte cost in the product —
@@ -80,21 +89,50 @@ export interface AdPlanInput {
 const SECONDS_PER_SLOT: Record<AdPurpose, number> = {
   "reveal-code": 5,
   "receive-connect": 5,
-  "link-upload": 15,
-  "link-download": 5,
+  "link-upload": 15, // the floor for a big upload; small ones are shortened below
 };
 
+/**
+ * Below this, an upload is not gated at all.
+ *
+ * The governing rule for the whole file: AN AD MUST NEVER BE LONGER THAN THE
+ * UPLOAD IT PLAYS OVER. Fifteen seconds during a 2GB upload is free, because
+ * the upload takes minutes and the ad hides inside it. The same fifteen seconds
+ * on a 5MB file turns a three-second action into a fifteen-second one, which is
+ * manufacturing friction rather than filling it — the opposite of the point.
+ *
+ * Nothing is lost by letting these through: a 50MB file kept a full week costs
+ * $0.00017 to store, so a single short ad already covers a hundred of them, and
+ * the sender's own transfer screen carries a slot regardless.
+ */
+export const UNGATED_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** Up to here an upload is quick enough that only the short ad fits over it. */
+const SHORT_AD_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 export function planFor(purpose: AdPurpose, input: AdPlanInput = {}): AdPlan {
-  const secondsPerSlot = SECONDS_PER_SLOT[purpose];
+  let secondsPerSlot = SECONDS_PER_SLOT[purpose];
   let slots = 1;
 
   if (purpose === "link-upload") {
+    const bytes = input.bytes ?? 0;
+
+    // Too quick to hide an ad behind, and too cheap to be worth one.
+    if (bytes < UNGATED_UPLOAD_BYTES) {
+      return { purpose, slots: 0, secondsPerSlot: 0, totalMs: 0 };
+    }
+
     // The one action whose cost to us varies, so the only one whose ad load
     // varies with it. Note this is driven by bytes x time, not bytes alone:
     // a 50GB file kept for six hours is cheaper than a 2GB file kept a week,
     // and the ladder should say so.
-    const cost = storageCostUsd(input.bytes ?? 0, input.hours ?? 24);
+    const cost = storageCostUsd(bytes, input.hours ?? 24);
     slots = Math.min(MAX_SLOTS_PER_ACTION, Math.max(1, Math.ceil(cost / USD_RECOVERED_PER_AD)));
+
+    // A file small enough to upload in seconds gets the short ad. It can never
+    // need more than one: everything under this size costs a fraction of a cent
+    // to hold even for the maximum week, so one short ad covers it many times.
+    if (bytes < SHORT_AD_UPLOAD_BYTES) secondsPerSlot = SECONDS_PER_SLOT["reveal-code"];
   }
 
   return { purpose, slots, secondsPerSlot, totalMs: slots * secondsPerSlot * 1000 };

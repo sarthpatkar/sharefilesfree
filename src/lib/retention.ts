@@ -66,6 +66,28 @@ export function maxRetentionHoursFor(bytes: number, ceilingBytes = MAX_LINK_BYTE
 export const ABSOLUTE_MAX_HOURS = 168;
 
 /**
+ * Above this size, a link is single-download whether or not the sender asked
+ * for it.
+ *
+ * This is the abuse control that makes a 50GB ceiling survivable. Distributing
+ * pirated or malicious material needs ONE file and MANY downloaders; a link
+ * that dies on first use is worthless for that, while remaining exactly right
+ * for what large files are actually sent for — one video to one editor, one
+ * archive to one colleague. It costs a legitimate sender nothing and costs a
+ * distributor everything, which is the shape a good control has.
+ *
+ * Small files stay multi-download: they're the ones people reasonably share
+ * with a group, and at that size the site is no more useful for distribution
+ * than a hundred other places.
+ */
+export const SINGLE_DOWNLOAD_ABOVE_BYTES = 2 * GB;
+
+/** Whether a file of this size is forced to be a one-time link. */
+export function forcesSingleDownload(bytes: number): boolean {
+  return bytes > SINGLE_DOWNLOAD_ABOVE_BYTES;
+}
+
+/**
  * The longest window this file could have if the sender watched the maximum
  * number of ads — derived from what those ads recover rather than picked, so
  * the site can never be talked into storing more than it earns.

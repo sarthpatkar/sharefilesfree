@@ -139,6 +139,13 @@ export interface ReceiptClaim {
  */
 export function consumeAdReceipt(receipt: unknown, claim: ReceiptClaim): boolean {
   if (!adsEnabled()) return true; // nothing to enforce on a deployment with no ads
+
+  // Some actions are priced at no ads at all — a small upload is over before an
+  // ad could play and costs a fraction of a cent to keep. Those must pass
+  // WITHOUT a receipt, or the ungated path would 402 the moment ads went live.
+  const wantedSlots = planFor(claim.purpose, { bytes: claim.bytes ?? 0, hours: claim.hours ?? 24 }).slots;
+  if (wantedSlots === 0) return true;
+
   if (typeof receipt !== "string" || !/^[a-f0-9]{48}$/.test(receipt)) return false;
 
   // A plain Map lookup, deliberately: the token is 24 random bytes, so there
@@ -148,7 +155,6 @@ export function consumeAdReceipt(receipt: unknown, claim: ReceiptClaim): boolean
   if (!found || found.purpose !== claim.purpose) return false;
 
   // The receipt has to cover at least what's now being asked for.
-  const wantedSlots = planFor(claim.purpose, { bytes: claim.bytes ?? 0, hours: claim.hours ?? 24 }).slots;
   const paidSlots = planFor(found.purpose, { bytes: found.bytes + CLAIM_HEADROOM_BYTES, hours: found.hours }).slots;
   if (paidSlots < wantedSlots) return false;
 

@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/lib/format";
 import { Button } from "./Button";
-import { AdGate } from "./ads/AdGate";
-import { adsEnabled } from "./ads/adNetwork";
-import { AdSlot } from "./ads/AdSlot";
 import { IconWarning, IconBlocked, IconLock, IconPackage } from "./icons";
 
 interface FileMeta {
@@ -26,16 +23,6 @@ export function DownloadPanel({ token }: { token: string }) {
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<ReportState>("idle");
-  // Unlike the upload gate, this one is client-side only and deliberately so:
-  // R2 charges nothing for egress, so there is no cost here to protect — only
-  // revenue to earn. Enforcing it server-side would mean withholding the
-  // presigned URL behind a receipt, which buys nothing and adds a way for the
-  // download to fail.
-  // Starts already passed where there are no ads to show, so a deployment
-  // without an ad account keeps the single-click download it has today.
-  const [downloadGate, setDownloadGate] = useState<"idle" | "playing" | "passed">(() =>
-    adsEnabled() ? "idle" : "passed",
-  );
 
   useEffect(() => {
     fetch(`/api/file/${token}`)
@@ -127,27 +114,17 @@ export function DownloadPanel({ token }: { token: string }) {
       <IconPackage className="h-8 w-8 text-accent" />
       <p className="max-w-xs truncate text-lg font-medium text-foreground">{meta.name}</p>
       <p className="text-sm text-muted">{formatBytes(meta.size)}</p>
-      {downloadGate === "playing" ? (
-        <div className="w-full max-w-sm text-left">
-          <AdGate
-            purpose="link-download"
-            waitingFor="Your download"
-            onPass={() => setDownloadGate("passed")}
-            onCancel={() => setDownloadGate("idle")}
-          />
-        </div>
-      ) : downloadGate === "passed" ? (
-        <a
-          href={meta.downloadUrl}
-          className="inline-flex items-center justify-center bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground shadow-[4px_4px_0_var(--ink)] sff-press hover:bg-accent-hover"
-        >
-          Download
-        </a>
-      ) : (
-        <Button onClick={() => setDownloadGate("playing")}>Get this file</Button>
-      )}
-
-      <AdSlot slotId="download-page" format="leaderboard" className="mt-2" />
+      {/* No ad, no gate, and no banner anywhere on this page — see the note on
+          AdPurpose in lib/ads.ts. This is the only page showing content we did
+          not write and cannot vet, and the person reading it is someone else's
+          guest meeting the site for the first time. The sender already paid for
+          this transfer with an ad on upload. */}
+      <a
+        href={meta.downloadUrl}
+        className="inline-flex items-center justify-center bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground shadow-[4px_4px_0_var(--ink)] sff-press hover:bg-accent-hover"
+      >
+        Download
+      </a>
 
       {reportState === "idle" && (
         <button type="button" onClick={() => setReportState("confirming")} className="text-xs text-muted hover:text-foreground hover:underline">
