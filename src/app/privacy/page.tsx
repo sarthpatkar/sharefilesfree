@@ -41,8 +41,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "The one thing we log",
     body: (
-      <p>
-        <>
+      <>
         <p>
           One thing: your IP address, held in server memory and counted against rate limits — how many codes one
           connection has asked for in the last minute, and how many wrong codes it has guessed. That is what stops
@@ -59,8 +58,7 @@ const SECTIONS: LegalSection[] = [
           personal data we have. There are no accounts, no email addresses, no files, no filenames and no transfer
           history — not because we delete them, but because the way this service is built means they never exist.
         </p>
-        </>
-      </p>
+      </>
     ),
   },
   {
@@ -93,6 +91,27 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    heading: "Your file does not cross a border",
+    body: (
+      <>
+        <p>
+          Worth stating plainly for anyone sending between countries: your file is not uploaded to a datacentre in
+          one country and downloaded from another. It travels from the sending device to the receiving device. If
+          you are in Tokyo sending to London, the file goes Tokyo to London — it does not stop anywhere in between,
+          and it is not copied into anyone&rsquo;s storage on the way.
+        </p>
+        <p>
+          The one exception is a network that refuses a direct connection, in which case the encrypted stream is
+          relayed through Cloudflare&rsquo;s infrastructure to get past it. Relayed or not, the contents stay
+          encrypted end to end, nothing is written to disk, and we never hold a key or a copy.
+        </p>
+        <p>
+          So there is no data-residency question to answer here. There is no residency: nothing comes to rest.
+        </p>
+      </>
+    ),
+  },
+  {
     heading: "Wherever you're reading this from",
     body: (
       <>
@@ -108,6 +127,11 @@ const SECTIONS: LegalSection[] = [
             contact page
           </Link>
           .
+        </p>
+        <p>
+          If you are somewhere else again — the United States, Japan, Australia, anywhere — the practical answer is
+          the same everywhere, because it comes from how the service is built rather than from which rulebook we are
+          reading. We hold one thing, briefly, and the contact route above is open to you on the same terms.
         </p>
         <p>
           If you are in the UK or the European Economic Area, the GDPR applies to us in respect of your data. Our

@@ -41,6 +41,11 @@ const SECTIONS: LegalSection[] = [
           devices to each other and then has nothing further to do with the transfer.
         </p>
         <p>
+          It also means distance stops mattering. A file sent from Tokyo to London goes from the one device to the
+          other — it is not uploaded to a datacentre in a third country and downloaded back out. There is no
+          data-residency question to answer, because nothing comes to rest anywhere.
+        </p>
+        <p>
           That decision costs something and we would rather say so than bury it: <strong>both devices have to be
           open at the same time.</strong> If you close the page, the transfer stops, because your file was waiting on
           your own machine the whole time. Nothing is held for later collection.
