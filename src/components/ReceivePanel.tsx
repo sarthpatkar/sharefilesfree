@@ -227,9 +227,14 @@ export function ReceivePanel() {
         }}
         className="flex flex-col gap-6"
       >
-        <label htmlFor="code-input" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
-          Enter the 6-digit code from the sender
-        </label>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="code-input" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
+            Enter the 6-digit code from the sender
+          </label>
+          <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
+            It&apos;s on their screen right now. A code works for ten minutes, then the sender needs a new one.
+          </p>
+        </div>
         {/* Display-scale, underlined rather than boxed — this is the single
             most important control on the page, so it's sized like it. */}
         <input
@@ -256,8 +261,8 @@ export function ReceivePanel() {
             differently depending on what the device can actually do. */}
         <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
           {canPickFolder
-            ? "You'll be asked where to save. Files are written straight into that folder as they arrive, so their size doesn't matter."
-            : "Files are held in this browser until you save them, so very large ones depend on the space your browser will give this page."}
+            ? "Press Connect and you'll be asked where to save. Files go straight into the folder you pick, however big they are. Keep this page open until they arrive."
+            : "Press Connect to start. Files come into this browser, and you save each one when it lands. Keep this page open until they arrive."}
         </p>
       </form>
     );

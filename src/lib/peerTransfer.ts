@@ -179,6 +179,15 @@ export class PeerTransfer {
   private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
   /** Chosen by the receiver before connecting — see setSaveDirectory. */
   private saveDir: SffDirectoryHandle | null = null;
+  /**
+   * Set whenever WE close the signaling socket, so onclose can tell a deliberate
+   * shutdown from a dropped connection. It used to infer that from "is the data
+   * channel still open?", which was only ever true because the socket was closed
+   * the instant the channel opened. Once the close moved later — to let ICE
+   * finish trickling — a finished transfer looked exactly like a dropped one,
+   * and the sender was told the connection died right after it succeeded.
+   */
+  private signalingClosedByUs = false;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -237,7 +246,7 @@ export class PeerTransfer {
     };
 
     ws.onclose = () => {
-      if (this.closedByUser) return;
+      if (this.closedByUser || this.signalingClosedByUs) return;
       if (opened) {
         if (this.channel?.readyState !== "open") {
           this.callbacks.onError?.("Signaling connection closed unexpectedly.");
@@ -611,6 +620,7 @@ export class PeerTransfer {
         clearTimeout(this.signalingCloseTimer);
         this.signalingCloseTimer = null;
       }
+      this.signalingClosedByUs = true;
       this.ws?.close();
     };
 
@@ -639,6 +649,7 @@ export class PeerTransfer {
       clearTimeout(this.signalingCloseTimer);
       this.signalingCloseTimer = null;
     }
+    this.signalingClosedByUs = true;
     this.closedByUser = true; // suppress any in-flight retry from firing after a deliberate close
     this.channel?.close();
     this.pc?.close();

@@ -32,9 +32,18 @@ export function CodeDisplay({ code }: { code: string }) {
 
   return (
     <div className="flex w-full flex-col items-center gap-7">
-      <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-red">
-        Share this code with the receiver
-      </p>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
+          Read this out, or send the link
+        </p>
+        {/* The failure mode nobody expects the first time: the file travels
+            between the two browsers, so closing this page stops the transfer
+            the way unplugging a cable would. Worth saying before it happens. */}
+        <p className="max-w-xs text-center text-[13px] font-medium leading-[1.5] text-black opacity-55">
+          They type it in at sharefilesfree.com. Leave this page open until the transfer finishes — the file goes
+          from here to them, so closing it stops it.
+        </p>
+      </div>
 
       {/* Six ruled cells — reads as a code to be transcribed, not as a label. */}
       <div className="flex" role="text" aria-label={`Code ${code.split("").join(" ")}`}>
