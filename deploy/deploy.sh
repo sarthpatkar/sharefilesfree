@@ -127,6 +127,18 @@ log "Installing dependencies"
 as_app npm ci --no-audit --no-fund
 
 # --- build, out of the way of the running server --------------------------
+# Next generates route types into <dist>/types, and tsconfig.json ends up
+# including every dist directory this project has ever built into. So the
+# incoming build type-checks against the PREVIOUS build's validator too — and
+# that validator still imports the routes this deploy deletes. The first deploy
+# to remove a route failed here with a wall of TS2307s about files that were
+# meant to be gone.
+#
+# Nothing serves these; they exist only for tsc. Clearing them before the build
+# is safe, and it is what makes removing a route deployable at all.
+log "Clearing stale generated route types"
+as_app rm -rf "$LIVE_DIR/types" "$LIVE_DIR/dev" "$PREV_DIR/types" || true
+
 log "Building into $BUILD_DIR (the live build keeps serving throughout)"
 as_app rm -rf "$BUILD_DIR"
 as_app env NEXT_DIST_DIR="$BUILD_DIR" npm run build

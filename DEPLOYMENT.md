@@ -86,6 +86,28 @@ before deploying it.
 
 ```bash
 ssh -i ~/.ssh/sharefilesfree_deploy root@62.72.29.23
+sff-deploy
+```
+
+That is the whole thing. `sff-deploy` fetches, fast-forwards, builds into a
+separate directory so the live build keeps serving throughout, swaps it in with
+a rename, restarts, health-checks, and rolls back by itself if the new build
+does not answer. It restarts the signaling server only when `server/` changed,
+since that drops any transfer mid-handshake.
+
+`sff-deploy --force` rebuilds even when nothing changed; `sff-deploy --rollback`
+puts the previous build back.
+
+**When you change `deploy/deploy.sh` in the repo, the server does not pick it
+up** — the installed copy is a separate file. Reinstall it:
+
+```bash
+install -m 755 /home/sendfilesfree/sendfilesfree/deploy/deploy.sh /usr/local/bin/sff-deploy
+```
+
+<details><summary>The manual sequence it replaced, for reference</summary>
+
+```bash
 cd /home/sendfilesfree/sendfilesfree
 sudo -u sendfilesfree git pull
 sudo -u sendfilesfree npm ci --no-audit --no-fund
@@ -94,6 +116,11 @@ systemctl restart sharefilesfree
 # only if server/ changed:
 systemctl restart signaling
 ```
+
+Both windows this leaves open — a half-written build being served, and a
+restart with nothing to catch it — are what `sff-deploy` exists to close.
+
+</details>
 
 Building on the box is fine — 4 GB RAM is ample and a full build takes about a
 minute. If you ever move to a 1 GB instance this will OOM; build in CI instead

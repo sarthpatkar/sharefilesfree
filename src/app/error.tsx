@@ -18,7 +18,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
       <button
         type="button"
         onClick={reset}
-        className="inline-flex items-center justify-center bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground shadow-[4px_4px_0_var(--ink)] sff-press hover:bg-accent-hover"
+        className="inline-flex items-center justify-center bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground sff-block-ink sff-press hover:bg-accent-hover"
       >
         Try again
       </button>

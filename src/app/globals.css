@@ -301,6 +301,16 @@ html {
 .sff-block { box-shadow: 4px 4px 0 var(--red); }
 .sff-block-sm { box-shadow: 3px 3px 0 var(--red); }
 
+/* Two more of the same, and the reason they are real classes rather than
+   Tailwind arbitrary values: `shadow-[4px_4px_0_var(--ink)]` generates a
+   malformed selector under Turbopack — the escaped custom-property name in the
+   class name comes out mangled. `next build` reports it as a CSS warning and
+   carries on; `next dev` treats the same output as a parse error and refuses
+   to serve the page at all. Writing them out avoids the escaping entirely. */
+.sff-block-ink { box-shadow: 4px 4px 0 var(--ink); }
+.sff-block-accent { box-shadow: 4px 4px 0 var(--accent); }
+.sff-block-accent-lg { box-shadow: 5px 5px 0 var(--accent); }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 

@@ -25,7 +25,7 @@ export default function NotFound() {
           >
             <Link
               href="/"
-              className="sff-press inline-flex items-center bg-ink px-6 py-3.5 text-[15px] font-medium leading-none text-paper shadow-[5px_5px_0_var(--accent)] hover:bg-accent"
+              className="sff-press inline-flex items-center bg-ink px-6 py-3.5 text-[15px] font-medium leading-none text-paper sff-block-accent-lg hover:bg-accent"
             >
               Back to ShareFilesFree
             </Link>

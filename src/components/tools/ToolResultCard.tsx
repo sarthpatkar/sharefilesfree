@@ -66,7 +66,7 @@ export function ToolResultCard({
           href={url ?? undefined}
           download={file.name}
           aria-disabled={!url}
-          className={`sff-press inline-flex items-center gap-2 bg-ink px-5 py-3 text-sm font-medium leading-none text-paper shadow-[4px_4px_0_var(--accent)] hover:bg-accent ${
+          className={`sff-press inline-flex items-center gap-2 bg-ink px-5 py-3 text-sm font-medium leading-none text-paper sff-block-accent hover:bg-accent ${
             url ? "" : "pointer-events-none opacity-40"
           }`}
         >
