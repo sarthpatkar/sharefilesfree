@@ -86,15 +86,31 @@ export function SiteFooter() {
           </nav>
         </div>
 
-        {/* Colophon. The heart is the icon set's, not an emoji — and it carries
-            the word "love" for a screen reader, which an emoji would read out
-            as "red heart". */}
-        <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em] text-black">
-          <span className="opacity-55">Made with</span>
-          <IconHeart aria-hidden className="mx-1.5 inline-block h-3.5 w-3.5 align-[-2px] text-red" />
-          <span className="sr-only">love</span>
-          <span className="opacity-55">from Sindhudurg, Maharashtra, India</span>
-        </p>
+        {/* Colophon, set as an address block rather than one line: on a single
+            line "Sindhudurg, Maharashtra, India" reads as three places you might
+            have come from, where stacking them makes it one place, narrowing —
+            which is what an address is.
+
+            The explicit {" "} matter. JSX drops whitespace between elements that
+            spans a newline, so the earlier one-line version had no real spaces in
+            it at all — the icon's margin only made it look spaced, while the text
+            content was "Made withlovefrom", which is what a screen reader read
+            out and what you got if you copied it.
+
+            The heart is the icon set's own, not an emoji, and hands the word
+            "love" to assistive tech — an emoji would announce "red heart". */}
+        <address className="mt-6 not-italic text-[11px] font-bold uppercase leading-[1.9] tracking-[0.16em] text-black">
+          <span className="opacity-55">
+            Made with{" "}
+            <IconHeart aria-hidden className="inline-block h-3.5 w-3.5 align-[-2px] text-red" />
+            <span className="sr-only">love</span>{" "}
+            in
+          </span>{" "}
+          <br />
+          <span className="text-[13px] tracking-[0.2em]">Sindhudurg</span>{" "}
+          <br />
+          <span className="opacity-55">Maharashtra, India</span>
+        </address>
       </div>
     </footer>
   );
