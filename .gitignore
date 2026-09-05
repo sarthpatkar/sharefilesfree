@@ -33,6 +33,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the annotated example, which holds no secrets and which the README
+# points people at. Without this it was ignored along with the real ones and
+# had never actually been committed.
+!.env.local.example
 
 # vercel
 .vercel

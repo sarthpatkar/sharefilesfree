@@ -10,9 +10,10 @@ import {
   getUploadUrl,
   hashPassword,
   createMultipartUpload,
-  MULTIPART_PART_SIZE,
+  multipartPlan,
   MULTIPART_THRESHOLD,
 } from "@/lib/r2";
+import { clampRetentionHours, MAX_LINK_BYTES } from "@/lib/retention";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
 import { consumeAdReceipt } from "@/lib/adGate";
 import { sanitizeFilename } from "@/lib/sanitize";
@@ -23,9 +24,11 @@ import { sanitizeFilename } from "@/lib/sanitize";
 const MAX_PASSWORD_LENGTH = 256;
 const MAX_MIME_LENGTH = 255;
 
-const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
+// The size ceiling now comes from the retention ladder's top tier (50GB) rather
+// than a flat number, because the ladder is what bounds the cost: a file that
+// big is only allowed to stay for hours. MAX_UPLOAD_BYTES can still lower it.
+const DEFAULT_MAX_BYTES = MAX_LINK_BYTES;
 const DEFAULT_EXPIRY_HOURS = 24;
-const DEFAULT_MAX_EXPIRY_HOURS = 24 * 7; // 7 days — matches what competitors offer free (see the plan's research)
 
 // Room-code generation on the P2P path is naturally rate-limited by the
 // signaling server; this path costs us real storage/bandwidth, so it gets
@@ -57,14 +60,23 @@ export async function POST(request: Request) {
 
   const maxBytes = Number(process.env.MAX_UPLOAD_BYTES) || DEFAULT_MAX_BYTES;
   if (size > maxBytes) {
-    return NextResponse.json({ error: `File is too large for link sharing (max ${Math.round(maxBytes / 1e9)}GB).` }, { status: 413 });
+    return NextResponse.json(
+      { error: `File is too large for link sharing (max ${Math.round(maxBytes / 1024 ** 3)}GB).` },
+      { status: 413 },
+    );
   }
 
-  // The requester can pick a shorter retention window, but never longer than the
-  // deployment's configured ceiling — keeps worst-case storage cost bounded regardless.
-  const maxExpiryHours = Number(process.env.UPLOAD_EXPIRY_HOURS) || DEFAULT_MAX_EXPIRY_HOURS;
-  const requestedHours = Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS;
-  const expiryHours = Math.min(Math.max(requestedHours, 1), maxExpiryHours);
+  // What a link really buys is TIME, so that's what gets rationed: the bigger
+  // the file, the shorter the window it may be kept for (see lib/retention.ts).
+  // A request for longer than its tier allows is clamped down rather than
+  // refused — the sender gets the longest window this file can have.
+  const ladderHours = clampRetentionHours(Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS, size, maxBytes);
+  if (ladderHours === null) {
+    return NextResponse.json({ error: "File is too large for link sharing." }, { status: 413 });
+  }
+  // A deployment can still cap retention below the ladder for every file.
+  const deploymentCeiling = Number(process.env.UPLOAD_EXPIRY_HOURS) || Infinity;
+  const expiryHours = Math.min(ladderHours, deploymentCeiling);
   const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
 
   // The ad gate, enforced. Checked here rather than trusted in the browser
@@ -98,16 +110,14 @@ export async function POST(request: Request) {
   // single presigned PUT, which is simpler and just as fast for them.
   if (size > MULTIPART_THRESHOLD) {
     const uploadId = await createMultipartUpload(token);
-    return NextResponse.json({
-      token,
-      expiresAt,
-      mode: "multipart",
-      uploadId,
-      partSize: MULTIPART_PART_SIZE,
-      totalParts: Math.ceil(size / MULTIPART_PART_SIZE),
-    });
+    // Part size grows with the file so a 50GB upload is a few hundred requests
+    // rather than several thousand — see multipartPlan.
+    const { partSize, totalParts } = multipartPlan(size);
+    return NextResponse.json({ token, expiresAt, mode: "multipart", uploadId, partSize, totalParts });
   }
 
-  const uploadUrl = await getUploadUrl(token);
+  // Signed with the exact byte count, so the size checked above is the size R2
+  // will accept — not merely the size the browser claimed.
+  const uploadUrl = await getUploadUrl(token, size);
   return NextResponse.json({ token, expiresAt, mode: "single", uploadUrl });
 }

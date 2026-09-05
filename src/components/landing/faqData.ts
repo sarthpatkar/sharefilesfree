@@ -23,7 +23,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is there a file size limit?",
-    a: "Not when you send with a code. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A shareable link does have a cap, because that route parks your file on storage we rent, and that costs real money.",
+    a: "Not when you send with a code. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A shareable link works differently, because that route parks your file on storage we rent: up to 50GB, but the bigger it is the shorter it stays. Up to 2GB keeps for a week, up to 10GB for a day, up to 50GB for six hours. What costs us money is the size multiplied by the time, so that's the thing we ration — not your file.",
   },
   {
     q: "Do I really not need an account?",

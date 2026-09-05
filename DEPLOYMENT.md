@@ -122,7 +122,8 @@ offered. The app works without it.
    scoped to that bucket. Save the Access Key ID and Secret Access Key (shown once).
    Your Account ID is on the R2 overview page.
 3. Bucket → **Settings → Object lifecycle rules** → delete objects after **7 days**.
-   This must be at least `UPLOAD_EXPIRY_HOURS` (default 168), or files vanish
+   Seven days is the longest window the retention ladder grants any file (see
+   the README's "Link size and retention"); anything shorter would delete files
    before their stated expiry. **Don't skip it** — without it expired files sit
    in the bucket forever and quietly cost money.
 4. Bucket → **Settings → CORS Policy** → allow `PUT` from
@@ -136,9 +137,10 @@ offered. The app works without it.
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
    R2_BUCKET_NAME=sendfilesfree-uploads
-   MAX_UPLOAD_BYTES=2147483648
-   UPLOAD_EXPIRY_HOURS=168
    ```
+   `MAX_UPLOAD_BYTES` and `UPLOAD_EXPIRY_HOURS` are both optional — leave them
+   unset and the retention ladder decides (up to 50GB, kept for less the bigger
+   it is). Set `MAX_UPLOAD_BYTES` only to make the ceiling *smaller* than that.
 
 > **Before enabling R2, read this.** The link path currently uploads the
 > **plaintext file**. The optional password in `src/lib/r2.ts` gates the download

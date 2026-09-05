@@ -3,7 +3,7 @@
 // on /api/file/[token] specifically so an unauthenticated request never sees
 // the filename or gets a download URL for a protected link.
 import { NextResponse } from "next/server";
-import { readMetadata, verifyPassword, getDownloadUrl, markDownloaded, isR2Configured } from "@/lib/r2";
+import { readMetadata, verifyPassword, getDownloadUrl, markDownloaded, sweepIfConsumed, isR2Configured } from "@/lib/r2";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
 
 // Tight limit — this is the brute-force guard for the password itself. Keyed by
@@ -27,6 +27,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const meta = await readMetadata(token);
   if (!meta) return NextResponse.json({ error: "This link doesn't exist or has already expired." }, { status: 404 });
   if (Date.now() > meta.expiresAt) return NextResponse.json({ error: "This link has expired." }, { status: 410 });
+  if (meta.consumedAt) {
+    await sweepIfConsumed(token, meta);
+    return NextResponse.json({ error: "This was a one-time link and has already been downloaded." }, { status: 410 });
+  }
   if (meta.blocked) return NextResponse.json({ error: "This link was reported and has been taken down." }, { status: 410 });
 
   if (!meta.passwordHash || !meta.passwordSalt || typeof password !== "string" || !verifyPassword(password, meta.passwordSalt, meta.passwordHash)) {

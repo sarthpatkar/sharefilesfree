@@ -82,12 +82,46 @@ Both run automatically on every push via GitHub Actions (`.github/workflows/ci.y
 | `NEXT_PUBLIC_SIGNALING_URL` | frontend | `ws://`/`wss://` address of `/server` |
 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | frontend (server-side only, **no** `NEXT_PUBLIC_` prefix) | Cloudflare Realtime TURN key, used to mint short-lived credentials per session |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | frontend (server-side only) | Cloudflare R2 access for the link-sharing fallback |
-| `MAX_UPLOAD_BYTES` | frontend | Caps worst-case storage cost per upload (default 2GB) |
-| `UPLOAD_EXPIRY_HOURS` | frontend | Ceiling on how long a shared link can stay valid — the sender picks 1h/1d/3d/7d, capped at this (default 168h/7 days) |
+| `MAX_UPLOAD_BYTES` | frontend | Lowers the link path's size ceiling below the retention ladder's own top tier (default 50GB) |
+| `UPLOAD_EXPIRY_HOURS` | frontend | Optional hard ceiling on retention for *every* file, applied on top of the ladder. Unset = the ladder decides |
 | `NEXT_PUBLIC_AD_CLIENT` | frontend (public) | AdSense publisher id. Unset = no ad script, no slots, no gates |
 | `NEXT_PUBLIC_AD_HOUSE` | frontend (public) | `1` draws labelled placeholders instead of real ads, for reviewing layout before an ad account exists |
 
 See `.env.local.example` for the full annotated list.
+
+### Link size and retention
+
+R2 bills bytes × time, so size alone is the wrong thing to ration — a 50GB file
+kept six hours costs less than a 2GB file kept a week. The link path therefore
+has a generous size ceiling and a window that narrows as the file grows
+(`src/lib/retention.ts`):
+
+| File size | Kept for | Costs us |
+|---|---|---|
+| up to 2GB | 7 days | $0.0069 |
+| up to 10GB | 24 hours | $0.0049 |
+| up to 50GB | 6 hours | $0.0062 |
+
+The tiers are deliberately within a rounding error of each other, which is the
+property to preserve if the numbers ever change: no tier should be dramatically
+more expensive to serve than another, because each is priced at about one ad.
+A request for a longer window than a file's tier allows is clamped down rather
+than refused, and the send UI builds its menu from the same module so the two
+can't drift.
+
+The size is enforced by signing `ContentLength` into the presigned PUT (and
+into each multipart part's URL), so it's a limit rather than a claim the
+browser makes about itself. Part size scales with the file — a 50GB upload is
+~1,000 parts of ~52MB rather than 6,400 of 8MB, which keeps it inside
+`/api/upload-part-url`'s rate limit.
+
+**Delete after first download** really deletes: the object and its metadata
+sidecar are removed an hour after the download URL is handed out. The hour is
+grace for a slow connection, since a download that starts inside the URL's
+five-minute window can legitimately run much longer. The timer lives in the
+process, so a restart inside that hour falls back to a sweep on next access and
+then to the bucket lifecycle rule — the same place every burned file used to
+end up.
 
 ### Ads
 
@@ -135,7 +169,7 @@ Three constraints worth knowing before changing any of this:
 
 1. In the Cloudflare dashboard: **R2 → Create bucket** (e.g. `sendfilesfree-uploads`).
 2. **R2 → Manage API tokens → Create API token** with Object Read & Write permissions scoped to that bucket. This gives you `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; your Account ID is shown on the R2 overview page.
-3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after your `UPLOAD_EXPIRY_HOURS` ceiling (default 7 days) — **not shorter**, since senders can pick up to that long a retention window per file, and a tighter lifecycle rule would delete files out from under a link before its stated expiry. The app treats a link as dead once it's past its own `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
+3. **Important — set up auto-deletion**: on the bucket, add an **Object lifecycle rule** to expire objects after **7 days** — **not shorter**, since that's the longest window the retention ladder grants any file (a small one), and a tighter rule would delete files out from under a link before its stated expiry. The app treats a link as dead once it's past its own `expiresAt` regardless, but the lifecycle rule is what actually deletes the bytes — without it, expired files would sit in the bucket forever and quietly rack up storage cost. This is a one-time dashboard/API setup step, not something the app code does.
 4. **Required for large-file (multipart) uploads to work — set the bucket's CORS policy** to expose the `ETag` header, or every multipart upload will fail at the "complete" step with a CORS error. In the bucket's Settings → CORS Policy, add:
    ```json
    [

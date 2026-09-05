@@ -5,7 +5,7 @@
 // itself always happens directly between the browser and R2; this route
 // never streams file bytes.
 import { NextResponse } from "next/server";
-import { readMetadata, getDownloadUrl, markDownloaded, isR2Configured } from "@/lib/r2";
+import { readMetadata, getDownloadUrl, markDownloaded, sweepIfConsumed, isR2Configured } from "@/lib/r2";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -22,6 +22,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     // The R2 lifecycle rule will physically delete the object soon (see README) —
     // treat it as gone from the moment it's past its stated expiry regardless.
     return NextResponse.json({ error: "This link has expired." }, { status: 410 });
+  }
+  // A one-time link that has been opened is a different thing from a reported
+  // one, and used to be told to the visitor as "this was reported and taken
+  // down" — which is both wrong and alarming. Now it says what happened.
+  if (meta.consumedAt) {
+    await sweepIfConsumed(token, meta);
+    return NextResponse.json({ error: "This was a one-time link and has already been downloaded." }, { status: 410 });
   }
   if (meta.blocked) {
     return NextResponse.json({ error: "This link was reported and has been taken down." }, { status: 410 });

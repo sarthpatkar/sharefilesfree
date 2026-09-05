@@ -5,6 +5,7 @@ import { zipSync } from "fflate";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
 import { uploadFileForLink, type UploadProgress } from "@/lib/linkTransfer";
 import { formatBytes } from "@/lib/format";
+import { retentionChoicesFor, retentionLabel } from "@/lib/retention";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { LinkShare } from "./LinkShare";
@@ -118,7 +119,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
       const fileToUpload = await buildLinkFile();
       const result = await uploadFileForLink(fileToUpload, setLinkProgress, {
         password: linkPassword,
-        expiryHours: linkExpiryHours,
+        expiryHours,
         burnAfterDownload: linkBurnAfterDownload,
         adReceipt,
       });
@@ -150,6 +151,13 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  // What this particular file is allowed to ask for — see lib/retention.ts.
+  const retentionChoices = retentionChoicesFor(totalSize);
+  const longestChoice = retentionChoices.length > 0 ? retentionChoices[retentionChoices.length - 1] : 1;
+  // Adding a big file to the pile can put the chosen window out of reach.
+  // Derived rather than corrected in an effect, so the menu can never render a
+  // value it doesn't contain.
+  const expiryHours = retentionChoices.includes(linkExpiryHours) ? linkExpiryHours : longestChoice;
   const totalSent = [...progress.values()].reduce((sum, p) => sum + p.sent, 0);
 
   if (status === "idle") {
@@ -234,15 +242,23 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
             <label className="flex flex-col gap-1.5 text-sm text-ink-soft">
               Link expires after
               <select
-                value={linkExpiryHours}
+                value={expiryHours}
                 onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
                 className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none focus:border-accent"
               >
-                <option value={1}>1 hour</option>
-                <option value={24}>1 day</option>
-                <option value={72}>3 days</option>
-                <option value={168}>7 days</option>
+                {retentionChoices.map((h) => (
+                  <option key={h} value={h}>
+                    {retentionLabel(h)}
+                  </option>
+                ))}
               </select>
+              {longestChoice < 168 && (
+                <span className="text-xs">
+                  A file this size can be kept for {retentionLabel(longestChoice)}. Storing it is the only part of
+                  ShareFilesFree that costs us money, and a big file costs more for every hour it sits there — so the
+                  bigger it is, the shorter the window.
+                </span>
+              )}
             </label>
             <label className="flex items-center gap-2.5 text-sm text-ink-soft">
               <input
@@ -253,13 +269,21 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
               />
               Delete after first download
             </label>
+            {retentionChoices.length === 0 && (
+              // Caught before the ad rather than after it: nobody should sit
+              // through a countdown only to be told the file was never eligible.
+              <p className="bg-red px-4 py-3 text-[14px] font-semibold leading-[1.45] text-y-pale">
+                {formatBytes(totalSize)} is past what a shareable link can hold. Send it with a code instead — that
+                path goes straight to the other device and has no size limit at all.
+              </p>
+            )}
             {gate === "link" ? (
               // Priced on bytes x retention, so the ad load matches what
               // holding this file actually costs — see lib/ads.ts.
               <AdGate
                 purpose="link-upload"
                 bytes={totalSize}
-                hours={linkExpiryHours}
+                hours={expiryHours}
                 waitingFor="Your link"
                 onPass={(receipt) => {
                   setGate(null);
@@ -270,7 +294,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
             ) : (
               <Button
                 onClick={() => setGate("link")}
-                disabled={files.length > 1 && !linkZipFiles}
+                disabled={(files.length > 1 && !linkZipFiles) || retentionChoices.length === 0}
                 className="self-start"
               >
                 Create link
