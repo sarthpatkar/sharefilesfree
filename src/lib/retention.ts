@@ -1,4 +1,5 @@
-// How long a shared link is allowed to live, as a function of how big it is.
+// How long a shared link is allowed to live, as a function of how big it is —
+// and how much longer the sender can have by watching more ads.
 //
 // The insight this file encodes: R2 bills bytes x TIME, so size on its own is
 // the wrong thing to ration. A 50GB file kept six hours costs less than a 2GB
@@ -15,8 +16,16 @@
 //
 //   2GB for 7 days  = $0.0069     10GB for 24h = $0.0049     50GB for 6h = $0.0062
 //
+// The tiers below are the window a file gets for the ONE ad every link upload
+// costs. Beyond that the sender can buy time with attention — a longer window
+// for a big file is simply a few more ads, priced from what those extra hours
+// actually cost. That's the whole loop: ads buy time, because time is what we
+// are billed for.
+//
 // Pure and isomorphic on purpose: the upload API enforces this ladder and the
 // send UI renders its options from the same source, so the two cannot drift.
+
+import { MAX_RECOVERABLE_USD, storageCostUsd } from "./ads";
 
 const GB = 1024 ** 3;
 
@@ -41,9 +50,9 @@ export const MAX_LINK_BYTES = RETENTION_TIERS[RETENTION_TIERS.length - 1].maxByt
 export const RETENTION_CHOICES = [1, 24, 72, 168] as const;
 
 /**
- * The longest this file may be kept, or null if it's too big for the link path
- * entirely. `ceilingBytes` lets a deployment lower the size limit below the
- * ladder's own top tier (MAX_UPLOAD_BYTES) without changing the tiers.
+ * The window this file gets for the base ad, or null if it's too big for the
+ * link path entirely. `ceilingBytes` lets a deployment lower the size limit
+ * below the ladder's own top tier (MAX_UPLOAD_BYTES) without changing the tiers.
  */
 export function maxRetentionHoursFor(bytes: number, ceilingBytes = MAX_LINK_BYTES): number | null {
   if (!(bytes > 0) || bytes > ceilingBytes) return null;
@@ -53,17 +62,48 @@ export function maxRetentionHoursFor(bytes: number, ceilingBytes = MAX_LINK_BYTE
   return null;
 }
 
+/** Nothing is ever kept longer than this, however many ads are on offer. */
+export const ABSOLUTE_MAX_HOURS = 168;
+
+/**
+ * The longest window this file could have if the sender watched the maximum
+ * number of ads — derived from what those ads recover rather than picked, so
+ * the site can never be talked into storing more than it earns.
+ *
+ * Always at least the base window: every tier is comfortably affordable, and a
+ * ceiling below the free allowance would be nonsense.
+ */
+export function maxPurchasableHours(bytes: number, ceilingBytes = MAX_LINK_BYTES): number | null {
+  const base = maxRetentionHoursFor(bytes, ceilingBytes);
+  if (base === null) return null;
+  const costPerHour = storageCostUsd(bytes, 1);
+  if (costPerHour <= 0) return ABSOLUTE_MAX_HOURS;
+  const affordable = Math.floor(MAX_RECOVERABLE_USD / costPerHour);
+  return Math.min(ABSOLUTE_MAX_HOURS, Math.max(base, affordable));
+}
+
+export interface RetentionOptions {
+  /**
+   * Whether longer windows can be bought with extra ads. With no ad network
+   * there is nothing to buy them with, so the base ladder is the whole story.
+   */
+  adsEnabled?: boolean;
+  ceilingBytes?: number;
+}
+
 /**
  * The retention options to offer for a file of this size, shortest first. The
- * tier's own maximum is always included even when it isn't one of the standard
- * choices, so a 50GB file offers "6 hours" rather than silently collapsing to
- * the single hour that happens to be on the standard list.
+ * base tier is always included even when it isn't one of the standard choices,
+ * so a 50GB file offers "6 hours" rather than silently collapsing to the single
+ * hour that happens to be on the standard list.
  */
-export function retentionChoicesFor(bytes: number, ceilingBytes = MAX_LINK_BYTES): number[] {
-  const max = maxRetentionHoursFor(bytes, ceilingBytes);
-  if (max === null) return [];
+export function retentionChoicesFor(bytes: number, options: RetentionOptions = {}): number[] {
+  const ceilingBytes = options.ceilingBytes ?? MAX_LINK_BYTES;
+  const base = maxRetentionHoursFor(bytes, ceilingBytes);
+  if (base === null) return [];
+  const max = options.adsEnabled ? (maxPurchasableHours(bytes, ceilingBytes) ?? base) : base;
   const choices = new Set<number>(RETENTION_CHOICES.filter((h) => h <= max));
-  choices.add(max);
+  choices.add(base);
   return [...choices].sort((a, b) => a - b);
 }
 
@@ -76,10 +116,15 @@ export function retentionLabel(hours: number): string {
 
 /**
  * Clamps a requested window to what this file is allowed, so a request that
- * asks for longer gets the longest it can have rather than an error.
+ * asks for longer gets the longest it can have rather than an error. What
+ * "allowed" means depends on whether the extra hours can be paid for: the
+ * caller still has to check that the ads were actually watched (see
+ * consumeAdReceipt), this only decides what is purchasable at all.
  */
-export function clampRetentionHours(requestedHours: number, bytes: number, ceilingBytes = MAX_LINK_BYTES): number | null {
-  const max = maxRetentionHoursFor(bytes, ceilingBytes);
-  if (max === null) return null;
+export function clampRetentionHours(requestedHours: number, bytes: number, options: RetentionOptions = {}): number | null {
+  const ceilingBytes = options.ceilingBytes ?? MAX_LINK_BYTES;
+  const base = maxRetentionHoursFor(bytes, ceilingBytes);
+  if (base === null) return null;
+  const max = options.adsEnabled ? (maxPurchasableHours(bytes, ceilingBytes) ?? base) : base;
   return Math.min(Math.max(Math.round(requestedHours) || 1, 1), max);
 }

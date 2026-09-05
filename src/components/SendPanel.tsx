@@ -6,6 +6,8 @@ import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peer
 import { uploadFileForLink, type UploadProgress } from "@/lib/linkTransfer";
 import { formatBytes } from "@/lib/format";
 import { retentionChoicesFor, retentionLabel } from "@/lib/retention";
+import { planFor } from "@/lib/ads";
+import { adsEnabled } from "./ads/adNetwork";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
 import { LinkShare } from "./LinkShare";
@@ -152,7 +154,10 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
   // What this particular file is allowed to ask for — see lib/retention.ts.
-  const retentionChoices = retentionChoicesFor(totalSize);
+  // With ads on, the list runs past the window this file comes with, up to the
+  // longest one the ads could pay for; the extra hours cost extra ads.
+  const showAdCost = adsEnabled();
+  const retentionChoices = retentionChoicesFor(totalSize, { adsEnabled: showAdCost });
   const longestChoice = retentionChoices.length > 0 ? retentionChoices[retentionChoices.length - 1] : 1;
   // Adding a big file to the pile can put the chosen window out of reach.
   // Derived rather than corrected in an effect, so the menu can never render a
@@ -246,19 +251,27 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                 onChange={(e) => setLinkExpiryHours(Number(e.target.value))}
                 className="border border-rule bg-transparent px-3 py-2.5 text-ink outline-none focus:border-accent"
               >
-                {retentionChoices.map((h) => (
-                  <option key={h} value={h}>
-                    {retentionLabel(h)}
-                  </option>
-                ))}
+                {retentionChoices.map((h) => {
+                  const slots = planFor("link-upload", { bytes: totalSize, hours: h }).slots;
+                  return (
+                    <option key={h} value={h}>
+                      {retentionLabel(h)}
+                      {showAdCost ? ` · ${slots} ad${slots === 1 ? "" : "s"}` : ""}
+                    </option>
+                  );
+                })}
               </select>
-              {longestChoice < 168 && (
-                <span className="text-xs">
-                  A file this size can be kept for {retentionLabel(longestChoice)}. Storing it is the only part of
-                  ShareFilesFree that costs us money, and a big file costs more for every hour it sits there — so the
-                  bigger it is, the shorter the window.
-                </span>
-              )}
+              <span className="text-xs">
+                {showAdCost
+                  ? `Storing a file is the only part of ShareFilesFree that costs us money, and it costs more for
+                     every hour it sits there — so a longer window is a couple more ads, and a big file reaches that
+                     point sooner. Sending with a code instead is free, unlimited, and instant.`
+                  : longestChoice < 168
+                    ? `A file this size can be kept for ${retentionLabel(longestChoice)}. Storing it is the only part
+                       of ShareFilesFree that costs us money, and a big file costs more for every hour it sits there —
+                       so the bigger it is, the shorter the window.`
+                    : ""}
+              </span>
             </label>
             <label className="flex items-center gap-2.5 text-sm text-ink-soft">
               <input

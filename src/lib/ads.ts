@@ -35,6 +35,14 @@ export const USD_RECOVERED_PER_AD = 0.01;
 /** Nobody is ever asked to sit through more than this, whatever the arithmetic says. */
 export const MAX_SLOTS_PER_ACTION = 4;
 
+/**
+ * The most a single action can ever recover, and therefore the most storage it
+ * can ever justify. This is the number that stops the slot cap from becoming a
+ * leak: without it, a request expensive enough to need ten ads would be charged
+ * four and we'd quietly eat the other six.
+ */
+export const MAX_RECOVERABLE_USD = MAX_SLOTS_PER_ACTION * USD_RECOVERED_PER_AD;
+
 /** Hours in a month, for prorating the per-month storage price. */
 const HOURS_PER_MONTH = 730;
 

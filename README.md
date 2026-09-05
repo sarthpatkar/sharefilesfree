@@ -96,18 +96,30 @@ kept six hours costs less than a 2GB file kept a week. The link path therefore
 has a generous size ceiling and a window that narrows as the file grows
 (`src/lib/retention.ts`):
 
-| File size | Kept for | Costs us |
-|---|---|---|
-| up to 2GB | 7 days | $0.0069 |
-| up to 10GB | 24 hours | $0.0049 |
-| up to 50GB | 6 hours | $0.0062 |
+| File size | Window it comes with | Costs us | Longest it can be bought up to |
+|---|---|---|---|
+| up to 2GB | 7 days | $0.0069 | — (already the maximum) |
+| up to 10GB | 24 hours | $0.0049 | 7 days, for 4 ads |
+| up to 50GB | 6 hours | $0.0062 | ~38 hours; 24h for 3 ads |
 
-The tiers are deliberately within a rounding error of each other, which is the
-property to preserve if the numbers ever change: no tier should be dramatically
-more expensive to serve than another, because each is priced at about one ad.
-A request for a longer window than a file's tier allows is clamped down rather
-than refused, and the send UI builds its menu from the same module so the two
-can't drift.
+The base tiers are deliberately within a rounding error of each other, which is
+the property to preserve if the numbers ever change: no tier should be
+dramatically more expensive to serve than another, because each is priced at
+about one ad.
+
+**Longer windows are bought with attention.** Past the window a file comes with,
+the sender can trade extra ad views for extra hours — which is the loop the
+whole business rests on, aimed at the axis that actually costs money. The
+ceiling on what's purchasable is derived, not chosen: `maxPurchasableHours()`
+is the longest window whose storage cost is covered by the maximum ads a single
+action may ask for (`MAX_RECOVERABLE_USD` in `lib/ads.ts`), so the site can
+never be talked into storing more than it earns. With no ad network configured
+there is nothing to buy hours with, so the base ladder is the whole story.
+
+A request for longer than is purchasable is clamped down rather than refused,
+the send UI builds its menu and its per-option ad prices from the same modules,
+and `/api/upload-url` re-derives both — so what's offered, what's charged, and
+what's enforced cannot drift apart.
 
 The size is enforced by signing `ContentLength` into the presigned PUT (and
 into each multipart part's URL), so it's a limit rather than a claim the

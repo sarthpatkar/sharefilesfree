@@ -197,8 +197,8 @@ export function AdGate({ purpose, bytes, hours, waitingFor, onPass, onCancel }: 
 
       {plan.slots > 1 && (
         <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-          Bigger file, kept for longer — that&apos;s {plan.slots} short ads instead of one. Storing it is the only part
-          of this site that costs us money.
+          You asked to keep this one for longer, so it&apos;s {plan.slots} short ads instead of one. The hours are what
+          cost us money, not the file — sending with a code instead is free and has no limit at all.
         </p>
       )}
 

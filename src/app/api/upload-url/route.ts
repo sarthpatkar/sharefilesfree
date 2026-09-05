@@ -15,7 +15,7 @@ import {
 } from "@/lib/r2";
 import { clampRetentionHours, MAX_LINK_BYTES } from "@/lib/retention";
 import { isRateLimited, clientIpFromHeaders } from "@/lib/rateLimit";
-import { consumeAdReceipt } from "@/lib/adGate";
+import { adsEnabled, consumeAdReceipt } from "@/lib/adGate";
 import { sanitizeFilename } from "@/lib/sanitize";
 
 // scrypt's cost scales with input size, so an unbounded password is a cheap
@@ -67,10 +67,15 @@ export async function POST(request: Request) {
   }
 
   // What a link really buys is TIME, so that's what gets rationed: the bigger
-  // the file, the shorter the window it may be kept for (see lib/retention.ts).
-  // A request for longer than its tier allows is clamped down rather than
-  // refused — the sender gets the longest window this file can have.
-  const ladderHours = clampRetentionHours(Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS, size, maxBytes);
+  // the file, the shorter the window it comes with (see lib/retention.ts). Past
+  // that window the sender can buy hours with attention — which is why the
+  // clamp widens when ads are on, and why the receipt check below is what
+  // actually decides whether those hours were paid for. A request for longer
+  // than is purchasable is clamped down rather than refused.
+  const ladderHours = clampRetentionHours(Number(body?.expiryHours) || DEFAULT_EXPIRY_HOURS, size, {
+    adsEnabled: adsEnabled(),
+    ceilingBytes: maxBytes,
+  });
   if (ladderHours === null) {
     return NextResponse.json({ error: "File is too large for link sharing." }, { status: 413 });
   }
@@ -79,7 +84,9 @@ export async function POST(request: Request) {
   const expiryHours = Math.min(ladderHours, deploymentCeiling);
   const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
 
-  // The ad gate, enforced. Checked here rather than trusted in the browser
+  // The ad gate, enforced — and, for a window longer than this file's base
+  // tier, the thing that paid for those extra hours. Checked here rather than
+  // trusted in the browser
   // because this is the request that starts costing money — a gate that lives
   // only in the page is bypassed by anyone willing to type `curl`, which is
   // exactly the population worth gating. The receipt is priced for a specific

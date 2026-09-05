@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  ABSOLUTE_MAX_HOURS,
   clampRetentionHours,
   MAX_LINK_BYTES,
+  maxPurchasableHours,
   maxRetentionHoursFor,
   retentionChoicesFor,
   retentionLabel,
 } from "./retention";
-import { storageCostUsd } from "./ads";
+import { MAX_RECOVERABLE_USD, planFor, storageCostUsd } from "./ads";
 
 const GB = 1024 ** 3;
 
@@ -83,5 +85,50 @@ describe("clamping a requested window", () => {
 
   it("refuses outright only when the file itself is too big", () => {
     expect(clampRetentionHours(1, MAX_LINK_BYTES + 1)).toBeNull();
+  });
+});
+
+describe("buying a longer window with ads", () => {
+  it("lets a big file reach further than the window it comes with", () => {
+    const base = maxRetentionHoursFor(50 * GB)!;
+    const bought = maxPurchasableHours(50 * GB)!;
+    expect(bought).toBeGreaterThan(base);
+  });
+
+  it("never lets anyone buy more storage than the ads pay for", () => {
+    // The property that makes this safe: whatever the sender is allowed to ask
+    // for, the ads at that price cover its cost.
+    for (const bytes of [GB, 5 * GB, 10 * GB, 30 * GB, MAX_LINK_BYTES]) {
+      const hours = maxPurchasableHours(bytes)!;
+      expect(storageCostUsd(bytes, hours)).toBeLessThanOrEqual(MAX_RECOVERABLE_USD + 1e-9);
+    }
+  });
+
+  it("still stops at a week, however cheap the file is to hold", () => {
+    expect(maxPurchasableHours(1024)).toBe(ABSOLUTE_MAX_HOURS);
+    expect(maxPurchasableHours(GB)).toBe(ABSOLUTE_MAX_HOURS);
+  });
+
+  it("offers nothing extra when there are no ads to buy it with", () => {
+    expect(retentionChoicesFor(50 * GB, { adsEnabled: false })).toEqual([1, 6]);
+    expect(retentionChoicesFor(50 * GB, { adsEnabled: true })).toEqual([1, 6, 24]);
+  });
+
+  it("prices the longer window as more ads, and says so consistently", () => {
+    const choices = retentionChoicesFor(50 * GB, { adsEnabled: true });
+    const slots = choices.map((h) => planFor("link-upload", { bytes: 50 * GB, hours: h }).slots);
+    // Monotonic: a longer window never costs fewer ads than a shorter one.
+    expect(slots).toEqual([...slots].sort((a, b) => a - b));
+    // And the top of the menu genuinely costs more than the base window.
+    expect(slots[slots.length - 1]).toBeGreaterThan(slots[0]);
+  });
+
+  it("widens the clamp only when ads are on", () => {
+    expect(clampRetentionHours(24, 50 * GB, { adsEnabled: false })).toBe(6);
+    expect(clampRetentionHours(24, 50 * GB, { adsEnabled: true })).toBe(24);
+  });
+
+  it("still refuses a window past what even the maximum ads would cover", () => {
+    expect(clampRetentionHours(168, 50 * GB, { adsEnabled: true })).toBeLessThan(168);
   });
 });

@@ -22,6 +22,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     a: "Advertising on this page, once there are enough people here for it to be worth an advertiser's time. Never by charging you, never by capping your file size, never by inventing a paid tier. It works because most sends cost us nothing to run — your file doesn't pass through anything we pay for. If that ever has to change, you'll read it here first.",
   },
   {
+    // Describes the windows every link gets, which is the whole story while no
+    // ad network is configured. Once ads are switched on, senders can also buy
+    // a longer window with a couple more ad views (see lib/retention.ts) — this
+    // answer needs one sentence about that on the day that goes live.
     q: "Is there a file size limit?",
     a: "Not when you send with a code. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A shareable link works differently, because that route parks your file on storage we rent: up to 50GB, but the bigger it is the shorter it stays. Up to 2GB keeps for a week, up to 10GB for a day, up to 50GB for six hours. What costs us money is the size multiplied by the time, so that's the thing we ration — not your file.",
   },
