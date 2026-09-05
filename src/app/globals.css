@@ -3,7 +3,8 @@
 /* ==========================================================================
    ShareFilesFree — poster system
    --------------------------------------------------------------------------
-   Six colours, no others. Structure comes from flat colour FIELDS, not from
+   Six colours plus a graphic-only pink, no others. Structure comes from flat
+   colour FIELDS, not from
    rules or hairlines — where one field stops and the next begins is the
    divider. Type is Sigmar (display) over Outfit (everything else).
 
@@ -65,6 +66,19 @@
   --lime-pale: #f4f7e0;  /* 5.02:1 */
   --lime:      var(--lime-max);
 
+  /* --- Pink -------------------------------------------------------------
+     The seventh colour, and the only one that is graphic ONLY. Measured on it:
+     red 2.07:1, display red 1.65:1, the cream 2.50:1 — all failing — against
+     black at 6.57:1, which passes. So the rule is not "avoid text on pink", it
+     is narrower and easier to hold: black may cross it, nothing else may. That
+     single constraint is what places every pink block on the page.
+
+     A pale #fddde6 was considered for the blocks that sit under red type. It
+     doesn't rescue them — red lands at 4.35:1, still short of 4.5 — and it
+     measures 1.19:1 against the cream ground, so it barely reads as a block at
+     all. Moving the shape beat tinting it. */
+  --pink:      #ff69b4;
+
   /* `yellow` resolves to the pale ground, since that's the field almost every
      surface wants; the louder yellows are opted into by name. */
   --yellow: var(--y-pale);
@@ -115,6 +129,7 @@
   --color-lime-4: var(--lime-4);
   --color-lime-5: var(--lime-5);
   --color-lime-pale: var(--lime-pale);
+  --color-pink: var(--pink);
   --color-yellow: var(--yellow);
   --color-y-pale: var(--y-pale);
   --color-y-soft: var(--y-soft);

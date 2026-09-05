@@ -5,13 +5,17 @@ import Link from "next/link";
 export function ClosingCta() {
   return (
     <section className="relative overflow-hidden bg-red">
-      {/* Big flat shapes, in the two ladder tints that hold up on a red field. */}
+      {/* Big flat shapes in hot pink — against red it reads as a deliberate
+          second colour rather than as a lighter red, which is what red-bright
+          did here (1.26:1 against the field; pink is 2.07:1). The cream type
+          only measures 2.50:1 on it, so the phone sizes are cut back until both
+          blocks sit clear of the words rather than behind them. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
-          className="sff-bob absolute -bottom-24 -right-16 h-[300px] w-[300px] bg-red-bright"
+          className="sff-bob absolute -bottom-10 -right-8 h-[150px] w-[150px] bg-pink sm:-bottom-24 sm:-right-16 sm:h-[300px] sm:w-[300px]"
           style={{ "--tilt": "-14deg" } as React.CSSProperties}
         />
-        <div className="absolute -left-20 -top-16 h-[200px] w-[200px] rotate-[24deg] bg-red-bright opacity-60" />
+        <div className="absolute -left-12 -top-14 h-[120px] w-[120px] rotate-[24deg] bg-pink sm:-left-20 sm:-top-16 sm:h-[200px] sm:w-[200px]" />
       </div>
 
       <div className="relative mx-auto w-full max-w-[1400px] px-5 py-24 sm:px-8 sm:py-32">

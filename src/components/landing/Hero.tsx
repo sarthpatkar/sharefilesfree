@@ -38,11 +38,17 @@ export function Hero() {
 
   return (
     <section className="relative overflow-hidden bg-yellow">
-      {/* Decorative fields. Kept to the palest rungs of each ladder so they read
-          as light falling on the page rather than as blocks competing with it. */}
+      {/* Decorative fields, in hot pink. Placement is a contrast constraint, not
+          a taste one: red measures 2.07:1 on this pink and the display red
+          1.65:1, so a block may never reach the headline or the "Got a code?"
+          link. Black clears it at 6.57:1 — so both blocks bleed in from the
+          lower half, where the only type they meet is black. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="sff-bob absolute -right-24 -top-28 h-[360px] w-[360px] bg-lime-pale" style={{ "--tilt": "12deg" } as React.CSSProperties} />
-        <div className="absolute -left-32 top-[60%] h-[240px] w-[240px] rotate-[18deg] bg-y-soft" />
+        <div
+          className="sff-bob absolute -bottom-20 -right-16 h-[200px] w-[200px] bg-pink sm:-bottom-28 sm:-right-24 sm:h-[360px] sm:w-[360px]"
+          style={{ "--tilt": "12deg" } as React.CSSProperties}
+        />
+        <div className="absolute -left-36 top-[58%] h-[150px] w-[150px] rotate-[18deg] bg-pink sm:-left-32 sm:top-[60%] sm:h-[240px] sm:w-[240px]" />
       </div>
 
       <div className="relative mx-auto w-full max-w-[1400px] px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
