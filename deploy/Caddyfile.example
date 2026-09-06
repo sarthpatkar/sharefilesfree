@@ -86,6 +86,19 @@ sharefilesfree.com {
 		defer
 	}
 
+	# The other half, and it is a correctness guard rather than an optimisation.
+	# An RSC response is a payload for one specific route transition, and it
+	# arrives with a Vary on headers Cloudflare does not honour — so if anything
+	# ever made these cacheable, the edge could hand one route's payload to a
+	# request for another and client-side navigation would break in a way that
+	# is very hard to trace. The origin should say what it means rather than
+	# relying on a CDN rule to exclude them.
+	@rsc header RSC *
+	header @rsc {
+		Cache-Control "private, no-store"
+		defer
+	}
+
 	reverse_proxy localhost:3000 {
 		# A deploy restarts the app, and for the second or two it takes, every
 		# request would otherwise fail — Cloudflare turns that into a 522 for
