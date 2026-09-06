@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IconSend } from "./icons";
+import { SearchOverlay } from "./SearchOverlay";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
@@ -84,6 +85,7 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <SearchOverlay />
             <Link href="/receive" className="sff-nudge hidden text-[15px] font-semibold text-yellow sm:block">
               Receive
             </Link>
