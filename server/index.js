@@ -184,14 +184,20 @@ function isRateLimited(key, limit, windowMs) {
 /**
  * Six digits for a short room, eight for a long one.
  *
- * The length tracks the clock because the threat does: a code that is guessable
- * for two hours needs a bigger haystack than one that is guessable for ten
- * minutes. Six digits is a million combinations, eight is a hundred million.
+ * This used to be the security argument: a code guessable for two hours needed a
+ * bigger haystack than one guessable for ten minutes. That job now belongs to
+ * the room secret (see generateRoomSecret), which is 128 bits and does it far
+ * better than two extra digits ever could.
  *
- * It costs nothing in usability, and that is not a coincidence. A ten-minute
- * code exists to be read aloud to someone standing there. Nobody asks for two
- * hours unless the other person ISN'T there — in which case the code is being
- * sent as a link or a QR anyway, and its length is invisible.
+ * What is left is a capacity argument, which is worth keeping. Codes must be
+ * unique among open rooms, and the loop below retries on collision — at a
+ * million combinations that starts costing attempts once a few thousand rooms
+ * are open at once, and long-lived rooms are precisely the ones that accumulate.
+ * A hundred million combinations makes that a non-question.
+ *
+ * The length is invisible either way: a long-lived room's code is never shown to
+ * anyone. It travels inside the link as a routing key, because the secret it
+ * needs alongside it cannot be read down a phone.
  */
 function generateRoomCode(ttlMinutes) {
   const digits = ttlMinutes > SHORT_CODE_MAX_MIN ? 8 : 6;

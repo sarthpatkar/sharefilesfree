@@ -170,7 +170,20 @@ export function ReceivePanel() {
    */
   async function connectWithDestination() {
     if (!isCompleteCode(code)) {
-      setError("Enter the code exactly as shown on the sender's screen — 6 digits, or 8 for a longer-lived one.");
+      setError("Enter the code exactly as shown on the sender's screen — it's 6 digits.");
+      return;
+    }
+
+    // An 8-digit code belongs to a long-lived room, and those need the secret
+    // that only travels in the link. Typing the digits can never work, so say
+    // so here rather than letting the server answer "invalid or has expired" —
+    // which is true, unhelpful, and looks like the sender got the code wrong.
+    // The sender is no longer shown these digits at all, so reaching this is
+    // unlikely; it exists because the alternative is a baffling dead end.
+    if (code.length === 8) {
+      setError(
+        "That code needs the sender's link or QR code — the digits on their own can't open it. Ask them to send you the link they're looking at.",
+      );
       return;
     }
 
@@ -194,7 +207,7 @@ export function ReceivePanel() {
 
   function connect(targetCode: string, targetSecret: string | null = null) {
     if (!isCompleteCode(targetCode)) {
-      setError("Enter the code exactly as shown on the sender's screen — 6 digits, or 8 for a longer-lived one.");
+      setError("Enter the code exactly as shown on the sender's screen — it's 6 digits.");
       return;
     }
     setError(null);
@@ -275,8 +288,9 @@ export function ReceivePanel() {
             Enter the code from the sender
           </label>
           <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
-            It&apos;s on their screen right now. Usually six digits; eight if they chose to keep it working for
-            longer. Either way it only works while their page stays open.
+            It&apos;s on their screen right now — six digits. If they sent you a link or a QR code instead, open
+            that rather than typing anything; it carries a key too long to read out. Either way it only works while
+            their page stays open.
           </p>
         </div>
         {/* Display-scale, underlined rather than boxed — this is the single

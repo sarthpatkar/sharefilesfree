@@ -164,9 +164,9 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                 <p className="max-w-md text-[13px] font-medium leading-[1.5] text-black opacity-55">
                   {roomMinutes === DEFAULT_ROOM_DURATION
                     ? "Ten minutes is right when they're with you or already waiting. Your file never leaves this device, so this page has to stay open until they collect it."
-                    : `Your code will be 8 digits instead of 6 — a code that works for ${
+                    : `You'll get a link and a QR code, not digits to read out. Something that stays open for ${
                         roomMinutes < 60 ? `${roomMinutes} minutes` : `${roomMinutes / 60} hour${roomMinutes === 60 ? "" : "s"}`
-                      } is one a stranger has longer to guess, so it gets a bigger haystack. Send it as a link or QR rather than reading it out. This page must stay open the whole time — your file is waiting here, not on a server.`}
+                      } gives a stranger far longer to guess at it, so it carries a key that's too long to say aloud. This page must stay open the whole time — your file is waiting here, not on a server.`}
                 </p>
 
                 {/* Said before the gate appears, not after. A sender who picks a

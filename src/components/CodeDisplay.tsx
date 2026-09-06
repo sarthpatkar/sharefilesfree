@@ -58,7 +58,7 @@ export function CodeDisplay({
             the way unplugging a cable would. Worth saying before it happens. */}
         <p className="max-w-xs text-center text-[13px] font-medium leading-[1.5] text-black opacity-55">
           {secret
-            ? "Send the link or scan the QR — these digits on their own won't open it. A code that works for hours has to be harder to guess than one you read out."
+            ? "There are no digits to read out for a code this long-lived — it has to be harder to guess than six numbers, so it travels as a link."
             : "They type it in at sharefilesfree.com."}{" "}
           Leave this page open until the transfer finishes — the file goes from here to them, so closing it stops
           it.
@@ -66,29 +66,47 @@ export function CodeDisplay({
         </p>
       </div>
 
-      {/* Ruled cells — reads as a code to be transcribed, not as a label. Six of
-          them normally; eight when the sender asked for a longer-lived code, which
-          is why the cells narrow rather than the row overflowing on a phone. */}
-      <div className="flex" role="text" aria-label={`Code ${code.split("").join(" ")}`}>
-        {code.split("").map((digit, i) => (
-          <span
-            key={i}
-            className={`flex items-center justify-center border-b-2 border-l border-ink font-bold tabular-nums text-black last:border-r ${
-              code.length > 6
-                ? "h-[58px] w-[34px] text-[1.6rem] sm:h-20 sm:w-12 sm:text-[2.2rem]"
-                : "h-[68px] w-[46px] text-[2rem] sm:h-20 sm:w-14 sm:text-[2.6rem]"
-            }`}
-          >
-            {digit}
-          </span>
-        ))}
-      </div>
+      {/* The digits are shown ONLY when they are usable on their own.
+
+          A long-lived room needs its secret as well, and that secret only ever
+          travels in the link. Rendering the code here anyway — in the same
+          display-scale cells that mean "read this out" everywhere else on the
+          site — was an invitation to do exactly the one thing that cannot work:
+          somebody reads the eight digits down the phone, the other person types
+          them, and gets "that code is invalid or has expired". Technically true
+          and completely misleading, and the sender would have no idea why.
+
+          So for those rooms the code stops being shown at all. It is a routing
+          key inside the link now, not something a person handles. */}
+      {!secret && (
+        // Ruled cells — reads as a code to be transcribed, not as a label.
+        <div className="flex" role="text" aria-label={`Code ${code.split("").join(" ")}`}>
+          {code.split("").map((digit, i) => (
+            <span
+              key={i}
+              className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink text-[2rem] font-bold tabular-nums text-black last:border-r sm:h-20 sm:w-14 sm:text-[2.6rem]"
+            >
+              {digit}
+            </span>
+          ))}
+        </div>
+      )}
 
       {qrDataUrl && (
         <div className="flex flex-col items-center gap-2">
+          {/* Bigger when it is the way in rather than an alternative to the
+              digits — it should read as the thing to point a camera at. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt={`QR code linking to ${link}`} width={132} height={132} className="border border-rule" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-red">or scan</span>
+          <img
+            src={qrDataUrl}
+            alt={`QR code linking to ${link}`}
+            width={secret ? 184 : 132}
+            height={secret ? 184 : 132}
+            className="border border-rule"
+          />
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-red">
+            {secret ? "scan this" : "or scan"}
+          </span>
         </div>
       )}
 
@@ -100,7 +118,11 @@ export function CodeDisplay({
             setTimeout(() => setCopied(false), 1600);
           });
         }}
-        className="link inline-flex items-center gap-2 py-1 text-sm font-medium text-red"
+        className={
+          secret
+            ? "sff-nudge inline-flex items-center gap-2 bg-red px-5 py-3 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
+            : "link inline-flex items-center gap-2 py-1 text-sm font-medium text-red"
+        }
       >
         {copied ? <IconCheck className="h-4 w-4 text-accent" /> : <IconLink className="h-4 w-4" />}
         {copied ? "Link copied" : "Copy shareable link"}
