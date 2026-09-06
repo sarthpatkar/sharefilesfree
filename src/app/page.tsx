@@ -63,7 +63,7 @@ function AppJsonLd() {
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any (web browser)",
     description:
-      "Send a file of any size to any device with a short code. No account, no app, and no size limit at all — files pass directly between browsers and are never stored. Plus 19 free tools that run on your own device.",
+      "Send a file of any size to any device with a short code. No account, no app, and no size limit at all — files pass directly between browsers and are never stored. Plus 23 free tools that run on your own device.",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;

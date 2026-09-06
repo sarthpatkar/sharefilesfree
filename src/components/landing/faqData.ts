@@ -18,6 +18,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     a: "No — and not in the “we promise not to look” way. Your file is locked before it leaves your device and only opens on theirs. We never hold a copy, because there is nowhere on our side for one to go: we run no file storage at all. There is nothing to lose, nothing to sell, and nothing anyone can ask us to hand over.",
   },
   {
+    q: "Do both devices need to be open at the same time?",
+    a: "Yes, and this is the one real cost of how it works, so it is worth being straight about rather than burying it. Your file goes directly from your device to theirs — it is never parked on a server in between, because there is no server holding files. That means both pages have to be open while it travels, the way a phone call needs both people on the line. Everything people like about this follows from the same fact: no size limit, no account, no waiting in a queue, nothing kept afterwards, and nothing that can leak later because nothing is stored. If the other person genuinely cannot be there, pick a longer code, send them the link, and leave your tab open — they can collect any time in the next two hours.",
+  },
+  {
     q: "How do you make money if everything is free?",
     a: "Advertising on this page, once there are enough people here for it to be worth an advertiser's time. Never by charging you, never by capping your file size, never by inventing a paid tier. It works because most sends cost us nothing to run — your file doesn't pass through anything we pay for. If that ever has to change, you'll read it here first.",
   },
@@ -31,7 +35,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "What if the person I'm sending to isn't online right now?",
-    a: "Choose a longer code when you create it — ten minutes by default, up to two hours — and leave the tab open. They can pick it up whenever they get to it, and the file waits on your own device rather than ours. A longer code is eight digits instead of six, because something guessable for two hours needs a bigger haystack, so send it as a link or QR rather than reading it out. What we can't do is hold the file after you close the page. That's the honest cost of never storing anything: if you can't both be online within two hours, use something that keeps a copy — and know that it's keeping one.",
+    a: "Choose a longer code when you create it — ten minutes by default, up to two hours — and leave the tab open. They can pick it up whenever they get to it, and the file waits on your own device rather than ours. For anything longer than ten minutes you get a link and a QR code instead of digits to read out: something that stays open for hours needs a key too long to say aloud, or it could simply be guessed. What we can't do is hold the file after you close the page. That's the honest cost of never storing anything: if you can't both be online within two hours, use something that keeps a copy — and know that it's keeping one.",
   },
   {
     q: "Does the other person need the same browser or an app?",

@@ -38,6 +38,10 @@ import { HeicToJpgTool } from "./HeicToJpgTool";
 import { QrCodeTool } from "./QrCodeTool";
 import { CsvExcelTool } from "./CsvExcelTool";
 import { OcrTool } from "./OcrTool";
+import { TextToPdfTool } from "./TextToPdfTool";
+import { CsvToPdfTool } from "./CsvToPdfTool";
+import { RotatePdfTool } from "./RotatePdfTool";
+import { FlattenPdfTool } from "./FlattenPdfTool";
 
 export interface ToolDef {
   slug: string;
@@ -269,6 +273,50 @@ export const TOOLS: ToolDef[] = [
     caveat: "Experimental",
     canSend: true,
     Component: OcrTool,
+  },
+  {
+    slug: "rotate-pdf",
+    title: "Rotate PDF",
+    seoTitle: "Rotate PDF Pages Free, No Signup — ShareFilesFree",
+    description: "Turn every page of a PDF 90, 180 or 270 degrees and save it that way. Free, no upload, runs in your browser.",
+    cardBlurb: "Turn a sideways document upright",
+    group: "PDF pages",
+    icon: IconLayers,
+    canSend: true,
+    Component: RotatePdfTool,
+  },
+  {
+    slug: "flatten-pdf",
+    title: "Flatten PDF",
+    seoTitle: "Flatten a PDF Form Free — Make It Uneditable — ShareFilesFree",
+    description: "Lock filled-in form fields into the page so they can't be edited, while keeping the text selectable. Free and private.",
+    cardBlurb: "Lock a filled form so it can't be changed",
+    group: "PDF pages",
+    icon: IconStamp,
+    canSend: true,
+    Component: FlattenPdfTool,
+  },
+  {
+    slug: "txt-to-pdf",
+    title: "Text to PDF",
+    seoTitle: "Convert TXT to PDF Free, No Signup — ShareFilesFree",
+    description: "Turn a plain text file, log or Markdown into a PDF with real selectable text. Free, no upload.",
+    cardBlurb: "Plain text, logs and Markdown",
+    group: "Convert to PDF",
+    icon: IconFileText,
+    canSend: true,
+    Component: TextToPdfTool,
+  },
+  {
+    slug: "csv-to-pdf",
+    title: "CSV to PDF",
+    seoTitle: "Convert CSV to PDF Free — Table Layout — ShareFilesFree",
+    description: "Turn a CSV file into a readable PDF table in one step, without opening a spreadsheet. Free and private.",
+    cardBlurb: "Straight to a printable table",
+    group: "Convert to PDF",
+    icon: IconGrid,
+    canSend: true,
+    Component: CsvToPdfTool,
   },
 ];
 

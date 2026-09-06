@@ -508,4 +508,100 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       PRIVACY_FAQ,
     ],
   },
+
+  "rotate-pdf": {
+    intro: [
+      "A whole document arriving sideways is almost always a scanner or a phone: the sheet went in the wrong way round, or the page was photographed in landscape. Every page is turned the same way, and every page needs turning back.",
+      "This rotates the entire document in one step. Organize PDF can already turn individual pages, and that is the tool for a document where only page four is wrong — this is for when the answer is the same for all of them and a thumbnail grid is more work than the job deserves.",
+    ],
+    steps: [
+      "Open the PDF, or several at once if they all came out of the same scanner.",
+      "Choose the turn: 90 degrees right, 90 degrees left, or 180 for a document that came in upside down.",
+      "Rotate, then check the result opens the right way up.",
+      "Save it.",
+    ],
+    limits: [
+      "Every page turns by the same amount. For a document where pages disagree, use Organize PDF instead.",
+      "Rotation is recorded as a property of the page rather than by redrawing it, so nothing is re-rendered and no quality is lost.",
+      "Rotating a page that was already rotated adds to the existing angle rather than replacing it, which is what you want when correcting a scan in two steps.",
+    ],
+    faqs: [
+      { q: "Does rotating reduce quality or make the file bigger?", a: "Neither. The PDF format stores rotation as an instruction on the page, so the content is untouched and the file size barely moves. Nothing is converted to an image." },
+      { q: "Why does my viewer show it upright but it prints sideways?", a: "Some viewers display a rotation without applying it on export. Saving the file here writes the rotation into the document itself, so it travels with the file." },
+      { q: "Can I rotate just one page?", a: "Not here — use Organize PDF, which shows every page as a thumbnail and lets you turn them individually." },
+      PRIVACY_FAQ,
+    ],
+  },
+
+  "flatten-pdf": {
+    intro: [
+      "A filled-in PDF form is still a form. The values sit in interactive fields that anyone opening the file can click into and change, which is a problem the moment the form is evidence of something — a signed agreement, a completed application, an invoice with an amount on it.",
+      "Flattening turns those values into ordinary page content. The boxes stop being editable and the answers become part of the page, while the text stays real, selectable text and the file stays small.",
+    ],
+    steps: [
+      "Open the completed PDF form.",
+      "Flatten it. Field values are drawn into the page and the interactive fields are removed.",
+      "Check the values still read correctly, particularly anything filled in by another application.",
+      "Save it — and keep the original, because this cannot be undone.",
+    ],
+    limits: [
+      "It cannot be reversed. Once flattened the fields are gone, so keep the editable original if you might need to change an answer.",
+      "It flattens form fields, not the whole page. This is not the tool for making text unselectable — that is rasterising, and Compress PDF's strong mode does it at the cost of searchable text.",
+      "A document with no form fields comes back essentially unchanged, because there was nothing interactive to lock down.",
+    ],
+    faqs: [
+      { q: "What is the difference between flattening and just printing to PDF?", a: "Printing to PDF usually rasterises the page or re-renders it, which can lose selectable text and inflate the file. Flattening keeps the document as a document — the text stays text, the file stays small, and only the interactivity goes." },
+      { q: "Will this stop someone editing the document entirely?", a: "It stops the form fields being filled in differently. It is not encryption and not a permissions lock — somebody with a PDF editor can still alter page content. Flattening is about preventing accidental or casual change, not about defeating a determined one." },
+      { q: "My filled values disappeared after flattening. Why?", a: "Some form fillers store a value without generating the appearance that displays it. Appearances are regenerated here before flattening to avoid exactly that, but a document using an unusual embedded font can still lose them — check the result before discarding the original." },
+      PRIVACY_FAQ,
+    ],
+  },
+
+  "txt-to-pdf": {
+    intro: [
+      "Plain text is what logs, exports, notes and code come as, and PDF is what gets attached to things — a support ticket, a submission, a record that should look the same wherever it is opened.",
+      "This draws the text directly into the PDF, which matters more than it sounds: the result contains real text you can select, search and copy, rather than a picture of text. Files stay small for the same reason.",
+    ],
+    steps: [
+      "Add your .txt, .log or .md files. Several at once is fine.",
+      "Pick a page size, and turn on the monospaced font if the content is a log, code, or anything lined up with spaces.",
+      "Adjust the text size — smaller fits more per page, which matters for long logs.",
+      "Convert and save.",
+    ],
+    limits: [
+      "Markdown is laid out as plain text, not rendered. A heading written with hashes appears with its hashes; this is a text-to-PDF converter, not a Markdown renderer.",
+      "Very long lines wrap to the page width. With the monospaced font on, that can break column alignment in wide logs — landscape or a smaller text size usually fixes it.",
+      "No syntax highlighting or colour. The output is black text on white pages.",
+    ],
+    faqs: [
+      { q: "Will the text be selectable in the PDF?", a: "Yes. The characters are written into the document rather than drawn as an image, so the result is searchable, copyable and readable by screen readers — and a fraction of the size a rasterised page would be." },
+      { q: "Should I use the monospaced font?", a: "If the content is a log file, source code, or anything where spaces line columns up, yes — a proportional font destroys that alignment. For ordinary prose, leave it off; it reads better." },
+      { q: "What about very large log files?", a: "They work, and produce a lot of pages. The conversion runs on your device, so a very long file takes a moment, but there is no size cap." },
+      PRIVACY_FAQ,
+    ],
+  },
+
+  "csv-to-pdf": {
+    intro: [
+      "A CSV is for a machine to read. When a person has to read it — a supplier list attached to an email, a reconciliation someone will check, an export going into a report — it needs to be a table on a page.",
+      "This goes straight from CSV to a formatted PDF table without stopping at a spreadsheet, which also removes the step where opening a CSV in Excel quietly reformats dates and eats leading zeros.",
+    ],
+    steps: [
+      "Add the CSV file.",
+      "Say whether the first row is a heading row — it usually is, and it changes how the table is drawn.",
+      "Choose landscape for anything with more than about six columns.",
+      "Convert and save.",
+    ],
+    limits: [
+      "Very wide files compress their columns to fit the page. Beyond roughly a dozen columns even landscape becomes cramped; splitting the file is the honest fix.",
+      "The output is a plain table. There is no conditional formatting, no colour coding and no cell styling, because a CSV contains none of that to carry across.",
+      "Extremely long files produce many pages and take a moment, since the whole table is laid out on your device.",
+    ],
+    faqs: [
+      { q: "Why go straight to PDF instead of opening the CSV in Excel first?", a: "Because opening a CSV in a spreadsheet is where the damage usually happens — leading zeros stripped from account numbers, product codes read as dates. Values are carried across as text here, so what was in the file is what lands on the page." },
+      { q: "Are quoted fields and embedded commas handled properly?", a: "Yes. Parsing goes through a real CSV parser rather than splitting on commas, so quoted fields containing commas, line breaks and escaped quotes all come through intact." },
+      { q: "Can I convert several CSVs at once?", a: "Yes — add them together and each becomes its own PDF, delivered as a zip." },
+      PRIVACY_FAQ,
+    ],
+  },
 };
