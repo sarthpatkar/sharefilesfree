@@ -105,13 +105,120 @@ async function main() {
   console.log("✅ an unlisted duration snaps to the default:", greedyRoom.ttlMinutes === 10);
   if (greedyRoom.ttlMinutes !== 10) throw new Error("expected an unlisted ttl to fall back to 10 minutes");
 
-  // The longer code has to be joinable, or the feature is decorative.
+  // The longer code has to be joinable, or the feature is decorative. It now
+  // needs the room secret alongside it — the digits alone are deliberately not
+  // enough for a room that stays open for hours (see generateRoomSecret).
   const longReceiver = connect();
   await new Promise((r) => longReceiver.once("open", r));
-  longReceiver.send(JSON.stringify({ type: "join-room", code: longRoom.code }));
+  longReceiver.send(JSON.stringify({ type: "join-room", code: longRoom.code, secret: longRoom.secret }));
   const joinedLong = await once(longReceiver, (m) => m.type === "peer-joined" || m.type === "error");
-  console.log("✅ an 8-digit code can be joined:", joinedLong.type === "peer-joined");
-  if (joinedLong.type !== "peer-joined") throw new Error("expected an 8-digit code to be joinable");
+  console.log("✅ an 8-digit code plus its secret can be joined:", joinedLong.type === "peer-joined");
+  if (joinedLong.type !== "peer-joined") throw new Error("expected an 8-digit code with its secret to be joinable");
+
+  // A long-lived room must not be openable by its digits alone.
+  //
+  // The guess arithmetic at the top of index.js scales with the number of open
+  // rooms, which is the one variable that grows when the service succeeds — so a
+  // code that stays valid for hours cannot be the only thing protecting a file.
+  // These assert the secret is actually enforced, and (just as important) that
+  // failing it is indistinguishable from a wrong code.
+  const secretSender = connect();
+  await new Promise((r) => secretSender.once("open", r));
+  secretSender.send(JSON.stringify({ type: "create-room", ttlMinutes: 120 }));
+  const secretRoom = await once(secretSender, (m) => m.type === "room-created");
+  console.log("✅ a long room is issued a secret:", typeof secretRoom.secret === "string" && secretRoom.secret.length >= 20);
+  if (typeof secretRoom.secret !== "string" || secretRoom.secret.length < 20) {
+    throw new Error("expected a long-lived room to be issued a high-entropy secret");
+  }
+
+  const guesser = connect();
+  await new Promise((r) => guesser.once("open", r));
+  guesser.send(JSON.stringify({ type: "join-room", code: secretRoom.code }));
+  const guessResult = await once(guesser, (m) => m.type === "error" || m.type === "peer-joined");
+  console.log("✅ the code alone will not open a long room:", guessResult.type === "error");
+  if (guessResult.type !== "error") throw new Error("a long-lived room was joinable without its secret");
+
+  // The refusal must be word-for-word the refusal a wrong code gets, or a
+  // guesser learns they found a live room and only need the secret.
+  const stranger2 = connect();
+  await new Promise((r) => stranger2.once("open", r));
+  stranger2.send(JSON.stringify({ type: "join-room", code: "00000001" }));
+  const unknownCodeError = await once(stranger2, (m) => m.type === "error");
+  console.log("✅ a wrong secret is indistinguishable from a wrong code:", guessResult.message === unknownCodeError.message);
+  if (guessResult.message !== unknownCodeError.message) {
+    throw new Error("a correct code with a bad secret answered differently from an unknown code — that leaks");
+  }
+
+  const wrongSecret = connect();
+  await new Promise((r) => wrongSecret.once("open", r));
+  wrongSecret.send(JSON.stringify({ type: "join-room", code: secretRoom.code, secret: "not-the-right-secret" }));
+  const wrongSecretResult = await once(wrongSecret, (m) => m.type === "error" || m.type === "peer-joined");
+  console.log("✅ a wrong secret is rejected:", wrongSecretResult.type === "error");
+  if (wrongSecretResult.type !== "error") throw new Error("a wrong secret was accepted");
+
+  const rightful = connect();
+  await new Promise((r) => rightful.once("open", r));
+  rightful.send(JSON.stringify({ type: "join-room", code: secretRoom.code, secret: secretRoom.secret }));
+  const rightfulResult = await once(rightful, (m) => m.type === "peer-joined" || m.type === "error");
+  console.log("✅ code plus secret opens it:", rightfulResult.type === "peer-joined");
+  if (rightfulResult.type !== "peer-joined") throw new Error("the correct code and secret were refused");
+
+  // The read-aloud default must keep working with no secret at all, or the
+  // whole point of the short code is gone.
+  const shortRoomSender = connect();
+  await new Promise((r) => shortRoomSender.once("open", r));
+  shortRoomSender.send(JSON.stringify({ type: "create-room", ttlMinutes: 10 }));
+  const readAloud = await once(shortRoomSender, (m) => m.type === "room-created");
+  const readAloudReceiver = connect();
+  await new Promise((r) => readAloudReceiver.once("open", r));
+  readAloudReceiver.send(JSON.stringify({ type: "join-room", code: readAloud.code }));
+  const readAloudJoin = await once(readAloudReceiver, (m) => m.type === "peer-joined" || m.type === "error");
+  console.log("✅ the short read-aloud code still needs no secret:", readAloudJoin.type === "peer-joined");
+  if (readAloudJoin.type !== "peer-joined") throw new Error("a 10-minute room should still join by code alone");
+
+  secretSender.close();
+  guesser.close();
+  stranger2.close();
+  wrongSecret.close();
+  rightful.close();
+  shortRoomSender.close();
+  readAloudReceiver.close();
+
+  // The idle socket the whole product rests on.
+  //
+  // Behind Cloudflare's proxy an idle WebSocket is closed after about 100
+  // seconds, which killed the room and broke every code that wasn't redeemed
+  // within two minutes — see HEARTBEAT_INTERVAL_MS in index.js. Nothing about
+  // that is visible locally, so it is asserted here instead: an idle socket
+  // must be pinged, and a client keepalive must not be treated as a protocol
+  // error. Run the server with SIGNALING_HEARTBEAT_MS set low to exercise it
+  // without waiting for the real cadence.
+  const heartbeatMs = Number(process.env.SIGNALING_HEARTBEAT_MS) || 30000;
+  const idler = connect();
+  await new Promise((r) => idler.once("open", r));
+
+  const gotPing = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), heartbeatMs * 2 + 2000);
+    idler.once("ping", () => {
+      clearTimeout(timer);
+      resolve(true);
+    });
+  });
+  console.log("✅ an idle socket gets pinged:", gotPing);
+  if (!gotPing) throw new Error("expected the server to ping an idle socket, or a proxy will close it");
+
+  // A keepalive from the client must be accepted silently. If it fell through
+  // to the default branch the server would answer every one with an error, and
+  // the client's own half of the heartbeat would become a stream of failures.
+  idler.send(JSON.stringify({ type: "keepalive" }));
+  const keepaliveRejected = await Promise.race([
+    once(idler, (m) => m.type === "error").then(() => true).catch(() => false),
+    new Promise((r) => setTimeout(() => r(false), 500)),
+  ]);
+  console.log("✅ a client keepalive is accepted silently:", !keepaliveRejected);
+  if (keepaliveRejected) throw new Error("keepalive should not be answered with an error");
+
+  idler.close();
 
   sender.close();
   stranger.close();

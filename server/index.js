@@ -81,6 +81,72 @@ const GLOBAL_FAIL_LIMIT = 100;
 const GLOBAL_FAIL_WINDOW_MS = 10 * 1000;
 let globalFails = { count: 0, windowStart: 0 };
 
+// How often every open socket is pinged, and how many pings may go unanswered
+// before it is torn down.
+//
+// This is not a nicety — without it the product's headline feature does not
+// work in production at all, and the reason is invisible in development.
+//
+// The site sits behind Cloudflare's proxy, which closes a WebSocket that has
+// carried no traffic for about 100 seconds. Nothing here ever spoke on an idle
+// socket: a sender created a room and then both sides went quiet until a
+// receiver typed the code. Measured against the live deployment, the socket was
+// killed at ~124 seconds with close code 1006 (an abnormal close, no close
+// frame) — which fired `close` here, deleted the room, and left the sender
+// staring at a code the server had already forgotten. So a code advertised as
+// good for ten minutes, or two hours, stopped working after two minutes.
+//
+// It never reproduced locally because local development connects straight to
+// ws://localhost:8080 with no proxy in between, and `ws` does not time out idle
+// connections of its own accord.
+//
+// A ping is answered by the browser's own network stack rather than by page
+// JavaScript, so it keeps working while the sender's tab is backgrounded —
+// which matters here more than usual, since "leave the tab open" IS the
+// product. Traffic flows both ways every interval and the idle timer never
+// reaches its ceiling.
+//
+// Any interval comfortably under Cloudflare's ~100s works; 30 seconds costs a
+// couple of bytes per socket per half-minute and leaves room for a missed one.
+//
+// The env override exists only so the integration test can run a fast heartbeat
+// rather than waiting half a minute for one tick. Production leaves it unset.
+const HEARTBEAT_INTERVAL_MS = Number(process.env.SIGNALING_HEARTBEAT_MS) || 30 * 1000;
+
+// Tolerating two misses before terminating is deliberate. One missed pong on a
+// phone changing cells is not a dead peer, and killing it would drop the room
+// this whole mechanism exists to keep alive. Three intervals is ~90 seconds,
+// still inside the window Cloudflare would have allowed anyway.
+const MAX_MISSED_PONGS = 2;
+
+/**
+ * The guess budget shrinks as the number of open rooms grows.
+ *
+ * The arithmetic above is written per-room, and its answer scales with R — the
+ * count of rooms currently open. A fixed budget therefore gets steadily weaker
+ * the more successful the service becomes, which is exactly backwards. Holding
+ * the budget inversely proportional to R keeps the expected number of lucky
+ * guesses roughly flat instead of letting it grow with traffic.
+ *
+ * Be clear about what this does and does not buy. It is harm reduction for the
+ * short read-aloud code, not a fix: a six-digit space is genuinely too small at
+ * high R, and the real answer there is either a longer code or asking the sender
+ * to confirm the join. Long-lived rooms don't rely on this at all — they require
+ * a 128-bit secret and are unaffected by guess volume.
+ *
+ * It cannot lock out a real receiver: a join naming a live room is resolved
+ * before any limiter is consulted, so only wrong codes are ever counted.
+ */
+const GLOBAL_FAIL_BASELINE_ROOMS = 1000;
+const GLOBAL_FAIL_MIN_LIMIT = 5;
+
+function currentGlobalFailLimit() {
+  const openRooms = rooms.size;
+  if (openRooms <= GLOBAL_FAIL_BASELINE_ROOMS) return GLOBAL_FAIL_LIMIT;
+  const scaled = Math.floor((GLOBAL_FAIL_LIMIT * GLOBAL_FAIL_BASELINE_ROOMS) / openRooms);
+  return Math.max(GLOBAL_FAIL_MIN_LIMIT, scaled);
+}
+
 /** Counts a failed join globally and reports whether the ceiling is now exceeded. */
 function globalFailureExceeded() {
   const now = Date.now();
@@ -89,7 +155,7 @@ function globalFailureExceeded() {
     return false;
   }
   globalFails.count += 1;
-  return globalFails.count > GLOBAL_FAIL_LIMIT;
+  return globalFails.count > currentGlobalFailLimit();
 }
 
 /** @type {Map<string, { sender: import("ws").WebSocket, receiver: import("ws").WebSocket | null, createdAt: number, ttlMs: number }>} */
@@ -135,6 +201,40 @@ function generateRoomCode(ttlMinutes) {
     code = crypto.randomInt(0, ceiling).toString().padStart(digits, "0");
   } while (rooms.has(code));
   return code;
+}
+
+/**
+ * The unguessable half of a long-lived room.
+ *
+ * Six digits is a million combinations, and the arithmetic above assumes an
+ * attacker is spending guesses against however many rooms happen to be open.
+ * That assumption is the problem: expected lucky guesses scale with the NUMBER
+ * OF OPEN ROOMS, which is the one variable that grows when the service
+ * succeeds. At a few thousand concurrent rooms a six-digit code is found by
+ * brute force in minutes, and no rate limit fixes it — throttling far enough to
+ * matter would also throttle real receivers mistyping a code.
+ *
+ * So a room that lives longer than the read-it-aloud default gets 128 bits of
+ * randomness that must be presented alongside the code. It costs nothing in
+ * usability, and that is not a coincidence — it is the same observation already
+ * made in generateRoomCode. Nobody asks for a two-hour code unless the other
+ * person ISN'T there, in which case it is being sent as a link or a QR anyway
+ * and its length is invisible.
+ */
+function generateRoomSecret() {
+  return crypto.randomBytes(16).toString("base64url");
+}
+
+/**
+ * Compares in constant time, so the comparison itself doesn't leak how much of
+ * a guessed secret was correct.
+ */
+function secretMatches(expected, provided) {
+  if (typeof provided !== "string") return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(provided);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 function send(ws, message) {
@@ -189,8 +289,35 @@ const httpServer = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: httpServer });
 
+// Pings every socket on a fixed cadence, and reaps the ones that stopped
+// answering.
+//
+// The second half is a fix in its own right: `cleanupRoomsFor` only ran on a
+// `close` event, and a connection that dies without one — a laptop lid closed,
+// a phone off network — never fired it. Its room sat in the map holding a dead
+// socket until its TTL expired, and the sender's peer, if any, was never told.
+// A socket that misses its pings is exactly that case, and terminating it
+// raises the `close` this file already knows how to handle.
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.missedPongs >= MAX_MISSED_PONGS) {
+      ws.terminate(); // fires "close" -> cleanupRoomsFor
+      continue;
+    }
+    ws.missedPongs = (ws.missedPongs ?? 0) + 1;
+    ws.ping();
+  }
+}, HEARTBEAT_INTERVAL_MS).unref();
+
 wss.on("connection", (ws, req) => {
   const ip = clientIp(req);
+
+  // Reset by every pong, incremented by every ping that goes out — see the
+  // heartbeat sweep above.
+  ws.missedPongs = 0;
+  ws.on("pong", () => {
+    ws.missedPongs = 0;
+  });
 
   ws.on("message", (raw) => {
     let msg;
@@ -207,9 +334,19 @@ wss.on("connection", (ws, req) => {
         }
         const ttlMinutes = clampRoomTtlMinutes(msg.ttlMinutes);
         const code = generateRoomCode(ttlMinutes);
-        rooms.set(code, { sender: ws, receiver: null, createdAt: Date.now(), ttlMs: ttlMinutes * 60 * 1000 });
+        // Only long-lived rooms get one. The ten-minute default exists to be
+        // read aloud, and a secret would make that impossible — see
+        // generateRoomSecret for why that trade is the right way round.
+        const secret = ttlMinutes > SHORT_CODE_MAX_MIN ? generateRoomSecret() : null;
+        rooms.set(code, { sender: ws, receiver: null, createdAt: Date.now(), ttlMs: ttlMinutes * 60 * 1000, secret });
         ws.roomCode = code;
-        send(ws, { type: "room-created", code, ttlMinutes, expiresAt: Date.now() + ttlMinutes * 60 * 1000 });
+        send(ws, {
+          type: "room-created",
+          code,
+          secret,
+          ttlMinutes,
+          expiresAt: Date.now() + ttlMinutes * 60 * 1000,
+        });
         break;
       }
 
@@ -223,7 +360,14 @@ wss.on("connection", (ws, req) => {
         const code = typeof msg.code === "string" && /^(\d{6}|\d{8})$/.test(msg.code) ? msg.code : null;
         const room = code ? rooms.get(code) : undefined;
 
-        if (!room) {
+        // A room whose secret doesn't match is treated as if it did not exist —
+        // same branch, same message, same rate-limit charge. Answering a correct
+        // code differently from a wrong one would tell a guesser they had found
+        // a live room and only needed the secret, which is precisely the
+        // information the secret exists to withhold.
+        const authorised = room && (!room.secret || secretMatches(room.secret, msg.secret));
+
+        if (!authorised) {
           const tooManyFromThisIp = isRateLimited(`join:${ip}`, JOIN_ATTEMPT_LIMIT, JOIN_ATTEMPT_WINDOW_MS);
           const tooManyOverall = globalFailureExceeded();
           if (tooManyFromThisIp || tooManyOverall) {
@@ -240,6 +384,14 @@ wss.on("connection", (ws, req) => {
         send(ws, { type: "peer-joined" });
         break;
       }
+
+      // The browser cannot see a ping frame or send one — the WebSocket API
+      // deliberately hides them from page JavaScript — so a client that wants
+      // to prove the link is alive has to send a real message. This is that
+      // message, and answering it would only double the traffic: receiving it
+      // has already reset the proxy's idle timer, which is the entire point.
+      case "keepalive":
+        break;
 
       case "signal": {
         const room = rooms.get(ws.roomCode);

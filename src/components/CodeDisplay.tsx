@@ -9,7 +9,16 @@ import { IconCheck, IconLink } from "./icons";
  * reading these six digits aloud across a room, so they get display-scale
  * type in separated cells rather than a line of small text in a card.
  */
-export function CodeDisplay({ code, expiresAt }: { code: string; expiresAt?: number | null }) {
+export function CodeDisplay({
+  code,
+  expiresAt,
+  secret,
+}: {
+  code: string;
+  expiresAt?: number | null;
+  /** Present for long-lived rooms, which cannot be joined by code alone. */
+  secret?: string | null;
+}) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -17,7 +26,15 @@ export function CodeDisplay({ code, expiresAt }: { code: string; expiresAt?: num
   // on the wire — it doesn't reach our server, Caddy's access log, or
   // Cloudflare's edge, and it isn't sent in a Referer header if the receiver
   // clicks an outbound link. As ?code= it was written to every one of those.
-  const link = typeof window !== "undefined" ? `${window.location.origin}/receive#${code}` : "";
+  //
+  // For a long-lived room the fragment carries the room secret as well, which is
+  // what makes that room safe to leave open for hours: the six or eight digits
+  // alone are guessable by anyone willing to spend attempts, and the number of
+  // open rooms — hence the number of winning guesses — grows with the site. The
+  // fragment is the right place for it for the reason above: it is the only part
+  // of a URL that never reaches a server or a log.
+  const fragment = secret ? `${code}.${secret}` : code;
+  const link = typeof window !== "undefined" ? `${window.location.origin}/receive#${fragment}` : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -34,14 +51,17 @@ export function CodeDisplay({ code, expiresAt }: { code: string; expiresAt?: num
     <div className="flex w-full flex-col items-center gap-7">
       <div className="flex flex-col items-center gap-2">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
-          {code.length > 6 ? "Send the link or the QR" : "Read this out, or send the link"}
+          {secret ? "Send the link or the QR" : "Read this out, or send the link"}
         </p>
         {/* The failure mode nobody expects the first time: the file travels
             between the two browsers, so closing this page stops the transfer
             the way unplugging a cable would. Worth saying before it happens. */}
         <p className="max-w-xs text-center text-[13px] font-medium leading-[1.5] text-black opacity-55">
-          They type it in at sharefilesfree.com. Leave this page open until the transfer finishes — the file goes
-          from here to them, so closing it stops it.
+          {secret
+            ? "Send the link or scan the QR — these digits on their own won't open it. A code that works for hours has to be harder to guess than one you read out."
+            : "They type it in at sharefilesfree.com."}{" "}
+          Leave this page open until the transfer finishes — the file goes from here to them, so closing it stops
+          it.
           {expiresAt ? ` Works until ${new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}
         </p>
       </div>

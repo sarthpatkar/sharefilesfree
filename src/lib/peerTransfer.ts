@@ -43,8 +43,12 @@ export interface FileProgress {
 
 export interface PeerTransferCallbacks {
   onStatus?: (status: TransferStatus, detail?: string) => void;
-  /** Fires once the signaling server has issued a code, with when it stops working. */
-  onCode?: (code: string, expiresAt: number) => void;
+  /**
+   * Fires once the signaling server has issued a code, with when it stops
+   * working. `secret` is present only for long-lived rooms, which cannot be
+   * joined by code alone — see generateRoomSecret in /server/index.js.
+   */
+  onCode?: (code: string, expiresAt: number, secret: string | null) => void;
   /** Fired repeatedly while a file is being sent or received. */
   onProgress?: (progress: FileProgress) => void;
   /** Fired once per file, once fully received (receiver side only). */
@@ -98,6 +102,29 @@ const PROGRESS_INTERVAL_MS = 60;
 // ICE can finish trickling and upgrade off the relay if a direct path exists.
 const SIGNALING_GRACE_MS = 15 * 1000;
 
+// How often to speak on an otherwise idle signaling socket.
+//
+// The signaling server pings us on its own cadence and the browser answers
+// those automatically, which is what actually keeps Cloudflare's ~100s idle
+// timeout from closing the connection (see HEARTBEAT_INTERVAL_MS in
+// /server/index.js for the incident this comes from). This is the second half
+// of that, sent from here for one reason: page JavaScript cannot observe a
+// ping frame, so if the server's heartbeat were ever misconfigured this side
+// would have no way to notice and no way to compensate. A few bytes every
+// half-minute buys independence from that.
+//
+// It is only ever running while a socket is open and a transfer is waiting,
+// which is exactly the window the sender is told to leave the tab open for.
+const KEEPALIVE_INTERVAL_MS = 30 * 1000;
+
+// How long a "disconnected" peer connection is given to recover before the user
+// is told anything. The state is transient by specification — ICE re-checks
+// paths and frequently recovers — so announcing it immediately turned an
+// ordinary wifi wobble into a failure message over a transfer that was still
+// running. Ten seconds is well past a normal recovery and well short of a user
+// concluding the page has hung.
+const DISCONNECT_GRACE_MS = 10 * 1000;
+
 // Received chunks are sealed into a Blob segment every time this much has piled
 // up. Previously every chunk of a file was held as an ArrayBuffer until the
 // file completed, so peak JS heap was the entire file — and then Blob
@@ -111,6 +138,7 @@ const SIGNALING_GRACE_MS = 15 * 1000;
 const COALESCE_BYTES = 8 * 1024 * 1024;
 
 import { sanitizeFilename } from "./sanitize";
+import { countMetric } from "./metrics";
 import { formatBytes } from "./format";
 
 /**
@@ -144,9 +172,21 @@ const FALLBACK_STUN: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"] },
 ];
 
+/**
+ * Never allowed to block a connection for long.
+ *
+ * This runs before `new RTCPeerConnection()` exists, so however long it takes is
+ * added to every transfer on both sides. The server-side route caches its
+ * upstream call now, but a hung request here — a dead origin, a captive portal,
+ * a phone losing signal mid-fetch — would still stall the whole transfer with
+ * no timeout of its own. STUN-only connects the large majority of peers, so
+ * giving up quickly is strictly better than waiting.
+ */
+const ICE_SERVERS_TIMEOUT_MS = 3000;
+
 async function fetchIceServers(): Promise<RTCIceServer[]> {
   try {
-    const res = await fetch("/api/turn-credentials");
+    const res = await fetch("/api/turn-credentials", { signal: AbortSignal.timeout(ICE_SERVERS_TIMEOUT_MS) });
     const data = await res.json();
     // Cloudflare's response already includes its own STUN servers alongside
     // the TURN ones, so when it's configured we don't need the fallback list too.
@@ -194,6 +234,16 @@ export class PeerTransfer {
   /** Timestamp of the last progress callback — see emitProgress. */
   private lastProgressAt = 0;
   private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Keeps an idle signaling socket from being closed by a proxy — see KEEPALIVE_INTERVAL_MS. */
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  /** Serialises signal handling so messages apply in arrival order — see enqueueSignal. */
+  private signalChain: Promise<void> = Promise.resolve();
+  /** ICE candidates that arrived before there was a remote description to attach them to. */
+  private pendingCandidates: RTCIceCandidateInit[] = [];
+  /** Pending "did this recover?" check — see the disconnected branch in createPeerConnection. */
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Guards against counting one connection's path more than once. */
+  private pathReported = false;
   /** Chosen by the receiver before connecting — see setSaveDirectory. */
   private saveDir: SffDirectoryHandle | null = null;
   /** Assembles files on disk off the main thread — see fileSink.worker.ts. */
@@ -264,10 +314,16 @@ export class PeerTransfer {
     this.openSocket(() => this.send({ type: "create-room", ttlMinutes }));
   }
 
-  /** Receiver: open a socket and try to join an existing room by code. */
-  connectAsReceiver(code: string) {
+  /**
+   * Receiver: open a socket and try to join an existing room.
+   *
+   * `secret` comes from the link or QR the sender shared. A long-lived room
+   * refuses a join without it, and refuses it identically to a wrong code so a
+   * guesser learns nothing from the difference.
+   */
+  connectAsReceiver(code: string, secret?: string | null) {
     this.callbacks.onStatus?.("connecting-signal");
-    this.openSocket(() => this.send({ type: "join-room", code }));
+    this.openSocket(() => this.send({ type: "join-room", code, secret: secret ?? undefined }));
   }
 
   private openSocket(onOpen: () => void) {
@@ -278,14 +334,24 @@ export class PeerTransfer {
     ws.onopen = () => {
       opened = true;
       this.connectAttempt = 0;
+      this.startKeepalive();
       onOpen();
     };
 
     ws.onclose = () => {
+      this.stopKeepalive();
       if (this.closedByUser || this.signalingClosedByUs) return;
       if (opened) {
         if (this.channel?.readyState !== "open") {
-          this.callbacks.onError?.("Signaling connection closed unexpectedly.");
+          // Reported as a status change, not just an error line, because the
+          // room died with the socket: the server drops it on close, so the
+          // code on screen is already meaningless. Leaving the UI on the
+          // waiting screen kept showing that dead code next to the error,
+          // inviting the sender to read out digits nobody can redeem.
+          this.callbacks.onStatus?.(
+            "error",
+            "The connection to the server dropped before anyone collected the file. Start again to get a new code.",
+          );
         }
         return;
       }
@@ -303,7 +369,7 @@ export class PeerTransfer {
       switch (msg.type) {
         case "room-created":
           this.roomCode = msg.code;
-          this.callbacks.onCode?.(msg.code, msg.expiresAt);
+          this.callbacks.onCode?.(msg.code, msg.expiresAt, msg.secret ?? null);
           this.callbacks.onStatus?.("waiting-for-peer");
           break;
         case "peer-joined":
@@ -311,7 +377,7 @@ export class PeerTransfer {
           this.ensurePeerConnection();
           break;
         case "signal":
-          this.handleSignal(msg.data);
+          this.enqueueSignal(msg.data);
           break;
         case "peer-left":
           // The peer connection was left open here. It could never connect
@@ -330,6 +396,20 @@ export class PeerTransfer {
           break;
       }
     };
+  }
+
+  private startKeepalive() {
+    this.stopKeepalive();
+    this.keepaliveTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) this.send({ type: "keepalive" });
+    }, KEEPALIVE_INTERVAL_MS);
+  }
+
+  private stopKeepalive() {
+    if (this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
   }
 
   private send(message: unknown) {
@@ -357,10 +437,48 @@ export class PeerTransfer {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.pc?.connectionState === "failed" || this.pc?.connectionState === "disconnected") {
+      const state = this.pc?.connectionState;
+
+      // "failed" is terminal. "disconnected" is NOT, and treating it as one was
+      // wrong: the spec describes it as transient, and ICE routinely recovers
+      // from it after a short burst of packet loss. On a phone changing cells or
+      // wifi wobbling it happens mid-transfer regularly — and never once on
+      // loopback, which is why it looked fine in development. The old code
+      // announced "Peer connection lost." over transfers that then completed
+      // perfectly well.
+      if (state === "failed") {
+        if (!this.pathReported) {
+          this.pathReported = true;
+          countMetric("connection-failed");
+        }
         this.callbacks.onError?.("Peer connection lost.");
+        return;
+      }
+
+      if (state === "disconnected") {
+        // Say nothing yet. Give ICE the chance to do its job first.
+        if (this.disconnectTimer !== null) clearTimeout(this.disconnectTimer);
+        this.disconnectTimer = setTimeout(() => {
+          if (this.pc?.connectionState === "disconnected") {
+            this.callbacks.onError?.("The connection dropped and could not recover. Try again.");
+          }
+        }, DISCONNECT_GRACE_MS);
+        return;
+      }
+
+      if (state === "connected" && this.disconnectTimer !== null) {
+        clearTimeout(this.disconnectTimer);
+        this.disconnectTimer = null;
       }
     };
+
+    // Which path the connection actually took. Relay bandwidth is the dominant
+    // running cost of this service, so the direct-vs-relay ratio is the single
+    // most valuable number to know about it — and nothing measured it until now.
+    this.pc.addEventListener("iceconnectionstatechange", () => {
+      const ice = this.pc?.iceConnectionState;
+      if (ice === "connected" || ice === "completed") void this.reportConnectionPath();
+    });
 
     if (this.role === "sender") {
       const channel = this.pc.createDataChannel("file-transfer", { ordered: true });
@@ -373,22 +491,111 @@ export class PeerTransfer {
     }
   }
 
+  /**
+   * Applies signals strictly one at a time, in arrival order.
+   *
+   * They used to run concurrently: `ws.onmessage` called an async handler
+   * without awaiting it, so an offer and the candidates trailing it were all in
+   * flight together. Two things went wrong with that, and the second cost real
+   * money.
+   *
+   * Ordering was never guaranteed — two `setRemoteDescription` calls could
+   * interleave. And a candidate arriving while the offer was still being applied
+   * hit `addIceCandidate` with no remote description set, which throws
+   * `InvalidStateError`. That was caught and discarded as "benign in rare
+   * orderings". It is neither rare nor benign: the sender emits its host
+   * candidates a millisecond or two after `setLocalDescription`, so they land
+   * reliably inside the window where `setRemoteDescription` is still resolving,
+   * and every one of them was thrown away permanently.
+   *
+   * A discarded candidate is a network path that never gets tried. Fewer paths
+   * means more connections falling back to the TURN relay, and relay bandwidth
+   * is the overwhelming majority of what this service costs to run — so silently
+   * dropping candidates was both a reliability bug and the largest line on the
+   * bill.
+   */
+  private enqueueSignal(data: SignalData) {
+    this.signalChain = this.signalChain.then(() => this.handleSignal(data)).catch(() => {});
+  }
+
   private async handleSignal(data: SignalData) {
     await this.ensurePeerConnection();
-    const pc = this.pc!;
+    const pc = this.pc;
+    if (!pc) return;
+
     if (data.kind === "offer") {
       await pc.setRemoteDescription(data.sdp);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       this.sendSignal({ kind: "answer", sdp: pc.localDescription });
+      await this.flushPendingCandidates();
     } else if (data.kind === "answer") {
       await pc.setRemoteDescription(data.sdp);
+      await this.flushPendingCandidates();
     } else if (data.kind === "candidate") {
-      try {
-        await pc.addIceCandidate(data.candidate);
-      } catch {
-        // Benign if it arrives before the remote description is set in rare orderings.
+      // Held, not dropped, until there is a remote description to attach them
+      // to. This is the whole fix — see enqueueSignal.
+      if (!pc.remoteDescription) {
+        this.pendingCandidates.push(data.candidate);
+        return;
       }
+      await this.addCandidate(data.candidate);
+    }
+  }
+
+  /**
+   * Reads back which path ICE actually selected, once, per connection.
+   *
+   * A "relay" candidate on either end means the bytes are going through TURN
+   * and we are paying Cloudflare per gigabyte for them. Everything else is
+   * direct and costs nothing. This is the only place that distinction is
+   * visible, and it is the number the whole cost model rests on — see
+   * src/lib/metrics.ts.
+   */
+  private async reportConnectionPath() {
+    if (this.pathReported || !this.pc) return;
+    this.pathReported = true;
+
+    try {
+      const stats = await this.pc.getStats();
+      const pairs = new Map<string, RTCIceCandidatePairStats>();
+      const candidates = new Map<string, { candidateType?: string }>();
+
+      stats.forEach((report) => {
+        if (report.type === "candidate-pair") pairs.set(report.id, report as RTCIceCandidatePairStats);
+        if (report.type === "local-candidate" || report.type === "remote-candidate") {
+          candidates.set(report.id, report as { candidateType?: string });
+        }
+      });
+
+      const selected = [...pairs.values()].find((p) => p.state === "succeeded" && p.nominated) ??
+        [...pairs.values()].find((p) => p.state === "succeeded");
+      if (!selected) return;
+
+      const localType = candidates.get(selected.localCandidateId ?? "")?.candidateType;
+      const remoteType = candidates.get(selected.remoteCandidateId ?? "")?.candidateType;
+      const relayed = localType === "relay" || remoteType === "relay";
+      countMetric(relayed ? "connection-relay" : "connection-direct");
+    } catch {
+      // getStats is best-effort and shapes differ between browsers. A missing
+      // measurement must never affect a transfer.
+    }
+  }
+
+  private async flushPendingCandidates() {
+    if (this.pendingCandidates.length === 0) return;
+    const queued = this.pendingCandidates;
+    this.pendingCandidates = [];
+    for (const candidate of queued) await this.addCandidate(candidate);
+  }
+
+  private async addCandidate(candidate: RTCIceCandidateInit) {
+    try {
+      await this.pc?.addIceCandidate(candidate);
+    } catch {
+      // With ordering now guaranteed, the only way to land here is a genuinely
+      // malformed candidate from the peer. Skipping one bad candidate is right;
+      // skipping every early one was not.
     }
   }
 
@@ -495,6 +702,7 @@ export class PeerTransfer {
         const blob = new Blob([...entry.parts, ...entry.pending], { type: entry.mime });
         this.callbacks.onFileReceived?.({ id: msg.id, name: entry.name, size: entry.size, blob });
       } else if (msg.type === "batch-end") {
+        countMetric("transfer-complete");
         this.callbacks.onStatus?.("done");
       }
       return;
@@ -750,12 +958,25 @@ export class PeerTransfer {
     this.channel = null;
     this.pc = null;
     this.pcReady = null;
+    // Candidates queued for a connection that no longer exists would otherwise
+    // be flushed into the next one, where they mean nothing.
+    this.pendingCandidates = [];
+    this.signalChain = Promise.resolve();
+    if (this.disconnectTimer !== null) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
+    }
   }
 
   close() {
     if (this.signalingCloseTimer !== null) {
       clearTimeout(this.signalingCloseTimer);
       this.signalingCloseTimer = null;
+    }
+    this.stopKeepalive();
+    if (this.disconnectTimer !== null) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
     }
     this.signalingClosedByUs = true;
     this.closedByUser = true;

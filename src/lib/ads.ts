@@ -59,16 +59,66 @@ export interface AdPlan {
   totalMs: number;
 }
 
+/**
+ * What a large transfer costs, in seconds of ad.
+ *
+ * This is the one place the site's economics are actually balanced, so the
+ * reasoning matters more than the numbers.
+ *
+ * Ad revenue scales with PAGE VIEWS. The cost of running this service scales
+ * with RELAYED BYTES — when two peers can't reach each other directly, their
+ * file goes through Cloudflare's TURN relay and we pay per gigabyte for it, and
+ * that single line is the overwhelming majority of what the service costs. Those
+ * two quantities are otherwise completely unconnected: somebody can send fifty
+ * gigabytes through the relay and generate exactly one page view's worth of
+ * revenue while doing it. At any real scale that gap is the thing that turns a
+ * free service into an unaffordable one.
+ *
+ * Scaling the ad with the size of the transfer connects them. It is also the
+ * only lever that does so without breaking the promise the whole product rests
+ * on — there is no size cap here and there is not going to be one. "No limits"
+ * is the moat; a big transfer is not refused, it is simply worth more.
+ *
+ * Two guardrails keep this from becoming a toll:
+ *
+ *   - The ceiling is the same twenty seconds the longest room already costs. We
+ *     never charge more for a big file than for the most expensive thing already
+ *     on offer, however large it gets.
+ *   - The overwhelming majority of real transfers — photos, documents, a video
+ *     off a phone — sit in the first band and are charged exactly what they are
+ *     charged today. Nothing gets worse for the common case.
+ */
+export const TRANSFER_SIZE_ADS: ReadonlyArray<{ upToBytes: number; seconds: number }> = [
+  { upToBytes: 100 * 1024 * 1024, seconds: GATE_SECONDS }, // <= 100MB: the common case, unchanged
+  { upToBytes: 1024 * 1024 * 1024, seconds: 10 }, // <= 1GB
+  { upToBytes: 10 * 1024 * 1024 * 1024, seconds: 15 }, // <= 10GB
+  { upToBytes: Number.POSITIVE_INFINITY, seconds: 20 }, // beyond that, the ceiling
+];
+
+/** Seconds of ad earned by a transfer of this total size. */
+export function secondsForTransferSize(totalBytes: number): number {
+  if (!Number.isFinite(totalBytes) || totalBytes <= 0) return GATE_SECONDS;
+  return TRANSFER_SIZE_ADS.find((band) => totalBytes <= band.upToBytes)?.seconds ?? GATE_SECONDS;
+}
+
 export interface AdPlanInput {
   /** For "reveal-code": how long the sender asked the code to stay valid. */
   roomMinutes?: number;
+  /** For "reveal-code": total bytes about to be sent, across all selected files. */
+  totalBytes?: number;
 }
 
 export function planFor(purpose: AdPurpose, input: AdPlanInput = {}): AdPlan {
-  const seconds =
-    purpose === "reveal-code" && input.roomMinutes
-      ? (ROOM_DURATION_ADS[input.roomMinutes] ?? GATE_SECONDS)
-      : GATE_SECONDS;
+  if (purpose !== "reveal-code") return { purpose, seconds: GATE_SECONDS, totalMs: GATE_SECONDS * 1000 };
+
+  const forDuration = input.roomMinutes ? (ROOM_DURATION_ADS[input.roomMinutes] ?? GATE_SECONDS) : GATE_SECONDS;
+  const forSize = input.totalBytes ? secondsForTransferSize(input.totalBytes) : GATE_SECONDS;
+
+  // The larger of the two, never the sum. A sender who wants a two-hour code AND
+  // is sending ten gigabytes is asking for two expensive things at once, but
+  // charging for both would stack into something nobody would sit through — and
+  // an ad long enough to abandon earns nothing at all.
+  const seconds = Math.max(forDuration, forSize);
   return { purpose, seconds, totalMs: seconds * 1000 };
 }
 

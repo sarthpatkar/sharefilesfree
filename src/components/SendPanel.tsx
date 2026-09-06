@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes } from "@/lib/format";
-import { DEFAULT_ROOM_DURATION, ROOM_DURATION_ADS, ROOM_DURATION_CHOICES } from "@/lib/ads";
+import {
+  DEFAULT_ROOM_DURATION,
+  GATE_SECONDS,
+  ROOM_DURATION_ADS,
+  ROOM_DURATION_CHOICES,
+  secondsForTransferSize,
+} from "@/lib/ads";
 import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
 import { CodeDisplay } from "./CodeDisplay";
@@ -11,6 +17,7 @@ import { Button } from "./Button";
 import { AdGate } from "./ads/AdGate";
 import { AdSlot } from "./ads/AdSlot";
 import { FileDropZone } from "./tools/FileDropZone";
+import { adsEnabled } from "./ads/adNetwork";
 
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
@@ -19,6 +26,7 @@ const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   connected: "Connected! Starting transfer…",
   transferring: "Sending…",
   done: "All files sent.",
+  error: "Transfer stopped.",
 };
 
 export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
@@ -37,6 +45,8 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [status, setStatus] = useState<TransferStatus>("idle");
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  /** Set only for long-lived rooms — the half of the link that makes them safe. */
+  const [secret, setSecret] = useState<string | null>(null);
   /**
    * How long the code should keep working. Ten minutes covers the case this is
    * built for — reading six digits to someone who is right there. Longer is for
@@ -64,9 +74,10 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           transfer.sendFiles(files).catch((e) => setError(e.message));
         }
       },
-      onCode: (c, expires) => {
+      onCode: (c, expires, roomSecret) => {
         setCode(c);
         setExpiresAt(expires);
+        setSecret(roomSecret);
       },
       onProgress: (p) => setProgress((prev) => new Map(prev).set(p.id, p)),
       onError: setError,
@@ -82,6 +93,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setStatus("idle");
     setCode(null);
     setExpiresAt(null);
+    setSecret(null);
     setRoomMinutes(DEFAULT_ROOM_DURATION);
     setProgress(new Map());
     setError(null);
@@ -120,6 +132,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
               <AdGate
                 purpose="reveal-code"
                 roomMinutes={roomMinutes}
+                totalBytes={totalSize}
                 waitingFor="Your code"
                 onPass={() => {
                   setGate(null);
@@ -156,6 +169,19 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                       } is one a stranger has longer to guess, so it gets a bigger haystack. Send it as a link or QR rather than reading it out. This page must stay open the whole time — your file is waiting here, not on a server.`}
                 </p>
 
+                {/* Said before the gate appears, not after. A sender who picks a
+                    10GB file and is suddenly held for fifteen seconds instead of
+                    five deserves to know that happened and why — the alternative
+                    is a silent penalty for using the one feature this site
+                    actually promises. */}
+                {adsEnabled() && secondsForTransferSize(totalSize) > GATE_SECONDS && (
+                  <p className="max-w-md bg-y-max px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+                    That&rsquo;s {formatBytes(totalSize)}, so the ad before your code is{" "}
+                    {secondsForTransferSize(totalSize)} seconds instead of {GATE_SECONDS}. There&rsquo;s no size
+                    limit here and there never will be — big transfers just carry more of what keeps this free.
+                  </p>
+                )}
+
                 <Button onClick={() => setGate("code")} className="self-start">
                   Get a code to share
                 </Button>
@@ -188,7 +214,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           {error}
         </p>
       )}
-      {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} expiresAt={expiresAt} />}
+      {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} expiresAt={expiresAt} secret={secret} />}
       {(status === "transferring" || status === "connected") && (
         <div className="w-full max-w-md">
           <ProgressBar fraction={totalSize ? totalSent / totalSize : 0} />

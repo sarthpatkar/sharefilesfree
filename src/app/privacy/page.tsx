@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "How ShareFilesFree handles your files and data.",
 };
 
-const LAST_UPDATED = "August 29, 2026";
+const LAST_UPDATED = "September 6, 2026";
 
 const SECTIONS: LegalSection[] = [
   {
@@ -57,6 +57,19 @@ const SECTIONS: LegalSection[] = [
           it as such and name it here rather than calling it &ldquo;technical data&rdquo;. It is also the only
           personal data we have. There are no accounts, no email addresses, no files, no filenames and no transfer
           history — not because we delete them, but because the way this service is built means they never exist.
+        </p>
+        <p>
+          Separately from that, we keep a handful of plain counters: how many transfers connected directly, how many
+          had to fall back to a relay, how many failed, and how many finished. They are totals and nothing else —
+          numbers that go up. There is no identifier attached, no cookie, no record of an individual transfer, and
+          nothing that could be traced back to you or put in an order. We keep them because a relayed transfer is
+          the one thing that costs us real money to carry, and without counting we have no way to know what this
+          service costs to run or whether a change made it better.
+        </p>
+        <p>
+          They live in the server&rsquo;s memory alongside the rate limits and vanish when it restarts. This is the
+          analytics this page promised to tell you about before adding rather than after — and it is deliberately
+          the smallest version of it we could build and still learn anything.
         </p>
       </>
     ),

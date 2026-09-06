@@ -19,12 +19,27 @@ function isCompleteCode(value: string): boolean {
   return /^(\d{6}|\d{8})$/.test(value);
 }
 
+/**
+ * Splits a shared fragment into its two halves.
+ *
+ * A short room's link is just the digits. A long-lived room's is
+ * `code.secret`, because digits that stay valid for hours are guessable and the
+ * number of rooms open to guess at grows with the site — see generateRoomSecret
+ * in /server/index.js. The secret half is never typed; it only ever arrives by
+ * link or QR.
+ */
+function parseFragment(raw: string): { code: string; secret: string | null } {
+  const [code, ...rest] = raw.split(".");
+  return { code, secret: rest.length > 0 ? rest.join(".") : null };
+}
+
 const STATUS_LABEL: Partial<Record<TransferStatus, string>> = {
   "connecting-signal": "Connecting…",
   negotiating: "Found the sender — opening a direct connection…",
   connected: "Connected! Waiting for the sender to start…",
   transferring: "Receiving…",
   done: "All files received.",
+  error: "Transfer stopped.",
 };
 
 export function ReceivePanel() {
@@ -177,7 +192,7 @@ export function ReceivePanel() {
     setGateOpen(true);
   }
 
-  function connect(targetCode: string) {
+  function connect(targetCode: string, targetSecret: string | null = null) {
     if (!isCompleteCode(targetCode)) {
       setError("Enter the code exactly as shown on the sender's screen — 6 digits, or 8 for a longer-lived one.");
       return;
@@ -204,7 +219,7 @@ export function ReceivePanel() {
     });
     transfer.setSaveDirectory(saveDirRef.current);
     transferRef.current = transfer;
-    transfer.connectAsReceiver(targetCode);
+    transfer.connectAsReceiver(targetCode, targetSecret);
   }
 
   // A code arriving via a shared link (/receive#123456) is a deliberate
@@ -220,14 +235,14 @@ export function ReceivePanel() {
   // synchronously during the effect (React flags that as a footgun even though
   // it's a one-time bootstrap).
   useEffect(() => {
-    const fromHash = window.location.hash.replace(/^#/, "").trim();
+    const { code: fromHash, secret: hashSecret } = parseFragment(window.location.hash.replace(/^#/, "").trim());
     if (!isCompleteCode(fromHash)) return;
     window.history.replaceState(null, "", window.location.pathname);
     // Both state updates go inside the timeout: setting state synchronously in
     // an effect cascades renders, and this is a one-time bootstrap either way.
     const timer = setTimeout(() => {
       setCode(fromHash);
-      connect(fromHash);
+      connect(fromHash, hashSecret);
     }, 0);
     return () => clearTimeout(timer);
   }, []);

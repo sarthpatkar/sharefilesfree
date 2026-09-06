@@ -35,6 +35,9 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - name: Start signaling server
+        # A fast heartbeat so the idle-socket test doesn't wait 30s for a tick.
+        env:
+          SIGNALING_HEARTBEAT_MS: "1000"
         run: nohup npm start > server.log 2>&1 &
       - name: Wait for it to come up
         run: |
@@ -44,6 +47,8 @@ jobs:
           done
           echo "Server never became healthy"; cat server.log; exit 1
       - name: Run protocol test
+        env:
+          SIGNALING_HEARTBEAT_MS: "1000"
         run: npm test
       - name: Show server log on failure
         if: failure()

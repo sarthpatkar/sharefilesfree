@@ -44,6 +44,40 @@ sharefilesfree.com {
 	@immutable path /_next/static/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 
+	# --- Letting Cloudflare's edge serve the prerendered pages --------------
+	#
+	# Every route on this site except /api/turn-credentials is prerendered at
+	# build time, yet measured on the live deployment every single page view was
+	# reaching this box: `cf-cache-status: DYNAMIC` on every route, including all
+	# nineteen tool pages, which are the entire SEO strategy. One 1-vCPU origin
+	# was in the path of all of it.
+	#
+	# Two things prevent edge caching by default, and both have to be handled:
+	#
+	#   1. Cloudflare does not cache HTML unless a Cache Rule says to. That part
+	#      lives in the dashboard, not here — see DEPLOYMENT.md.
+	#   2. Cloudflare will not cache a response that Varies on anything except
+	#      Accept-Encoding, and Next.js varies on its RSC negotiation headers.
+	#
+	# So the two request shapes are separated. A client-side navigation or
+	# prefetch carries the RSC header, keeps the full Vary, and is never cached.
+	# A plain document request — what a first-time visitor and a search crawler
+	# both send — gets a clean, cacheable response.
+	#
+	# The TTL is deliberately short. A deploy changes the HTML and the hashed
+	# chunk URLs it references together, so HTML cached for long enough could
+	# outlive the chunks it points at — the same class of failure the service
+	# worker had. Sixty seconds still collapses origin load by orders of
+	# magnitude under a traffic spike, which is the point, while keeping the
+	# stale window shorter than a deploy takes.
+	@document {
+		not header RSC *
+		not path /api/*
+		not path /_next/*
+	}
+	header @document Vary "Accept-Encoding"
+	header @document Cache-Control "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+
 	reverse_proxy localhost:3000 {
 		# A deploy restarts the app, and for the second or two it takes, every
 		# request would otherwise fail — Cloudflare turns that into a 522 for

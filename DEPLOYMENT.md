@@ -130,6 +130,57 @@ minute. If you ever move to a 1 GB instance this will OOM; build in CI instead
 Those are inlined into the client bundle at build time; a restart alone does
 nothing.
 
+### Cloudflare Cache Rules (do this in the dashboard — it is not in the repo)
+
+Measured 6 Sep 2026: every route returned `cf-cache-status: DYNAMIC`. Nothing
+was edge-cached except `/_next/static/`, so **every page view of all nineteen
+tool pages reached the origin in India** — TTFB 0.38-1.49s, on one vCPU. That is
+the first thing that falls over under a launch spike, and the traffic is the
+point of the tool pages.
+
+Caddy now emits a cacheable `Cache-Control` and a clean `Vary` for plain
+document requests (see `deploy/Caddyfile.example`), but Cloudflare still will not
+cache HTML unless a Cache Rule says so. Create one — Free plan allows 10:
+
+- **Name**: `Cache prerendered HTML`
+- **When incoming requests match**:
+  `(not starts_with(http.request.uri.path, "/api/") and not starts_with(http.request.uri.path, "/_next/") and len(http.request.headers["rsc"]) eq 0)`
+- **Then**: Cache eligibility → *Eligible for cache*; Edge TTL → *Use cache-control header if present*; Browser TTL → *Respect origin*
+
+The RSC condition matters: those are Next.js client-side navigations and
+prefetches, they legitimately vary per request, and caching them would serve one
+route's payload for another.
+
+Verify after applying — the second request should say `HIT`:
+
+```bash
+curl -sI https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status
+curl -sI https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status   # expect HIT
+# and confirm an RSC request is NOT served from cache:
+curl -sI -H 'RSC: 1' https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status
+```
+
+**After a deploy**, cached HTML can briefly reference chunk URLs the new build no
+longer has. The 60-second edge TTL keeps that window short; purge the cache
+after a deploy if you want it gone immediately (needs an API token with
+`Cache Purge`, which the Caddy DNS token does not have).
+
+### What the transfers are actually doing
+
+`GET /api/metrics` returns running totals — how many connections went direct,
+how many fell back to the relay, how many failed, how many transfers finished:
+
+```bash
+curl -s https://sharefilesfree.com/api/metrics
+```
+
+`relayRatio` is the number that matters. Relayed bytes are the overwhelming
+majority of what this service costs to run (Cloudflare TURN is $0.05/GB after
+1,000 GB/month free), so that ratio times traffic is the hosting bill. It is
+also the only way to tell whether a networking change helped. Counters are
+in-memory and reset on restart — record them somewhere before a deploy if you
+want a trend.
+
 ### Checking health
 
 ```bash
@@ -143,8 +194,9 @@ curl -s http://127.0.0.1:8080/healthz            # -> ok
 
 ## Gotchas hit during setup
 
-All four cost real time. They are fixed in `deploy/`, but the reasoning matters
-if you rebuild this on another box.
+All of these cost real time. The first five are fixed in `deploy/`; the sixth is
+fixed in the app itself. The reasoning matters if you rebuild this on another box
+— or put any other proxy in front of the signaling server.
 
 ### 1. SSH hardening silently did nothing
 
@@ -215,6 +267,40 @@ Verify the issuer is real, not staging:
 find /var/lib/caddy -name '*.crt' -exec openssl x509 -in {} -noout -issuer \;
 # expect: issuer=C=US, O=Let's Encrypt, CN=...   (path contains acme-v02, not acme-staging-v02)
 ```
+
+### 6. Cloudflare's proxy closed every idle signaling WebSocket
+
+The one that broke the actual product rather than the setup, and the only one
+here that a green `systemctl status` and a passing health check both report as
+fine.
+
+Cloudflare closes a proxied WebSocket that has carried no traffic for about 100
+seconds. The signaling protocol went silent the moment a room was created — the
+sender waits, the receiver hasn't typed the code yet, neither side has anything
+to say — so the connection was cut at ~124 seconds (close code 1006, no close
+frame). That fired `close` on the server, which deleted the room, so:
+
+- codes stopped working after ~2 minutes regardless of the 10/30/60/120-minute
+  duration the sender picked and paid an ad for;
+- the receiver got "That code is invalid or has expired";
+- the sender got an error next to a code the server had already forgotten.
+
+Nothing about this is visible locally, where the browser connects straight to
+`ws://localhost:8080` with no proxy in between and `ws` never times out an idle
+connection on its own.
+
+Fixed in `server/index.js` with a 30-second ping/pong heartbeat (browsers answer
+a ping in the network stack, so it survives a backgrounded tab — which matters
+because "leave the tab open" is the product), plus a matching client-side
+keepalive in `src/lib/peerTransfer.ts`. The same heartbeat reaps sockets that
+died without a close frame, which used to leak their rooms until TTL.
+
+`server/test-signaling.mjs` asserts both halves; run the server with
+`SIGNALING_HEARTBEAT_MS` set low to exercise it quickly.
+
+To check it against the live deployment, open a WebSocket to
+`wss://signal.sharefilesfree.com`, send nothing, and confirm it is still open
+after three minutes.
 
 ---
 
