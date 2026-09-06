@@ -18,6 +18,7 @@ import {
   IconQrCode,
   IconImage,
   IconTextScan,
+  IconPen,
 } from "../icons";
 import { CompressImageTool } from "./CompressImageTool";
 import { ImagesToPdfTool } from "./ImagesToPdfTool";
@@ -42,6 +43,7 @@ import { TextToPdfTool } from "./TextToPdfTool";
 import { CsvToPdfTool } from "./CsvToPdfTool";
 import { RotatePdfTool } from "./RotatePdfTool";
 import { FlattenPdfTool } from "./FlattenPdfTool";
+import { EditPdfTool } from "./EditPdfTool";
 
 export interface ToolDef {
   slug: string;
@@ -284,6 +286,17 @@ export const TOOLS: ToolDef[] = [
     icon: IconLayers,
     canSend: true,
     Component: RotatePdfTool,
+  },
+  {
+    slug: "edit-pdf",
+    title: "Edit PDF",
+    seoTitle: "Edit a PDF Free — Add Text, Drawings and Images — ShareFilesFree",
+    description: "Write on a PDF in your browser: add text, boxes, freehand pen, highlighter and images, then save it. Free, no signup, nothing uploaded.",
+    cardBlurb: "Write, draw and highlight on a page",
+    group: "PDF pages",
+    icon: IconPen,
+    canSend: true,
+    Component: EditPdfTool,
   },
   {
     slug: "flatten-pdf",

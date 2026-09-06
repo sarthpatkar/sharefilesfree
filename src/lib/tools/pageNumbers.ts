@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb, type RGB } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import { hexToRgb } from "./pdfColor";
 
 export type NumberPosition = "bottom-center" | "bottom-right" | "bottom-left" | "top-center" | "top-right" | "top-left";
 
@@ -9,13 +10,6 @@ export interface PageNumberOptions {
   format: string;
   fontSize: number;
   color: string; // hex
-}
-
-function hexToRgb(hex: string): RGB {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
-  if (!m) return rgb(0.35, 0.35, 0.35);
-  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255);
-  return rgb(r, g, b);
 }
 
 export async function addPageNumbers(file: File, options: PageNumberOptions): Promise<File> {

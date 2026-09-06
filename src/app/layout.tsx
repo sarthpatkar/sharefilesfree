@@ -32,7 +32,7 @@ const outfit = Outfit({
 
 const title = "ShareFilesFree — Send any size file free, no sign-up";
 const description =
-  "Send a file of any size to any device with a short code. No account, no app, and no size limit — not a generous one, none at all, because your file never touches our servers. Plus 23 free tools that run on your own device.";
+  "Send a file of any size to any device with a short code. No account, no app, and no size limit — not a generous one, none at all, because your file never touches our servers. Plus 24 free tools that run on your own device.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sharefilesfree.com"),

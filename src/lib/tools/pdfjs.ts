@@ -34,6 +34,27 @@ export async function renderPageToDataUrl(pdf: pdfjsLib.PDFDocumentProxy, pageNu
   return { dataUrl: canvas.toDataURL("image/png"), width: viewport.width, height: viewport.height };
 }
 
+/**
+ * Renders a page and hands back the viewport that drew it.
+ *
+ * Edit PDF needs the viewport itself, not just the picture: `convertToPdfPoint`
+ * is the only correct way to turn a click into a position in the document, and
+ * it is the viewport that knows the scale, the page's own /Rotate and the
+ * offset of its crop box. Doing that arithmetic by hand is where annotation
+ * tools go wrong on rotated scans.
+ */
+export async function renderPageWithViewport(pdf: pdfjsLib.PDFDocumentProxy, pageNumber: number, scale: number): Promise<{ dataUrl: string; viewport: pdfjsLib.PageViewport }> {
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("This browser doesn't support canvas rendering.");
+  await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+  return { dataUrl: canvas.toDataURL("image/png"), viewport };
+}
+
 /** Renders one page straight to a JPEG Blob (used when building output files, not previews). */
 export async function renderPageToBlob(pdf: pdfjsLib.PDFDocumentProxy, pageNumber: number, scale: number, quality: number): Promise<{ blob: Blob; width: number; height: number }> {
   const page = await pdf.getPage(pageNumber);

@@ -533,6 +533,40 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
     ],
   },
 
+  "edit-pdf": {
+    intro: [
+      "Two different searches lead here and they want the same thing. \"Edit PDF\" is usually someone who needs to put something ON a page — a signature, a date, a corrected figure, a note for whoever reads it next. \"Annotate PDF\" is the same person using the word a lawyer or a lecturer would. So this is one tool rather than two: text, rectangles, ovals, a freehand pen, a highlighter and images, placed anywhere on any page.",
+      "It runs entirely in your browser, which matters more here than for almost anything else on the site. The documents people sign, initial or scribble a correction on are contracts, tenancy agreements, medical forms and passport scans — the exact category you would least like to hand to a stranger's server for processing. Nothing is uploaded, so there is nothing to hand over.",
+      "The pen is the reason most people arrive. Sign with a finger on a phone or a trackpad on a laptop, or place a photograph of your signature as an image — both end up as ordinary page content, so the file opens correctly in any reader and prints the way it looks.",
+    ],
+    steps: [
+      "Open the PDF. The first page is drawn on your device, sized to fit the column, with the rest a click away.",
+      "Pick a tool. Text places a box where you click and types into it; rectangle, oval, pen and highlighter are all drag-to-draw; image asks for a picture first and then a box to fit it into.",
+      "Set the colour, size or line weight before you draw — the controls above the page change with the tool you have chosen.",
+      "Zoom in for anything fiddly, like a signature line or a small form field. Zooming changes the view only; marks already placed stay exactly where you put them.",
+      "Use Select to drag a mark somewhere better or delete it, and Undo to step back. Then save the edited PDF, or hand it straight to the transfer page to send it to someone.",
+    ],
+    limits: [
+      "It cannot edit the text that is already in the PDF. Nothing here will let you click into an existing paragraph and retype it. That is a genuinely different and much harder job — a PDF stores glyphs at fixed positions with no notion of a sentence, so \"changing a word\" means re-flowing a line the file never described. Anyone promising otherwise is either rebuilding the page as an image or converting to Word and back, and both lose the original. What this does is add new content on top of what is there.",
+      "Everything you draw is written into the page, not attached as a PDF comment object. That is what makes it show up identically everywhere and survive printing, but it also means the marks cannot be clicked and re-edited later in Acrobat. Keep the original if you might need to change your mind.",
+      "A filled rectangle over sensitive text hides it from view but does NOT remove it. The words are still in the file and can be copied straight out from underneath. This is not a redaction tool, and no tool that draws a box on top of text is one.",
+      "Text uses the fonts built into the PDF format, which cover Latin letters, digits and punctuation. Greek, Cyrillic, Chinese, Japanese, Korean and emoji have no place in those fonts — the tool tells you before you place the text rather than after. Embedding a Unicode font would mean a multi-megabyte download on every visit.",
+      "A password-protected PDF has to be unlocked first, since the pages cannot be drawn while they are encrypted.",
+      "Marks are placed by hand, not snapped to anything. There is no grid, no alignment guide and no form-field detection, so filling a long form is a manual job.",
+    ],
+    faqs: [
+      { q: "Can I change the wording that is already in the document?", a: "No, and it is worth being clear about why. A PDF is a set of instructions for painting glyphs at fixed coordinates; it does not record which glyphs form a word, a sentence or a paragraph, so there is nothing to re-flow when a word gets longer. Tools that claim to do it either convert the document to Word and back — which rebuilds the layout and usually breaks it — or replace the page with a picture. This tool adds new content over the existing page, which is what most \"edit\" jobs actually need: a signature, a date, a correction, a note." },
+      { q: "How do I sign a document?", a: "Two ways, and both are common. Choose the pen and sign with a finger, a stylus or a trackpad — zoom in first, it is much easier at 200%. Or photograph your signature on white paper, cut it out as a PNG with a transparent background, and place it with the image tool, which is the tidier option if you sign a lot of things." },
+      { q: "Will the highlighter hide the text underneath?", a: "No. Highlighter strokes are written with a multiply blend, the same way real highlighter ink works — the colour darkens the page without covering it, so the words stay readable and still selectable. Ordinary shapes with fill switched on are opaque by comparison." },
+      { q: "Is drawing a black box over text the same as redacting it?", a: "No, and treating it as though it were is how confidential information leaks. The rectangle sits above the text; the text itself is untouched and anyone can select and copy it, or read it out of the file directly. Real redaction removes the underlying content. If a document must be safe to release, delete the sensitive text at the source and produce a fresh PDF." },
+      { q: "Does it work on a phone or tablet?", a: "Yes, and the pen is better with a finger or a stylus than with a mouse. The page is scaled to fit the screen, and because positions are stored against the document rather than the screen, zooming in to place something precisely cannot shift anything you have already drawn." },
+      { q: "What happens to pages that were scanned in sideways?", a: "They are handled. A page can carry its own rotation, and marks are positioned through the same machinery the viewer uses, so text lands upright and in the place you clicked rather than rotated into a corner. If the whole document is the wrong way up, Rotate PDF will fix that first." },
+      PRIVACY_FAQ,
+      NO_LIMIT_FAQ,
+      FREE_FAQ,
+    ],
+  },
+
   "flatten-pdf": {
     intro: [
       "A filled-in PDF form is still a form. The values sit in interactive fields that anyone opening the file can click into and change, which is a problem the moment the form is evidence of something — a signed agreement, a completed application, an invoice with an amount on it.",

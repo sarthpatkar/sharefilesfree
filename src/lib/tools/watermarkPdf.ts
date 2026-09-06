@@ -1,4 +1,5 @@
-import { PDFDocument, rgb, StandardFonts, degrees, type RGB } from "pdf-lib";
+import { PDFDocument, StandardFonts, degrees } from "pdf-lib";
+import { hexToRgb } from "./pdfColor";
 import { parsePageRange } from "./pageRange";
 
 export type WatermarkPosition = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right" | "tile";
@@ -12,13 +13,6 @@ export interface WatermarkOptions {
   position: WatermarkPosition;
   /** Empty/blank = every page. Otherwise e.g. "1,3-5". */
   pageRange: string;
-}
-
-function hexToRgb(hex: string): RGB {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
-  if (!m) return rgb(0.5, 0.5, 0.5);
-  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255);
-  return rgb(r, g, b);
 }
 
 export async function watermarkPdf(file: File, options: WatermarkOptions): Promise<File> {

@@ -268,3 +268,12 @@ export function IconTextScan(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconPen(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+      <path d="M14 6l4 4" />
+    </svg>
+  );
+}
