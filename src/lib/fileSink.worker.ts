@@ -26,6 +26,8 @@ interface OpenMessage {
   type: "open";
   id: string;
   name: string;
+  /** Declared size, checked against what actually lands — see the close branch. */
+  size: number;
 }
 interface WriteMessage {
   type: "write";
@@ -61,12 +63,27 @@ interface OpfsDirHandle {
   keys(): AsyncIterableIterator<string>;
 }
 
+import { createSerialQueue } from "./serialQueue";
+
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
 /** Everything this worker writes lives under one prefix, so it can be swept. */
 const PREFIX = "sff-";
 
-const open = new Map<string, { handle: SyncAccessHandle; fileName: string; offset: number }>();
+const open = new Map<string, { handle: SyncAccessHandle; fileName: string; offset: number; expected: number }>();
+
+/**
+ * Work for one file runs strictly in arrival order — see createSerialQueue for
+ * the bug this prevents, which silently truncated the start of every file this
+ * worker ever wrote.
+ */
+const queue = createSerialQueue((id, error) => {
+  scope.postMessage({
+    type: "failed",
+    id,
+    message: error instanceof Error ? error.message : "Could not write the file to storage.",
+  });
+});
 
 async function root(): Promise<OpfsDirHandle> {
   return (await (navigator.storage as unknown as { getDirectory(): Promise<OpfsDirHandle> }).getDirectory());
@@ -91,10 +108,12 @@ async function sweepOldFiles() {
 
 const swept = sweepOldFiles();
 
-scope.onmessage = async (event: MessageEvent<Incoming>) => {
+scope.onmessage = (event: MessageEvent<Incoming>) => {
   const msg = event.data;
 
-  try {
+  // Everything for one file goes through that file's chain, in arrival order.
+  // Nothing here may run ahead of the open it depends on.
+  queue.enqueue(msg.id, async () => {
     if (msg.type === "open") {
       await swept;
       const dir = await root();
@@ -104,28 +123,46 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       const handle = await dir.getFileHandle(fileName, { create: true });
       const access = await handle.createSyncAccessHandle();
       access.truncate(0);
-      open.set(msg.id, { handle: access, fileName, offset: 0 });
+      open.set(msg.id, { handle: access, fileName, offset: 0, expected: Math.max(0, Number(msg.size) || 0) });
       scope.postMessage({ type: "opened", id: msg.id });
       return;
     }
 
     if (msg.type === "write") {
       const entry = open.get(msg.id);
-      if (!entry) return;
+      // Reachable only if a write arrives for a file that was never opened or
+      // has already been closed. That is a bug rather than a condition, and it
+      // costs bytes — so it is reported instead of being swallowed, which is
+      // what hid the corruption for so long.
+      if (!entry) throw new Error("Received data for a file that is not open.");
       entry.offset += entry.handle.write(new Uint8Array(msg.buffer), { at: entry.offset });
       return;
     }
 
     if (msg.type === "close") {
       const entry = open.get(msg.id);
-      if (!entry) return;
+      if (!entry) throw new Error("Asked to finish a file that is not open.");
       open.delete(msg.id);
+      queue.forget(msg.id);
       entry.handle.flush();
       entry.handle.close();
 
       const dir = await root();
       const handle = await dir.getFileHandle(entry.fileName);
       const file = await handle.getFile();
+
+      // The last line of defence, and the one that would have caught this
+      // silently. A file whose bytes on disk do not match what the sender said
+      // it would send is corrupt, and handing it over as a success is worse
+      // than failing: the person keeps it, deletes the original, and finds out
+      // months later. Refuse it instead, and say so.
+      if (entry.expected > 0 && file.size !== entry.expected) {
+        await dir.removeEntry(entry.fileName).catch(() => {});
+        throw new Error(
+          `Only ${file.size} of ${entry.expected} bytes arrived, so the file is incomplete and was not kept. Please try again.`,
+        );
+      }
+
       // A File from OPFS is a reference to bytes on disk, not a copy in memory,
       // so posting it back costs nothing regardless of how large it is.
       scope.postMessage({ type: "done", id: msg.id, file, mime: msg.mime });
@@ -134,6 +171,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
 
     if (msg.type === "discard") {
       const entry = open.get(msg.id);
+      queue.forget(msg.id);
       if (entry) {
         open.delete(msg.id);
         try {
@@ -146,13 +184,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       }
       return;
     }
-  } catch (err) {
-    scope.postMessage({
-      type: "failed",
-      id: msg.id,
-      message: err instanceof Error ? err.message : "Could not write the file to storage.",
-    });
-  }
+  });
 };
 
 export {};

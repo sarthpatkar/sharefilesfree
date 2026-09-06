@@ -671,7 +671,9 @@ export class PeerTransfer {
           // take, and it is why size is no longer bounded by RAM there.
           entry.sunk = true;
           this.sunkFiles.set(msg.id, { name: entry.name, size: entry.size });
-          this.sink!.postMessage({ type: "open", id: msg.id, name: entry.name });
+          // The size travels with the open so the worker can verify, at close, that
+          // what landed on disk is what was promised.
+          this.sink!.postMessage({ type: "open", id: msg.id, name: entry.name, size: entry.size });
           // Bounded by the origin's storage quota rather than by RAM, which is a
           // far higher ceiling but still a ceiling — and on a phone with little
           // free space it can be the lower one. This warning used to fire only
