@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: tool.seoTitle,
     description: tool.description,
+    alternates: { canonical: `/tools/${tool.slug}` },
     openGraph: { title: tool.seoTitle, description: tool.description, url: `/tools/${tool.slug}` },
     twitter: { card: "summary_large_image", title: tool.seoTitle, description: tool.description },
   };
@@ -40,11 +41,24 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
 
+  // Breadcrumb trail, matching the Home / Tools / [tool] path a visitor
+  // actually clicks through — this is what earns the breadcrumb trail shown
+  // under the result in search, in place of the raw URL.
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://sharefilesfree.com/" },
+      { "@type": "ListItem", position: 2, name: "Tools", item: "https://sharefilesfree.com/tools" },
+      { "@type": "ListItem", position: 3, name: tool.title, item: `https://sharefilesfree.com/tools/${tool.slug}` },
+    ],
+  };
+
   // FAQ and step markup, so the questions can surface directly in search results
   // rather than only inside the page. Emitted only where real content exists —
   // marking up an empty page would be the exact thing Google penalises.
   const content = TOOL_CONTENT[slug];
-  const graph: object[] = [json];
+  const graph: object[] = [json, breadcrumbs];
   if (content) {
     graph.push({
       "@context": "https://schema.org",

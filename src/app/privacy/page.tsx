@@ -5,6 +5,7 @@ import { LegalPage, type LegalSection } from "@/components/LegalPage";
 export const metadata: Metadata = {
   title: "Privacy Policy — ShareFilesFree",
   description: "How ShareFilesFree handles your files and data.",
+  alternates: { canonical: "/privacy" },
 };
 
 const LAST_UPDATED = "September 6, 2026";

@@ -23,7 +23,7 @@ export function SiteFooter() {
               <span className="font-display text-[19px] leading-none text-red">ShareFilesFree</span>
             </div>
             <p className="max-w-xs text-[15px] font-medium leading-[1.6] text-black">
-              Send anything to anyone with six digits. No account, no app, no size limit.
+              Free file sharing with six digits, not an upload. No account, no app, no size limit.
             </p>
           </div>
 

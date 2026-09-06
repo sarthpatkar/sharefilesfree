@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Contact & Grievance Officer — ShareFilesFree",
   description:
     "How to reach ShareFilesFree: general contact, privacy requests, and the grievance officer designated under India's IT Rules, 2021.",
+  alternates: { canonical: "/contact" },
 };
 
 const LAST_UPDATED = "September 5, 2026";

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Live stats — how much ShareFilesFree has moved, and stored",
   description:
     "Real running totals from ShareFilesFree: bytes moved between people, files delivered, how often a transfer goes device to device, and the amount we have stored, which is zero.",
+  alternates: { canonical: "/stats" },
 };
 
 /**

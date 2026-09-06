@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "ShareFilesFree",
     short_name: "ShareFilesFree",
-    description: "Send large files free, no signup, no login.",
+    description: "Share files free, no signup, no login.",
     start_url: "/",
     display: "standalone",
     background_color: "#faf8f4",

@@ -49,4 +49,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     q: "What stops people abusing an anonymous file service?",
     a: "Honestly: very little, and by design. Files pass directly between two browsers and never reach us, so there is nothing for us to scan even if we wanted to. What we do have are limits on how many transfers one connection can start, codes that expire and can't be guessed, and no storage at all — nothing can sit here waiting to be found by anyone. That's a genuine trade-off of the private route, and we'd rather name it than pretend it isn't there.",
   },
+  {
+    q: "Is ShareFilesFree actually a free file-sharing website, or is there a catch?",
+    a: "It's what the name says: a free file-sharing website, not a free trial of a paid one. There's no storage limit to hit, no watermark waiting to appear, and no upgrade screen behind the transfer or the tools. Share a file the same way tomorrow, next year, or a hundred times today — the free version is the only version.",
+  },
 ];

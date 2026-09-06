@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Receive a file — enter your 6-digit code — ShareFilesFree",
   description:
     "Enter the 6-digit code from the sender to receive a file directly in your browser. No account, no app install, no waiting on an upload.",
+  alternates: { canonical: "/receive" },
 };
 
 export default async function ReceivePage() {

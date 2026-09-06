@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Free PDF & File Tools — No Signup — ShareFilesFree",
   description:
     "Merge, split, compress, and convert PDFs and images for free, right in your browser. No signup, no upload — every tool runs on your device.",
+  alternates: { canonical: "/tools" },
 };
 
 export default function ToolsIndexPage() {

@@ -30,21 +30,33 @@ const outfit = Outfit({
   display: "swap",
 });
 
-const title = "ShareFilesFree — Send any size file free, no sign-up";
+const title = "ShareFilesFree — Share Files Free, No Sign-Up, No Size Limit";
 const description =
-  "Send a file of any size to any device with a short code. No account, no app, and no size limit — not a generous one, none at all, because your file never touches our servers. Plus 24 free tools that run on your own device.";
+  "Share files free with anyone, on any device, with a short code — no account, no app, and no size limit at all, because your file never touches our servers. Free file sharing, plus 24 more free tools that run on your own device.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sharefilesfree.com"),
   title,
   description,
   keywords: [
+    "share files free",
+    "file sharing free",
+    "share file",
+    "free file sharing",
     "send large files free",
     "no size limit file transfer",
     "file sharing no signup",
     "free file transfer",
     "send big files",
   ],
+  alternates: { canonical: "/" },
+  // Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION after adding this property in
+  // Search Console (the HTML tag method, not the DNS one) — see
+  // .env.local.example for where to get the value. Left unset, Next.js emits
+  // no verification tag at all rather than a broken empty one.
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
   openGraph: { title, description, url: "/", siteName: "ShareFilesFree", type: "website" },
   twitter: { card: "summary_large_image", title, description },
 };

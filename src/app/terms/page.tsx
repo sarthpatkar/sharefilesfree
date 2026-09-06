@@ -5,6 +5,7 @@ import { LegalPage, type LegalSection } from "@/components/LegalPage";
 export const metadata: Metadata = {
   title: "Terms of Use — ShareFilesFree",
   description: "The terms for using ShareFilesFree.",
+  alternates: { canonical: "/terms" },
 };
 
 const LAST_UPDATED = "August 29, 2026";
