@@ -75,8 +75,16 @@ sharefilesfree.com {
 		not path /api/*
 		not path /_next/*
 	}
-	header @document Vary "Accept-Encoding"
-	header @document Cache-Control "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+	# `defer` matters and is not decoration. Without it these operations run
+	# before reverse_proxy copies the upstream's own headers in, so the response
+	# carries BOTH values — two Cache-Control lines and two Vary lines — and
+	# Cloudflare reads the Next.js pair. Deferring applies them at write time,
+	# after the upstream headers land, which replaces rather than appends.
+	header @document {
+		Vary "Accept-Encoding"
+		Cache-Control "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+		defer
+	}
 
 	reverse_proxy localhost:3000 {
 		# A deploy restarts the app, and for the second or two it takes, every
