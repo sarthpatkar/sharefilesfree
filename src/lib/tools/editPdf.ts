@@ -28,7 +28,17 @@
 // bottom — text, images, an underline, the second line of a paragraph — is
 // placed using `screenDown()` and `screenFrame()`, which say which way is
 // actually down once the viewer has finished rotating the page.
-import { PDFDocument, StandardFonts, BlendMode, LineCapStyle, degrees, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFName,
+  PDFString,
+  StandardFonts,
+  BlendMode,
+  LineCapStyle,
+  degrees,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 import { hexToRgb } from "./pdfColor";
 
 export interface Point {
@@ -61,6 +71,7 @@ export interface TextAnnotation extends AnnotationBase {
   color: string;
   font: FontChoice;
   bold: boolean;
+  italic: boolean;
 }
 
 export interface ShapeAnnotation extends AnnotationBase {
@@ -112,6 +123,13 @@ export interface MarkAnnotation extends AnnotationBase {
   opacity: number;
 }
 
+export interface LinkAnnotation extends AnnotationBase {
+  kind: "link";
+  from: Point;
+  to: Point;
+  url: string;
+}
+
 export interface ImageAnnotation extends AnnotationBase {
   kind: "image";
   from: Point;
@@ -125,13 +143,47 @@ export type Annotation =
   | LineAnnotation
   | InkAnnotation
   | MarkAnnotation
+  | LinkAnnotation
   | ImageAnnotation;
 
-const FONTS: Record<FontChoice, { regular: StandardFonts; bold: StandardFonts }> = {
-  sans: { regular: StandardFonts.Helvetica, bold: StandardFonts.HelveticaBold },
-  serif: { regular: StandardFonts.TimesRoman, bold: StandardFonts.TimesRomanBold },
-  mono: { regular: StandardFonts.Courier, bold: StandardFonts.CourierBold },
+interface FontFamily {
+  regular: StandardFonts;
+  bold: StandardFonts;
+  italic: StandardFonts;
+  boldItalic: StandardFonts;
+}
+
+// All twelve faces come free with the PDF format, so italics — and therefore a
+// typed signature that looks like a signature rather than a label — cost no
+// download at all.
+const FONTS: Record<FontChoice, FontFamily> = {
+  sans: {
+    regular: StandardFonts.Helvetica,
+    bold: StandardFonts.HelveticaBold,
+    italic: StandardFonts.HelveticaOblique,
+    boldItalic: StandardFonts.HelveticaBoldOblique,
+  },
+  serif: {
+    regular: StandardFonts.TimesRoman,
+    bold: StandardFonts.TimesRomanBold,
+    italic: StandardFonts.TimesRomanItalic,
+    boldItalic: StandardFonts.TimesRomanBoldItalic,
+  },
+  mono: {
+    regular: StandardFonts.Courier,
+    bold: StandardFonts.CourierBold,
+    italic: StandardFonts.CourierOblique,
+    boldItalic: StandardFonts.CourierBoldOblique,
+  },
 };
+
+export function standardFontFor(font: FontChoice, bold: boolean, italic: boolean): StandardFonts {
+  const family = FONTS[font] ?? FONTS.sans;
+  if (bold && italic) return family.boldItalic;
+  if (bold) return family.bold;
+  if (italic) return family.italic;
+  return family.regular;
+}
 
 /** Gap between the baselines of consecutive lines, as a multiple of the font size. */
 export const LINE_HEIGHT = 1.18;
@@ -367,14 +419,81 @@ function drawMark(page: PDFPage, annotation: MarkAnnotation, rotation: number) {
   }
 }
 
+/**
+ * Whether a URL is safe to write into a document as a clickable link.
+ *
+ * A PDF link can carry any URI, and a reader will follow it — `javascript:` and
+ * `file:` included. Since the link text is typed by whoever is editing and the
+ * file then goes to someone else, the scheme list is an allowlist rather than a
+ * blocklist: the three that mean "open this on the web or start an email".
+ */
+export function isSafeLinkUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim());
+    return ["http:", "https:", "mailto:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function addLink(doc: PDFDocument, page: PDFPage, annotation: LinkAnnotation) {
+  if (!isSafeLinkUrl(annotation.url)) {
+    throw new Error(`"${annotation.url}" isn't a link this can add. Use a full http://, https:// or mailto: address.`);
+  }
+  const { x, y, width, height } = normaliseBox(annotation.from, annotation.to);
+  if (width < 0.5 || height < 0.5) return;
+  const ref = doc.context.register(
+    doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      // No visible frame: a link belongs over the words that describe it, and a
+      // black box round every one of them is how PDFs from 2003 looked.
+      Border: [0, 0, 0],
+      Rect: [x, y, x + width, y + height],
+      A: doc.context.obj({ Type: "Action", S: "URI", URI: PDFString.of(annotation.url.trim()) }),
+    }),
+  );
+  const existing = page.node.Annots();
+  if (existing) existing.push(ref);
+  else page.node.set(PDFName.of("Annots"), doc.context.obj([ref]));
+}
+
+export type FieldKind = "text" | "checkbox" | "dropdown";
+
+/** A form field to create, positioned like any other box annotation. */
+export interface NewField {
+  id: string;
+  page: number;
+  kind: FieldKind;
+  /** Unique within the document; this is what the value comes back under. */
+  name: string;
+  from: Point;
+  to: Point;
+  /** Dropdown choices, ignored by the other kinds. */
+  options?: string[];
+  fontSize?: number;
+}
+
+export interface EditPdfOptions {
+  /** Values for fields the document already has, keyed by field name. */
+  formValues?: Record<string, string | boolean>;
+  /** Fields to add. */
+  newFields?: NewField[];
+}
+
 export interface EditPdfResult {
   file: File;
   /** How many annotations were written, for the "done" message. */
   drawn: number;
 }
 
-export async function editPdf(file: File, annotations: Annotation[]): Promise<EditPdfResult> {
-  if (annotations.length === 0) throw new Error("Add something to the page first — text, a shape, a drawing or an image.");
+export async function editPdf(file: File, annotations: Annotation[], options: EditPdfOptions = {}): Promise<EditPdfResult> {
+  const newFields = options.newFields ?? [];
+  const formValues = options.formValues ?? {};
+  const changesForm = newFields.length > 0 || Object.keys(formValues).length > 0;
+  if (annotations.length === 0 && !changesForm) {
+    throw new Error("Add something to the page first — text, a shape, a drawing or an image.");
+  }
 
   const doc = await PDFDocument.load(await file.arrayBuffer());
   const pages = doc.getPages();
@@ -391,11 +510,10 @@ export async function editPdf(file: File, annotations: Annotation[]): Promise<Ed
 
     switch (annotation.kind) {
       case "text": {
-        const key = `${annotation.font}-${annotation.bold}`;
+        const key = standardFontFor(annotation.font, annotation.bold, annotation.italic);
         let font = fontCache.get(key);
         if (!font) {
-          const family = FONTS[annotation.font] ?? FONTS.sans;
-          font = await doc.embedFont(annotation.bold ? family.bold : family.regular);
+          font = await doc.embedFont(key);
           fontCache.set(key, font);
         }
         drawText(page, annotation, font, rotation);
@@ -424,16 +542,136 @@ export async function editPdf(file: File, annotations: Annotation[]): Promise<Ed
       case "mark":
         drawMark(page, annotation, rotation);
         break;
+      case "link":
+        addLink(doc, page, annotation);
+        break;
       default:
         drawShape(page, annotation);
+    }
+  }
+
+  // Forms come after the drawing so a newly created field can be filled in the
+  // same pass. getForm() would build an AcroForm dictionary on a document that
+  // has none, so it is only reached when there is form work to do.
+  if (changesForm) {
+    const form = doc.getForm();
+
+    for (const spec of newFields) {
+      const page = pages[spec.page - 1];
+      if (!page) throw new Error(`That PDF has no page ${spec.page}.`);
+      if (page.getRotation().angle % 360 !== 0) {
+        throw new Error(`Page ${spec.page} is rotated, and form fields can't be placed on a rotated page. Rotate it upright first.`);
+      }
+      if (form.getFieldMaybe(spec.name)) throw new Error(`This document already has a field called "${spec.name}". Give the new one a different name.`);
+      const { x, y, width, height } = normaliseBox(spec.from, spec.to);
+      if (width < 2 || height < 2) continue;
+      const placement = { x, y, width, height };
+
+      if (spec.kind === "checkbox") {
+        form.createCheckBox(spec.name).addToPage(page, placement);
+      } else if (spec.kind === "dropdown") {
+        const dropdown = form.createDropdown(spec.name);
+        dropdown.setOptions(spec.options?.length ? spec.options : ["Yes", "No"]);
+        dropdown.addToPage(page, placement);
+      } else {
+        const field = form.createTextField(spec.name);
+        if (spec.fontSize) field.setFontSize(spec.fontSize);
+        field.addToPage(page, placement);
+      }
+    }
+
+    for (const [name, value] of Object.entries(formValues)) {
+      const field = form.getFieldMaybe(name);
+      if (!field) continue;
+      const type = field.constructor.name;
+      if (type === "PDFCheckBox") {
+        const checkbox = form.getCheckBox(name);
+        if (value) checkbox.check();
+        else checkbox.uncheck();
+      } else if (type === "PDFDropdown") {
+        if (typeof value === "string" && value) form.getDropdown(name).select(value);
+      } else if (type === "PDFRadioGroup") {
+        if (typeof value === "string" && value) form.getRadioGroup(name).select(value);
+      } else if (type === "PDFTextField") {
+        form.getTextField(name).setText(typeof value === "string" ? value : "");
+      }
     }
   }
 
   const bytes = await doc.save();
   return {
     file: new File([bytes as BlobPart], `${file.name.replace(/\.pdf$/i, "")}-edited.pdf`, { type: "application/pdf" }),
-    drawn: annotations.length,
+    drawn: annotations.length + newFields.length,
   };
+}
+
+export type FormFieldKind = "text" | "checkbox" | "dropdown" | "radio" | "other";
+
+/** One fillable field found in a document, with everything the panel needs to render an input for it. */
+export interface FormFieldInfo {
+  name: string;
+  kind: FormFieldKind;
+  value: string | boolean;
+  options: string[];
+  /** Where its widgets sit, so the page can show which box a row belongs to. */
+  places: { page: number; from: Point; to: Point }[];
+}
+
+/**
+ * Reads the fillable fields out of a PDF.
+ *
+ * Filling a form through its real fields — rather than by drawing text on top
+ * of it, which is what most "free PDF editors" actually do — keeps the values
+ * editable, keeps them machine-readable for whoever receives the form, and puts
+ * them exactly where the field says rather than where the eye guesses.
+ */
+export async function readFormFields(file: File): Promise<FormFieldInfo[]> {
+  const doc = await PDFDocument.load(await file.arrayBuffer());
+  let fields;
+  try {
+    fields = doc.getForm().getFields();
+  } catch {
+    return [];
+  }
+  const pageRefs = doc.getPages().map((p) => p.ref);
+
+  return fields.map((field) => {
+    const name = field.getName();
+    const type = field.constructor.name;
+    const kind: FormFieldKind =
+      type === "PDFCheckBox" ? "checkbox" : type === "PDFDropdown" ? "dropdown" : type === "PDFRadioGroup" ? "radio" : type === "PDFTextField" ? "text" : "other";
+
+    let value: string | boolean = "";
+    let opts: string[] = [];
+    try {
+      if (kind === "checkbox") value = doc.getForm().getCheckBox(name).isChecked();
+      else if (kind === "text") value = doc.getForm().getTextField(name).getText() ?? "";
+      else if (kind === "dropdown") {
+        const dropdown = doc.getForm().getDropdown(name);
+        opts = dropdown.getOptions();
+        value = dropdown.getSelected()[0] ?? "";
+      } else if (kind === "radio") {
+        const group = doc.getForm().getRadioGroup(name);
+        opts = group.getOptions();
+        value = group.getSelected() ?? "";
+      }
+    } catch {
+      // A malformed field should grey out one row, not empty the whole panel.
+    }
+
+    const places = field.acroField.getWidgets().map((widget) => {
+      const rect = widget.getRectangle();
+      const parent = widget.P();
+      const index = parent ? pageRefs.findIndex((ref) => ref === parent) : -1;
+      return {
+        page: (index < 0 ? 0 : index) + 1,
+        from: { x: rect.x, y: rect.y },
+        to: { x: rect.x + rect.width, y: rect.y + rect.height },
+      };
+    });
+
+    return { name, kind, value, options: opts, places };
+  });
 }
 
 /**

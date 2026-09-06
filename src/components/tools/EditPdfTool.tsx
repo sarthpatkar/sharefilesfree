@@ -2,20 +2,34 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type * as pdfjsLib from "pdfjs-dist";
-import { extractPageTextRuns, loadPdf, renderPageWithViewport, textRunBox, type PageTextRun } from "@/lib/tools/pdfjs";
+import {
+  extractPageTextRuns,
+  loadPdf,
+  renderPageWithViewport,
+  sampleBackground,
+  textRunBox,
+  type PageTextRun,
+  type TextRunBox,
+} from "@/lib/tools/pdfjs";
 import {
   LINE_HEIGHT,
   editPdf,
   imageSourceFromFile,
+  isSafeLinkUrl,
+  readFormFields,
   unwritableCharacters,
   type Annotation,
+  type FieldKind,
   type FontChoice,
+  type FormFieldInfo,
   type ImageSource,
   type MarkStyle,
+  type NewField,
   type Point,
 } from "@/lib/tools/editPdf";
 import { FileDropZone } from "./FileDropZone";
 import { ToolResultCard } from "./ToolResultCard";
+import { FormFieldsPanel } from "./EditPdfForms";
 import { Button } from "../Button";
 
 /*
@@ -40,7 +54,11 @@ import { Button } from "../Button";
 
 type ToolMode =
   | "select"
+  | "retype"
   | "text"
+  | "signature"
+  | "link"
+  | "field"
   | "pen"
   | "highlight"
   | "underline"
@@ -61,7 +79,10 @@ interface ToolSpec {
 const TOOL_GROUPS: { label: string; tools: ToolSpec[] }[] = [
   {
     label: "Edit",
-    tools: [{ mode: "select", label: "Select", hint: "Click a mark to move it, drag a corner to resize, double-click text to retype it" }],
+    tools: [
+      { mode: "select", label: "Select", hint: "Click a mark to move it, drag a corner to resize, double-click text to retype it" },
+      { mode: "retype", label: "Retype", hint: "Click a line of the document's own text to cover it and type over it" },
+    ],
   },
   {
     label: "Mark up text",
@@ -86,14 +107,45 @@ const TOOL_GROUPS: { label: string; tools: ToolSpec[] }[] = [
     label: "Insert",
     tools: [
       { mode: "text", label: "Text", hint: "Click where the text should start, then type" },
+      { mode: "signature", label: "Signature", hint: "Click where to sign, then type your name — for a handwritten one, use the pen" },
       { mode: "image", label: "Image", hint: "Choose a picture, then drag a box for it" },
+      { mode: "link", label: "Link", hint: "Drag over the words that should be clickable, then paste the address" },
+      { mode: "field", label: "Field", hint: "Drag a box where somebody should fill something in" },
     ],
   },
 ];
 
 const ALL_TOOLS = TOOL_GROUPS.flatMap((g) => g.tools);
 const MARK_MODES: ToolMode[] = ["highlight", "underline", "strike"];
-const BOX_MODES: ToolMode[] = ["rect", "ellipse", "whiteout", "image", ...MARK_MODES];
+const BOX_MODES: ToolMode[] = ["rect", "ellipse", "whiteout", "image", "link", "field", ...MARK_MODES];
+const TEXT_MODES: ToolMode[] = ["text", "signature"];
+
+/** One-click text people place over and over. The date is resolved when it is used, not when the module loads. */
+const STAMPS: { label: string; text: () => string }[] = [
+  { label: "Today", text: () => new Date().toLocaleDateString() },
+  { label: "APPROVED", text: () => "APPROVED" },
+  { label: "DRAFT", text: () => "DRAFT" },
+  { label: "CONFIDENTIAL", text: () => "CONFIDENTIAL" },
+];
+
+const FIELD_KINDS: { value: FieldKind; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "checkbox", label: "Tick box" },
+  { value: "dropdown", label: "Dropdown" },
+];
+
+/**
+ * Maps the family pdf.js reports for a run onto one of the three built-in
+ * families. Weight and slope are not guessable from what pdf.js exposes without
+ * reaching into its internals, so they start plain and the B and I buttons are
+ * one click away — see the tool page, which says as much.
+ */
+function familyOf(run: PageTextRun): FontChoice {
+  const family = run.fontFamily.toLowerCase();
+  if (family.includes("mono")) return "mono";
+  if (family.includes("serif") && !family.includes("sans")) return "serif";
+  return "sans";
+}
 
 const INK_SWATCHES = ["#1a1a1a", "#d50000", "#1447e6", "#087f5b", "#ffffff"];
 const HIGHLIGHT_SWATCHES = ["#ffe600", "#7cff5c", "#5ce1ff", "#ff8ad4"];
@@ -178,7 +230,7 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [pageNumber, setPageNumber] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [frameWidth, setFrameWidth] = useState(0);
-  const [rendered, setRendered] = useState<{ dataUrl: string; viewport: pdfjsLib.PageViewport } | null>(null);
+  const [rendered, setRendered] = useState<{ dataUrl: string; viewport: pdfjsLib.PageViewport; canvas: HTMLCanvasElement } | null>(null);
   const [textRuns, setTextRuns] = useState<Record<number, PageTextRun[]>>({});
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -194,6 +246,14 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const [fontSize, setFontSize] = useState(16);
   const [font, setFont] = useState<FontChoice>("sans");
   const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(false);
+
+  const [formFields, setFormFields] = useState<FormFieldInfo[]>([]);
+  const [formValues, setFormValues] = useState<Record<string, string | boolean>>({});
+  const [newFields, setNewFields] = useState<NewField[]>([]);
+  const [linkDraft, setLinkDraft] = useState<{ box: ScreenBox; url: string } | null>(null);
+  const [fieldDraft, setFieldDraft] = useState<{ box: ScreenBox; name: string; kind: FieldKind; options: string } | null>(null);
+  const [presetText, setPresetText] = useState<string | null>(null);
 
   const [pendingImage, setPendingImage] = useState<{ source: ImageSource; url: string; ratio: number } | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
@@ -249,6 +309,11 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
         setPageCount(doc.numPages);
         setPageNumber(1);
         setStatus("ready");
+        // A form the document already has is worth surfacing without being
+        // asked: most people arriving with one want to fill it, not draw on it.
+        readFormFields(file)
+          .then((fields) => !cancelled && setFormFields(fields))
+          .catch(() => !cancelled && setFormFields([]));
       })
       .catch((e) => {
         if (cancelled) return;
@@ -362,7 +427,7 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
       const { id } = open.editing;
       if (!value) return apply((prev) => prev.filter((a) => a.id !== id));
       return apply((prev) =>
-        prev.map((a) => (a.id === id && a.kind === "text" ? { ...a, text: value, size: fontSize, color: inkColor, font, bold } : a)),
+        prev.map((a) => (a.id === id && a.kind === "text" ? { ...a, text: value, size: fontSize, color: inkColor, font, bold, italic } : a)),
       );
     }
 
@@ -373,7 +438,7 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     const baseline = toPdf({ x: open.at.x, y: open.at.y + fontSize * scale * 0.8 });
     return apply((prev) => [
       ...prev,
-      { id: `a${nextAnnotationId++}`, page: pageNumber, kind: "text", at: baseline, text: value, size: fontSize, color: inkColor, font, bold },
+      { id: `a${nextAnnotationId++}`, page: pageNumber, kind: "text", at: baseline, text: value, size: fontSize, color: inkColor, font, bold, italic },
     ]);
   }
 
@@ -491,6 +556,100 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     return { ...original, ...pdfBox(newBox) };
   }
 
+  /** Every text run on the page, already projected onto the screen. */
+  function runBoxes(): { run: PageTextRun; box: TextRunBox }[] {
+    const runs = textRuns[pageNumber];
+    if (!runs || !viewport) return [];
+    const out: { run: PageTextRun; box: TextRunBox }[] = [];
+    for (const run of runs) {
+      const box = textRunBox(run, viewport);
+      if (box) out.push({ run, box });
+    }
+    return out;
+  }
+
+  /**
+   * The whole line of the document's own text under a point.
+   *
+   * Runs are grouped by baseline rather than by proximity, because a line is
+   * usually several runs — a bold word mid-sentence starts a new one — and
+   * covering only the run that was clicked would leave the rest of the sentence
+   * showing through the patch.
+   */
+  function lineUnder(p: Point): { box: ScreenBox; text: string; baseline: number; height: number; run: PageTextRun } | null {
+    const boxes = runBoxes();
+    const hit = boxes.find((entry) => within(entry.box, p, 2));
+    if (!hit) return null;
+    const key = Math.round(hit.box.baseline / 3);
+    const line = boxes.filter((entry) => Math.round(entry.box.baseline / 3) === key).sort((a, b) => a.box.x - b.box.x);
+    const left = Math.min(...line.map((e) => e.box.x));
+    const right = Math.max(...line.map((e) => e.box.x + e.box.width));
+    const top = Math.min(...line.map((e) => e.box.y));
+    const bottom = Math.max(...line.map((e) => e.box.y + e.box.height));
+    return {
+      box: { x: left, y: top, width: right - left, height: bottom - top },
+      text: line.map((e) => e.run.str).join(""),
+      baseline: hit.box.baseline,
+      height: hit.box.height,
+      run: hit.run,
+    };
+  }
+
+  /**
+   * Covers a line of the document's own text and opens it for retyping.
+   *
+   * This is as close as a tool that never re-flows anything can get to editing
+   * existing text, and it is what most corrections actually need: a date, a
+   * name, a figure. The patch is filled with the colour sampled from the paper
+   * around the line rather than assumed white, so it works on a tinted form or
+   * a shaded table row.
+   */
+  function retypeAt(p: Point) {
+    if (!viewport || !rendered) return;
+    const line = lineUnder(p);
+    if (!line) {
+      setHint("No text there. Retype works on the document's own text — on a scan there is none to find, so use Whiteout and Text instead.");
+      return;
+    }
+    setHint(null);
+
+    const pad = 1.5;
+    const patchBox = { x: line.box.x - pad, y: line.box.y - pad, width: line.box.width + pad * 2, height: line.box.height + pad * 2 };
+    const background = sampleBackground(rendered.canvas, line.box);
+    const size = line.height / scale;
+    const family = familyOf(line.run);
+    const textId = `a${nextAnnotationId++}`;
+
+    setFont(family);
+    setFontSize(Math.round(size * 10) / 10);
+    setInkColor("#1a1a1a");
+    setBold(false);
+    setItalic(false);
+
+    // Patch and replacement land in one step, so one undo takes both back.
+    apply((prev) => [
+      ...prev,
+      { id: `a${nextAnnotationId++}`, page: pageNumber, kind: "rect", ...pdfBox(patchBox), stroke: null, fill: background, thickness: 0, opacity: 1 },
+      {
+        id: textId,
+        page: pageNumber,
+        kind: "text",
+        at: toPdf({ x: line.box.x, y: line.baseline }),
+        text: line.text,
+        size,
+        color: "#1a1a1a",
+        font: family,
+        bold: false,
+        italic: false,
+      },
+    ]);
+
+    setMode("select");
+    setSelectedId(textId);
+    textDraftRef.current = { at: { x: line.box.x, y: line.box.y }, value: line.text, editing: { id: textId, at: toPdf({ x: line.box.x, y: line.baseline }) } };
+    setTextDraft(textDraftRef.current);
+  }
+
   /**
    * The boxes a mark-up drag should actually cover.
    *
@@ -591,11 +750,18 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
       return;
     }
 
+    if (mode === "retype") {
+      retypeAt(at);
+      return;
+    }
+
     setSelectedId(null);
     e.currentTarget.setPointerCapture(e.pointerId);
 
-    if (mode === "text") {
-      textDraftRef.current = { at, value: "" };
+    if (TEXT_MODES.includes(mode)) {
+      // A stamp preloads the box so the common case is one click and Enter.
+      textDraftRef.current = { at, value: presetText ?? "" };
+      setPresetText(null);
       setTextDraft(textDraftRef.current);
       return;
     }
@@ -660,6 +826,21 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     if (MARK_MODES.includes(mode)) {
       if (tapped) return;
       addMark(box);
+      return;
+    }
+
+    if (mode === "link") {
+      if (tapped) return;
+      // Snapped like mark-up, so a link over a sentence hugs the sentence
+      // rather than whatever rectangle the hand drew.
+      const snapped = snapToText(box);
+      setLinkDraft({ box: snapped?.[0] ?? box, url: "" });
+      return;
+    }
+
+    if (mode === "field") {
+      if (tapped) return;
+      setFieldDraft({ box, name: `field${newFields.length + 1}`, kind: "text", options: "" });
       return;
     }
 
@@ -744,11 +925,64 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     setSelectedId(null);
   }
 
+  function commitLink() {
+    if (!linkDraft) return;
+    const url = linkDraft.url.trim();
+    if (!isSafeLinkUrl(url)) {
+      setError("That needs to be a full web address — https://example.com, or mailto:someone@example.com.");
+      return;
+    }
+    setError(null);
+    apply((prev) => [...prev, { id: `a${nextAnnotationId++}`, page: pageNumber, kind: "link", ...pdfBox(linkDraft.box), url }]);
+    setLinkDraft(null);
+  }
+
+  function commitField() {
+    if (!fieldDraft) return;
+    const name = fieldDraft.name.trim();
+    if (!name) {
+      setError("Give the field a name — it is what the answer comes back under.");
+      return;
+    }
+    if (formFields.some((f) => f.name === name) || newFields.some((f) => f.name === name)) {
+      setError(`This document already has a field called "${name}".`);
+      return;
+    }
+    setError(null);
+    const { from, to } = pdfBox(fieldDraft.box);
+    setNewFields((prev) => [
+      ...prev,
+      {
+        id: `f${nextAnnotationId++}`,
+        page: pageNumber,
+        kind: fieldDraft.kind,
+        name,
+        from,
+        to,
+        options: fieldDraft.kind === "dropdown" ? fieldDraft.options.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
+        fontSize: 11,
+      },
+    ]);
+    setFieldDraft(null);
+  }
+
   function switchTool(next: ToolMode) {
     commitText();
     setMode(next);
     setSelectedId(null);
     setHint(null);
+    setLinkDraft(null);
+    setFieldDraft(null);
+    setPresetText(null);
+    if (next === "signature") {
+      // A typed signature is a name set in italic serif at a size that reads as
+      // a signature rather than as a caption.
+      setFont("serif");
+      setItalic(true);
+      setBold(false);
+      setFontSize(26);
+      setInkColor("#1a1a1a");
+    }
   }
 
   function goToPage(next: number) {
@@ -819,14 +1053,15 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   async function save() {
     if (!file) return;
     const list = commitText();
-    if (list.length === 0) {
-      setError("Add something to the page first — text, a mark, a drawing or an image.");
+    const changedValues = Object.keys(formValues).length > 0;
+    if (list.length === 0 && newFields.length === 0 && !changedValues) {
+      setError("Add something first — text, a mark, a drawing, an image, or an answer in a form field.");
       return;
     }
     setStatus("saving");
     setError(null);
     try {
-      const out = await editPdf(file, list);
+      const out = await editPdf(file, list, { formValues, newFields });
       setResult(out.file);
       setStatus("done");
     } catch (e) {
@@ -848,6 +1083,12 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
     setTextDraft(null);
     textDraftRef.current = null;
     setPendingImage(null);
+    setFormFields([]);
+    setFormValues({});
+    setNewFields([]);
+    setLinkDraft(null);
+    setFieldDraft(null);
+    setPresetText(null);
     for (const url of revocableUrls.current.values()) URL.revokeObjectURL(url);
     revocableUrls.current.clear();
     setImageUrls({});
@@ -892,7 +1133,11 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
   const draftBox = draft?.kind === "box" ? boxFrom(draft.from, draft.to) : null;
   const selected = selectedId ? pageAnnotations.find((a) => a.id === selectedId) : undefined;
   const badCharacters = textDraft ? unwritableCharacters(textDraft.value) : [];
-  const usesInkColor = ["text", "pen", "line", "arrow", "rect", "ellipse", "underline", "strike"].includes(mode);
+  const usesInkColor = ["text", "signature", "pen", "line", "arrow", "rect", "ellipse", "underline", "strike"].includes(mode);
+  const isTextMode = TEXT_MODES.includes(mode);
+  const pagesWithMarks = [...new Set([...annotations.map((a) => a.page), ...newFields.map((f) => f.page)])].sort((a, b) => a - b);
+  const pageNewFields = newFields.filter((f) => f.page === pageNumber);
+  const pageWidgets = formFields.flatMap((f) => f.places.filter((pl) => pl.page === pageNumber).map((pl) => ({ name: f.name, ...pl })));
   const draftLines = textDraft ? textDraft.value.split("\n") : [];
 
   return (
@@ -949,7 +1194,7 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
           </div>
         )}
 
-        {mode === "text" && (
+        {isTextMode && (
           <>
             <label className="flex items-center gap-2">
               Size
@@ -977,7 +1222,35 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               >
                 B
               </button>
+              <button
+                type="button"
+                aria-pressed={italic}
+                aria-label="Italic"
+                onClick={() => setItalic(!italic)}
+                className={`px-2.5 py-1.5 italic leading-none ${italic ? "bg-red text-yellow" : "bg-y-max text-black"}`}
+              >
+                I
+              </button>
             </div>
+            {mode === "text" && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-red">Stamp</span>
+                <div className="flex gap-px bg-ink p-px">
+                  {STAMPS.map((stamp) => (
+                    <button
+                      key={stamp.label}
+                      type="button"
+                      aria-pressed={presetText === stamp.text()}
+                      onClick={() => setPresetText(stamp.text())}
+                      className={`px-2 py-1.5 text-[12px] leading-none ${presetText === stamp.text() ? "bg-red text-yellow" : "bg-y-max text-black"}`}
+                    >
+                      {stamp.label}
+                    </button>
+                  ))}
+                </div>
+                {presetText && <span className="text-red">Now click where it goes.</span>}
+              </div>
+            )}
           </>
         )}
 
@@ -1037,9 +1310,37 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
           <button type="button" onClick={() => goToPage(pageNumber + 1)} disabled={pageNumber === pageCount} className="bg-y-max px-2.5 py-1.5 leading-none disabled:opacity-40">
             Next →
           </button>
+          <label className="flex items-center gap-1.5">
+            Go to
+            <input
+              type="number"
+              min={1}
+              max={pageCount}
+              value={pageNumber}
+              onChange={(e) => goToPage(Number(e.target.value))}
+              aria-label="Go to page"
+              className="w-16 border-2 border-ink bg-y-max px-1.5 py-1 font-mono tabular-nums text-black outline-none"
+            />
+          </label>
           <span className="text-red">
             {pageAnnotations.length} {pageAnnotations.length === 1 ? "mark" : "marks"} here · {annotations.length} in all
           </span>
+          {pagesWithMarks.length > 1 && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-red">Marked</span>
+              {pagesWithMarks.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => goToPage(n)}
+                  aria-label={`Go to page ${n}`}
+                  className={`px-1.5 py-1 font-mono text-[12px] tabular-nums leading-none ${n === pageNumber ? "bg-red text-yellow" : "bg-y-max text-black"}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button type="button" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} className="bg-y-max px-2.5 py-1.5 leading-none">
@@ -1158,6 +1459,16 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 );
               }
               const box = boxFrom(toScreen(annotation.from), toScreen(annotation.to));
+              if (annotation.kind === "link") {
+                // Invisible in the finished PDF; shown here so you can see what
+                // you made, and underlined the way a link is expected to look.
+                return (
+                  <g key={annotation.id}>
+                    <rect x={box.x} y={box.y} width={box.width} height={box.height} fill="#1447e6" fillOpacity={0.08} />
+                    <line x1={box.x} y1={box.y + box.height} x2={box.x + box.width} y2={box.y + box.height} stroke="#1447e6" strokeWidth={1} />
+                  </g>
+                );
+              }
               if (annotation.kind === "image") {
                 return <image key={annotation.id} href={imageUrls[annotation.source.id]} x={box.x} y={box.y} width={box.width} height={box.height} preserveAspectRatio="none" />;
               }
@@ -1171,6 +1482,27 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
                 <rect key={annotation.id} x={box.x} y={box.y} width={box.width} height={box.height} {...shared} />
               ) : (
                 <ellipse key={annotation.id} cx={box.x + box.width / 2} cy={box.y + box.height / 2} rx={box.width / 2} ry={box.height / 2} {...shared} />
+              );
+            })}
+
+            {/* The form as it stands: fields the document already has, and the ones
+                waiting to be created. Both are outlines only — they are places to
+                type, not marks on the page. */}
+            {pageWidgets.map((widget, index) => {
+              const box = boxFrom(toScreen(widget.from), toScreen(widget.to));
+              return (
+                <rect key={`w${index}`} x={box.x} y={box.y} width={box.width} height={box.height} fill="#1447e6" fillOpacity={0.06} stroke="#1447e6" strokeWidth={1} strokeDasharray="3 2" />
+              );
+            })}
+            {pageNewFields.map((field) => {
+              const box = boxFrom(toScreen(field.from), toScreen(field.to));
+              return (
+                <g key={field.id}>
+                  <rect x={box.x} y={box.y} width={box.width} height={box.height} fill="#087f5b" fillOpacity={0.08} stroke="#087f5b" strokeWidth={1.5} strokeDasharray="4 3" />
+                  <text x={box.x + 3} y={box.y - 3} fontSize={11} fill="#087f5b" fontFamily={CSS_FONTS.sans}>
+                    {field.name}
+                  </text>
+                </g>
               );
             })}
 
@@ -1249,8 +1581,95 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
               className="absolute z-10 resize-none overflow-hidden border-2 border-red bg-white/90 outline-none"
             />
           )}
+
+          {/* Asking for the address inline rather than through a browser prompt,
+              which is blocked in some contexts and looks like a phishing box. */}
+          {linkDraft && (
+            <div
+              style={{ left: linkDraft.box.x, top: linkDraft.box.y + linkDraft.box.height + 6 }}
+              className="absolute z-10 flex items-center gap-2 border-2 border-ink bg-y-pale p-2"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <input
+                autoFocus
+                type="url"
+                value={linkDraft.url}
+                placeholder="https://example.com"
+                aria-label="Link address"
+                onChange={(e) => setLinkDraft({ ...linkDraft, url: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitLink();
+                  if (e.key === "Escape") setLinkDraft(null);
+                }}
+                className="w-64 border-2 border-ink bg-white px-2 py-1.5 text-[13px] font-semibold text-black outline-none"
+              />
+              <button type="button" onClick={commitLink} className="bg-red px-3 py-2 text-[13px] font-bold leading-none text-yellow">
+                Add
+              </button>
+              <button type="button" onClick={() => setLinkDraft(null)} className="link text-[13px] text-red">
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {fieldDraft && (
+            <div
+              style={{ left: fieldDraft.box.x, top: fieldDraft.box.y + fieldDraft.box.height + 6 }}
+              className="absolute z-10 flex flex-wrap items-center gap-2 border-2 border-ink bg-y-pale p-2"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <input
+                autoFocus
+                value={fieldDraft.name}
+                aria-label="Field name"
+                placeholder="Field name"
+                onChange={(e) => setFieldDraft({ ...fieldDraft, name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitField();
+                  if (e.key === "Escape") setFieldDraft(null);
+                }}
+                className="w-40 border-2 border-ink bg-white px-2 py-1.5 text-[13px] font-semibold text-black outline-none"
+              />
+              <select
+                value={fieldDraft.kind}
+                aria-label="Field type"
+                onChange={(e) => setFieldDraft({ ...fieldDraft, kind: e.target.value as FieldKind })}
+                className="border-2 border-ink bg-white px-2 py-1.5 text-[13px] font-semibold text-black"
+              >
+                {FIELD_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              {fieldDraft.kind === "dropdown" && (
+                <input
+                  value={fieldDraft.options}
+                  aria-label="Dropdown choices, separated by commas"
+                  placeholder="Yes, No, Maybe"
+                  onChange={(e) => setFieldDraft({ ...fieldDraft, options: e.target.value })}
+                  className="w-44 border-2 border-ink bg-white px-2 py-1.5 text-[13px] font-semibold text-black outline-none"
+                />
+              )}
+              <button type="button" onClick={commitField} className="bg-red px-3 py-2 text-[13px] font-bold leading-none text-yellow">
+                Add
+              </button>
+              <button type="button" onClick={() => setFieldDraft(null)} className="link text-[13px] text-red">
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <FormFieldsPanel
+        fields={formFields}
+        values={formValues}
+        newFields={newFields}
+        onChange={(name, value) => setFormValues((prev) => ({ ...prev, [name]: value }))}
+        onLocate={(page) => goToPage(page)}
+        onRemoveNew={(id) => setNewFields((prev) => prev.filter((f) => f.id !== id))}
+      />
 
       {badCharacters.length > 0 && (
         <p role="alert" className="border-l-2 border-rule-strong pl-3 text-sm text-black">
@@ -1268,7 +1687,7 @@ export function EditPdfTool({ onSend }: { onSend?: (file: File) => void }) {
       )}
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-        <Button onClick={save} disabled={status === "saving" || (annotations.length === 0 && !textDraft?.value.trim())}>
+        <Button onClick={save} disabled={status === "saving" || (annotations.length === 0 && newFields.length === 0 && Object.keys(formValues).length === 0 && !textDraft?.value.trim())}>
           {status === "saving" ? "Saving…" : "Save edited PDF"}
         </Button>
         <button

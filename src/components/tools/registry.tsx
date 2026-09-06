@@ -290,9 +290,9 @@ export const TOOLS: ToolDef[] = [
   {
     slug: "edit-pdf",
     title: "Edit PDF",
-    seoTitle: "Edit a PDF Free — Add Text, Drawings and Images — ShareFilesFree",
-    description: "Write on a PDF in your browser: text, highlighting, whiteout, arrows, freehand pen and images. Free, no signup, nothing uploaded.",
-    cardBlurb: "Type, highlight, sign and draw on a page",
+    seoTitle: "Edit PDF Free — Type, Sign, Highlight, Fill Forms — ShareFilesFree",
+    description: "Edit a PDF in your browser: retype a line, highlight, sign, whiteout, add links and fill forms. Free, no signup, nothing uploaded.",
+    cardBlurb: "Retype, highlight, sign and fill forms",
     group: "PDF pages",
     icon: IconPen,
     canSend: true,

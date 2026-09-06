@@ -9,7 +9,19 @@
 import { describe, expect, it } from "vitest";
 import { unzlibSync } from "fflate";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, degrees } from "pdf-lib";
-import { LINE_HEIGHT, editPdf, markSegment, screenDown, screenFrame, unwritableCharacters, type Annotation, type ImageSource } from "./editPdf";
+import {
+  LINE_HEIGHT,
+  editPdf,
+  isSafeLinkUrl,
+  markSegment,
+  readFormFields,
+  screenDown,
+  screenFrame,
+  standardFontFor,
+  unwritableCharacters,
+  type Annotation,
+  type ImageSource,
+} from "./editPdf";
 
 async function pdfFile(build: (doc: PDFDocument) => void, name = "test.pdf"): Promise<File> {
   const doc = await PDFDocument.create();
@@ -83,6 +95,7 @@ const TEXT: Annotation = {
   color: "#d50000",
   font: "sans",
   bold: true,
+  italic: false,
 };
 
 // A 1x1 red PNG, the smallest thing pdf-lib will embed.
@@ -300,7 +313,7 @@ describe("multi-line text", () => {
     const doc = await PDFDocument.create();
     doc.addPage([600, 800]);
     const input = new File([(await doc.save()) as BlobPart], "t.pdf");
-    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false };
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false, italic: false };
     const content = await contentOf((await editPdf(input, [note])).file);
     const baselines = textOrigins(content);
     expect(baselines).toHaveLength(2);
@@ -313,7 +326,7 @@ describe("multi-line text", () => {
     const doc = await PDFDocument.create();
     doc.addPage([600, 800]).setRotation(degrees(90));
     const input = new File([(await doc.save()) as BlobPart], "t.pdf");
-    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false };
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false, italic: false };
     const content = await contentOf((await editPdf(input, [note])).file);
     const baselines = textOrigins(content);
     // Down on a /Rotate 90 page is +x, so the second line steps across, not down.
@@ -326,7 +339,7 @@ describe("multi-line text", () => {
     const doc = await PDFDocument.create();
     doc.addPage([600, 800]);
     const input = new File([(await doc.save()) as BlobPart], "t.pdf");
-    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\n\nthree", size: 10, color: "#000000", font: "sans", bold: false };
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\n\nthree", size: 10, color: "#000000", font: "sans", bold: false, italic: false };
     const content = await contentOf((await editPdf(input, [note])).file);
     expect(content.match(/\bTm\b/g) ?? []).toHaveLength(2);
   });
@@ -470,5 +483,165 @@ describe("markSegment", () => {
 
   it("does not care which corner it was handed first", () => {
     expect(markSegment(to, from, 0, 0.5)).toEqual(markSegment(from, to, 0, 0.5));
+  });
+});
+
+describe("standardFontFor", () => {
+  it("picks the right one of the twelve built-in faces", () => {
+    expect(standardFontFor("sans", false, false)).toBe("Helvetica");
+    expect(standardFontFor("sans", true, false)).toBe("Helvetica-Bold");
+    expect(standardFontFor("sans", false, true)).toBe("Helvetica-Oblique");
+    expect(standardFontFor("sans", true, true)).toBe("Helvetica-BoldOblique");
+    expect(standardFontFor("serif", false, true)).toBe("Times-Italic");
+    expect(standardFontFor("mono", true, true)).toBe("Courier-BoldOblique");
+  });
+
+  it("falls back to a sans face rather than throwing on an unknown family", () => {
+    expect(standardFontFor("script" as never, false, false)).toBe("Helvetica");
+  });
+});
+
+describe("isSafeLinkUrl", () => {
+  it("accepts the three schemes that mean open the web or start an email", () => {
+    expect(isSafeLinkUrl("https://example.com/a?b=1")).toBe(true);
+    expect(isSafeLinkUrl("http://example.com")).toBe(true);
+    expect(isSafeLinkUrl("mailto:someone@example.com")).toBe(true);
+    expect(isSafeLinkUrl("  https://example.com  ")).toBe(true);
+  });
+
+  it("refuses schemes a reader would execute rather than open", () => {
+    // The document goes to someone else, and their reader will follow whatever
+    // is in the link — so this is an allowlist, not a blocklist.
+    expect(isSafeLinkUrl("javascript:alert(1)")).toBe(false);
+    expect(isSafeLinkUrl("file:///etc/passwd")).toBe(false);
+    expect(isSafeLinkUrl("data:text/html;base64,PHNjcmlwdD4=")).toBe(false);
+    expect(isSafeLinkUrl("JavaScript:alert(1)")).toBe(false);
+  });
+
+  it("refuses anything that is not a URL at all", () => {
+    expect(isSafeLinkUrl("example.com")).toBe(false);
+    expect(isSafeLinkUrl("")).toBe(false);
+  });
+});
+
+describe("links", () => {
+  async function blank() {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    return new File([(await doc.save()) as BlobPart], "t.pdf");
+  }
+
+  const link: Annotation = { id: "k1", page: 1, kind: "link", from: { x: 100, y: 700 }, to: { x: 260, y: 716 }, url: "https://example.com/terms" };
+
+  it("writes a Link annotation carrying the URL", async () => {
+    const { file } = await editPdf(await blank(), [link]);
+    const doc = await PDFDocument.load(await file.arrayBuffer());
+    const dump = doc.context
+      .enumerateIndirectObjects()
+      .map(([, o]) => o.toString())
+      .join("\n");
+    expect(dump).toContain("/Link");
+    expect(dump).toContain("https://example.com/terms");
+  });
+
+  it("attaches the annotation to the page rather than orphaning it", async () => {
+    const { file } = await editPdf(await blank(), [link]);
+    const doc = await PDFDocument.load(await file.arrayBuffer());
+    expect(doc.getPage(0).node.Annots()?.size()).toBe(1);
+  });
+
+  it("keeps the annotations a page already had", async () => {
+    const { file } = await editPdf(await blank(), [link, { ...link, id: "k2", from: { x: 100, y: 600 }, to: { x: 260, y: 616 } }]);
+    const doc = await PDFDocument.load(await file.arrayBuffer());
+    expect(doc.getPage(0).node.Annots()?.size()).toBe(2);
+  });
+
+  it("refuses a script URL instead of writing it into the file", async () => {
+    await expect(editPdf(await blank(), [{ ...link, url: "javascript:alert(1)" }])).rejects.toThrow(/isn't a link/);
+  });
+});
+
+describe("forms", () => {
+  async function blank(rotation = 0) {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 800]);
+    if (rotation) page.setRotation(degrees(rotation));
+    return new File([(await doc.save()) as BlobPart], "t.pdf");
+  }
+
+  const textField = { id: "f1", page: 1, kind: "text" as const, name: "fullName", from: { x: 100, y: 700 }, to: { x: 340, y: 724 } };
+
+  it("saves a document that only changes the form, with nothing drawn", async () => {
+    const { file, drawn } = await editPdf(await blank(), [], { newFields: [textField] });
+    expect(drawn).toBe(1);
+    await expect(readFormFields(file)).resolves.toHaveLength(1);
+  });
+
+  it("still refuses a save that changes nothing at all", async () => {
+    await expect(editPdf(await blank(), [], {})).rejects.toThrow(/Add something/);
+  });
+
+  it("creates each kind of field, and reads it back", async () => {
+    const { file } = await editPdf(await blank(), [], {
+      newFields: [
+        textField,
+        { id: "f2", page: 1, kind: "checkbox", name: "agreed", from: { x: 100, y: 660 }, to: { x: 116, y: 676 } },
+        { id: "f3", page: 1, kind: "dropdown", name: "plan", from: { x: 100, y: 600 }, to: { x: 240, y: 624 }, options: ["Monthly", "Yearly"] },
+      ],
+    });
+    const fields = await readFormFields(file);
+    expect(fields.map((f) => [f.name, f.kind]).sort()).toEqual([
+      ["agreed", "checkbox"],
+      ["fullName", "text"],
+      ["plan", "dropdown"],
+    ]);
+    expect(fields.find((f) => f.name === "plan")?.options).toEqual(["Monthly", "Yearly"]);
+  });
+
+  it("fills a field it has just created, in the same pass", async () => {
+    const { file } = await editPdf(await blank(), [], { newFields: [textField], formValues: { fullName: "Ada Lovelace" } });
+    const fields = await readFormFields(file);
+    expect(fields[0].value).toBe("Ada Lovelace");
+  });
+
+  it("fills fields the document already had", async () => {
+    const { file: withField } = await editPdf(await blank(), [], {
+      newFields: [textField, { id: "f2", page: 1, kind: "checkbox", name: "agreed", from: { x: 100, y: 660 }, to: { x: 116, y: 676 } }],
+    });
+    const { file } = await editPdf(withField, [], { formValues: { fullName: "Grace Hopper", agreed: true } });
+    const fields = await readFormFields(file);
+    expect(fields.find((f) => f.name === "fullName")?.value).toBe("Grace Hopper");
+    expect(fields.find((f) => f.name === "agreed")?.value).toBe(true);
+  });
+
+  it("reports where each field sits, so the page can point at it", async () => {
+    const { file } = await editPdf(await blank(), [], { newFields: [textField] });
+    const [field] = await readFormFields(file);
+    expect(field.places).toHaveLength(1);
+    expect(field.places[0].page).toBe(1);
+    // Within a point: pdf-lib insets a widget's rectangle by half its border
+    // width, so the box comes back a hair inside where it was asked for.
+    expect(Math.abs(field.places[0].from.x - 100)).toBeLessThanOrEqual(1);
+  });
+
+  it("refuses a duplicate field name rather than corrupting the form", async () => {
+    await expect(editPdf(await blank(), [], { newFields: [textField, { ...textField, id: "f2" }] })).rejects.toThrow(/already has a field/);
+  });
+
+  it("says plainly that a rotated page cannot take a field", async () => {
+    // pdf-lib places widgets in unrotated user space, so a field on a turned
+    // page lands sideways. Refusing beats shipping a broken form.
+    await expect(editPdf(await blank(90), [], { newFields: [textField] })).rejects.toThrow(/rotated/);
+  });
+
+  it("returns nothing for a document with no form, rather than inventing one", async () => {
+    await expect(readFormFields(await blank())).resolves.toEqual([]);
+  });
+
+  it("ignores a value for a field that does not exist", async () => {
+    const { file } = await editPdf(await blank(), [], { newFields: [textField], formValues: { nope: "x", fullName: "Ada" } });
+    const fields = await readFormFields(file);
+    expect(fields).toHaveLength(1);
+    expect(fields[0].value).toBe("Ada");
   });
 });
