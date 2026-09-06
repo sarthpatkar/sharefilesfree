@@ -143,21 +143,54 @@ document requests (see `deploy/Caddyfile.example`), but Cloudflare still will no
 cache HTML unless a Cache Rule says so. Create one — Free plan allows 10:
 
 - **Name**: `Cache prerendered HTML`
-- **When incoming requests match**:
-  `(not starts_with(http.request.uri.path, "/api/") and not starts_with(http.request.uri.path, "/_next/") and len(http.request.headers["rsc"]) eq 0)`
-- **Then**: Cache eligibility → *Eligible for cache*; Edge TTL → *Use cache-control header if present*; Browser TTL → *Respect origin*
+- **When incoming requests match** — paste this exactly (150 characters):
+  ```
+  (not starts_with(http.request.uri.path, "/api/") and not starts_with(http.request.uri.path, "/_next/") and not http.request.uri.query contains "_rsc")
+  ```
+- **Cache eligibility**: *Eligible for cache*
+- **Edge TTL**: *Ignore cache-control header and use this TTL* → **1 minute**
+- **Browser TTL**: *Respect origin TTL*
+- Everything else (Cache key, Vary, Serve stale, ETags, error pass-through): defaults
 
-The RSC condition matters: those are Next.js client-side navigations and
+**Two things here were got wrong the first time and cost an hour, so they are
+written down rather than left to be rediscovered.**
+
+The obvious way to exclude RSC requests is on the header, and it does not work:
+
+```
+len(http.request.headers["rsc"]) eq 0      # DON'T — validates, never matches
+```
+
+Cloudflare accepts it as valid syntax and the rule saves and shows Active, but
+it never matches, so every response stays `cf-cache-status: DYNAMIC` and there
+is nothing anywhere to tell you why. `len()` over a header array does not
+evaluate the way the docs imply. Excluding on the query string instead is plain,
+reliable, and catches the same requests, because Next.js redirects every RSC
+request to carry `?_rsc=` — visible as a 307 if you send an RSC header without it.
+
+Edge TTL is set to override rather than to follow the origin's `cache-control`.
+Caddy sends `public, max-age=0, s-maxage=60`, which is the canonical CDN pattern,
+but Cloudflare appears to read the `max-age=0` and decline to cache regardless of
+the `s-maxage` beside it. The TTL therefore lives in the dashboard, which is a
+real downside — it is a number that matters and it is not in git. If you change
+the Caddyfile's `s-maxage`, change this too.
+
+The RSC exclusion matters: those are Next.js client-side navigations and
 prefetches, they legitimately vary per request, and caching them would serve one
-route's payload for another.
+route's payload for another. Caddy also marks them `private, no-store`, so that
+guarantee does not rest on this dashboard setting alone.
 
 Verify after applying — the second request should say `HIT`:
 
+Use GET, not `curl -I` — Cloudflare does not cache HEAD requests, so a HEAD
+always reports `DYNAMIC` and looks exactly like a rule that is not working.
+
 ```bash
-curl -sI https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status
-curl -sI https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status   # expect HIT
-# and confirm an RSC request is NOT served from cache:
-curl -sI -H 'RSC: 1' https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status
+curl -s -o /dev/null -D- https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status
+curl -s -o /dev/null -D- https://sharefilesfree.com/tools/merge-pdf | grep -i cf-cache-status   # expect HIT
+# and confirm the API and RSC paths are NOT served from cache:
+curl -s -o /dev/null -D- https://sharefilesfree.com/api/turn-credentials | grep -i cf-cache-status
+curl -s -o /dev/null -D- -H 'RSC: 1' 'https://sharefilesfree.com/tools/merge-pdf?_rsc=x' | grep -i cf-cache-status
 ```
 
 **After a deploy**, cached HTML can briefly reference chunk URLs the new build no
