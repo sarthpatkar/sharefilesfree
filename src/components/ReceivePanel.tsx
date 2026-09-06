@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus } from "@/lib/peerTransfer";
-import { formatBytes } from "@/lib/format";
+import { formatBytes, formatDuration, formatRate } from "@/lib/format";
 import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
 import { Button } from "./Button";
@@ -58,6 +58,13 @@ export function ReceivePanel() {
   // ToolResultCard.tsx for the verified version of this bug.
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
   const [zipping, setZipping] = useState(false);
+  // Wall-clock start and end of the actual byte transfer, so the summary below
+  // reports what happened rather than an estimate. Set from the status changes
+  // because those are the only points that mean "bytes started" and "bytes
+  // stopped" — a timer started at connect would include however long the sender
+  // spent choosing a file.
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
   /** Set once the folder has been chosen and the ad is playing — see connectWithDestination. */
   const [gateOpen, setGateOpen] = useState(false);
   // Chosen before connecting, because showDirectoryPicker needs a user gesture
@@ -216,6 +223,8 @@ export function ReceivePanel() {
       onStatus: (s, detail) => {
         setStatus(s);
         if (s === "error" && detail) setError(detail);
+        if (s === "transferring") setStartedAt((prev) => prev ?? Date.now());
+        if (s === "done") setFinishedAt(Date.now());
       },
       onProgress: setProgress,
       onFileReceived: (file) => {
@@ -272,6 +281,8 @@ export function ReceivePanel() {
     setError(null);
     setNotice(null);
     setGateOpen(false);
+    setStartedAt(null);
+    setFinishedAt(null);
   }
 
   if (status === "idle") {
@@ -383,6 +394,20 @@ export function ReceivePanel() {
         <AdSlot slotId="receive-progress" format="rectangle" />
       )}
 
+      {status === "done" && startedAt && finishedAt && received.length > 0 && (
+        // Real numbers, measured, not a spinner's worth of reassurance. The rate
+        // is the useful one: it is the only thing that tells someone whether a
+        // slow transfer was this site or their own upload link.
+        <p className="bg-lime-4 px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+          {received.length} file{received.length === 1 ? "" : "s"} ·{" "}
+          {formatBytes(received.reduce((sum, f) => sum + f.size, 0))} in {formatDuration(finishedAt - startedAt)} ·{" "}
+          {formatRate(
+            received.reduce((sum, f) => sum + f.size, 0),
+            finishedAt - startedAt,
+          )}
+        </p>
+      )}
+
       {bufferedFiles.length > 1 && (
         // Only shown for more than one file — with a single file these two
         // buttons would both just repeat the Save beside it.
@@ -405,6 +430,9 @@ export function ReceivePanel() {
               className={`flex items-center justify-between gap-4 px-4 py-3 ${i % 2 === 0 ? "bg-lime-pale" : "bg-lime-4"}`}
             >
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-black">{f.name}</span>
+              <span className="shrink-0 font-mono text-[12px] tabular-nums text-black opacity-55">
+                {formatBytes(f.size)}
+              </span>
               {f.blob ? (
                 <a
                   href={objectUrls.get(f.id)}

@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import { countVisit } from "@/lib/metrics";
 
 /** Registers /public/sw.js — see that file for the actual caching strategy and its honest scope. */
 export function ServiceWorkerRegister() {
+  // One beacon per browsing session, for the public counter on /stats. It lives
+  // here because this component is already mounted on every page and already
+  // exists to do a single fire-and-forget thing on load.
+  useEffect(() => {
+    countVisit();
+  }, []);
+
   useEffect(() => {
     // Production only. In development, Turbopack serves chunks from
     // /_next/static/ with URLs that are NOT content-hashed — the same URL

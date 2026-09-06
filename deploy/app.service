@@ -31,6 +31,17 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/sendfilesfree/sendfilesfree/.next
+# Creates and owns /var/lib/sharefilesfree, and exports STATE_DIRECTORY pointing
+# at it. This is the only durable place the app can write: ProtectSystem=strict
+# makes everything else read-only, and .next above is renamed wholesale on every
+# deploy, so anything kept there is lost on release.
+#
+# It holds one file, stats.json — the running totals behind /stats. Seven
+# integers, nothing about anyone. They were in memory until that page became
+# public, at which point resetting to zero on every deploy stopped being
+# acceptable: a visitor would see a service that had apparently moved four files
+# in its entire life.
+StateDirectory=sharefilesfree
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PeerTransfer, type FileProgress, type TransferStatus } from "@/lib/peerTransfer";
-import { formatBytes } from "@/lib/format";
+import { formatBytes, formatDuration, formatRate } from "@/lib/format";
 import {
   DEFAULT_ROOM_DURATION,
   GATE_SECONDS,
@@ -59,6 +59,18 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   // Which action is currently waiting behind an ad. The gate renders where the
   // result would have appeared, so the user is never covered by an overlay.
   const [gate, setGate] = useState<null | "code">(null);
+  /** Wall-clock bounds of the byte transfer itself — see the summary on the done screen. */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
+  /**
+   * A clock the live throughput reading can be computed from.
+   *
+   * Reading Date.now() during render is impure — the same render would produce a
+   * different number each time React happened to run it. So the current time
+   * becomes state, advanced on an interval that only runs while bytes are
+   * actually moving.
+   */
+  const [now, setNow] = useState(0);
   const transferRef = useRef<PeerTransfer | null>(null);
   const startedSendingRef = useRef(false);
 
@@ -69,6 +81,8 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
       onStatus: (s, detail) => {
         setStatus(s);
         if (s === "error" && detail) setError(detail);
+        if (s === "transferring") setStartedAt((prev) => prev ?? Date.now());
+        if (s === "done") setFinishedAt(Date.now());
         if (s === "connected" && !startedSendingRef.current) {
           startedSendingRef.current = true;
           transfer.sendFiles(files).catch((e) => setError(e.message));
@@ -98,7 +112,15 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
     setProgress(new Map());
     setError(null);
     setGate(null);
+    setStartedAt(null);
+    setFinishedAt(null);
   }
+
+  useEffect(() => {
+    if (status !== "transferring") return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [status]);
 
   // From the moment a code exists until the last byte lands, this tab IS the
   // transfer — see useKeepOpen.
@@ -199,6 +221,16 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
         <p className="text-lg font-medium text-foreground">
           Sent {files.length} file{files.length === 1 ? "" : "s"}.
         </p>
+        {startedAt && finishedAt && (
+          // The rate is the point of showing this. A transfer between two
+          // networks runs at the SENDER's upload speed, which is usually a small
+          // fraction of their download speed — so without a number here a normal,
+          // physics-bound transfer looks like the site being slow.
+          <p className="bg-lime-4 px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+            {formatBytes(totalSize)} in {formatDuration(finishedAt - startedAt)} ·{" "}
+            {formatRate(totalSize, finishedAt - startedAt)}
+          </p>
+        )}
         <Button onClick={reset}>Send more files</Button>
       </div>
     );
@@ -220,6 +252,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
           <ProgressBar fraction={totalSize ? totalSent / totalSize : 0} />
           <p className="mt-2 text-center text-sm text-muted">
             {formatBytes(totalSent)} / {formatBytes(totalSize)}
+            {startedAt && now > startedAt && totalSent > 0 ? ` · ${formatRate(totalSent, now - startedAt)}` : ""}
           </p>
         </div>
       )}

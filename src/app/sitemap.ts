@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     })),
     { url: "https://sharefilesfree.com/receive", changeFrequency: "monthly", priority: 0.5 },
+    { url: "https://sharefilesfree.com/stats", changeFrequency: "daily", priority: 0.4 },
     { url: "https://sharefilesfree.com/about", changeFrequency: "monthly", priority: 0.4 },
     { url: "https://sharefilesfree.com/contact", changeFrequency: "yearly", priority: 0.3 },
     { url: "https://sharefilesfree.com/privacy", changeFrequency: "yearly", priority: 0.2 },

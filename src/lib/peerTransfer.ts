@@ -138,7 +138,7 @@ const DISCONNECT_GRACE_MS = 10 * 1000;
 const COALESCE_BYTES = 8 * 1024 * 1024;
 
 import { sanitizeFilename } from "./sanitize";
-import { countMetric } from "./metrics";
+import { countMetric, countTransfer } from "./metrics";
 import { formatBytes } from "./format";
 
 /**
@@ -244,6 +244,10 @@ export class PeerTransfer {
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** Guards against counting one connection's path more than once. */
   private pathReported = false;
+  /** Running totals for the batch currently arriving — reported once at batch-end. */
+  private batchFiles = 0;
+  private batchBytes = 0;
+  private batchLargest = 0;
   /** Chosen by the receiver before connecting — see setSaveDirectory. */
   private saveDir: SffDirectoryHandle | null = null;
   /** Assembles files on disk off the main thread — see fileSink.worker.ts. */
@@ -668,6 +672,12 @@ export class PeerTransfer {
           entry.sunk = true;
           this.sunkFiles.set(msg.id, { name: entry.name, size: entry.size });
           this.sink!.postMessage({ type: "open", id: msg.id, name: entry.name });
+          // Bounded by the origin's storage quota rather than by RAM, which is a
+          // far higher ceiling but still a ceiling — and on a phone with little
+          // free space it can be the lower one. This warning used to fire only
+          // on the memory path, so the case most likely to hit a limit was the
+          // one case that said nothing until it failed.
+          void this.warnIfOverStorageQuota(Math.max(0, Number(msg.size) || 0));
         } else {
           // Nothing but memory available. Warn before the transfer rather than
           // after it fails at 90%.
@@ -678,6 +688,12 @@ export class PeerTransfer {
         const entry = this.incoming.get(msg.id);
         if (!entry) return;
         this.incoming.delete(msg.id);
+
+        // Counted from bytes actually received, not from the size the sender
+        // declared — a truncated transfer should not inflate the public total.
+        this.batchFiles += 1;
+        this.batchBytes += entry.received;
+        if (entry.received > this.batchLargest) this.batchLargest = entry.received;
 
         if (entry.sunk) {
           // onFileReceived fires when the worker reports the file closed, not
@@ -702,7 +718,12 @@ export class PeerTransfer {
         const blob = new Blob([...entry.parts, ...entry.pending], { type: entry.mime });
         this.callbacks.onFileReceived?.({ id: msg.id, name: entry.name, size: entry.size, blob });
       } else if (msg.type === "batch-end") {
-        countMetric("transfer-complete");
+        // Reported once for the whole batch rather than per file, so the public
+        // "transfers" figure counts what a person would call a transfer.
+        countTransfer(this.batchFiles, this.batchBytes, this.batchLargest);
+        this.batchFiles = 0;
+        this.batchBytes = 0;
+        this.batchLargest = 0;
         this.callbacks.onStatus?.("done");
       }
       return;

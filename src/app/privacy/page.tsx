@@ -59,17 +59,33 @@ const SECTIONS: LegalSection[] = [
           history — not because we delete them, but because the way this service is built means they never exist.
         </p>
         <p>
-          Separately from that, we keep a handful of plain counters: how many transfers connected directly, how many
-          had to fall back to a relay, how many failed, and how many finished. They are totals and nothing else —
-          numbers that go up. There is no identifier attached, no cookie, no record of an individual transfer, and
-          nothing that could be traced back to you or put in an order. We keep them because a relayed transfer is
-          the one thing that costs us real money to carry, and without counting we have no way to know what this
-          service costs to run or whether a change made it better.
+          Separately from that, we keep a handful of plain counters, and you can see all of them on the{" "}
+          <Link href="/stats" className="link">
+            stats page
+          </Link>
+          : how many transfers connected directly, how many fell back to a relay, how many failed, how many
+          finished, how many files and bytes those added up to, the largest single file so far, and how many
+          browsing sessions there have been. They are totals and nothing else — numbers that go up.
         </p>
         <p>
-          They live in the server&rsquo;s memory alongside the rate limits and vanish when it restarts. This is the
-          analytics this page promised to tell you about before adding rather than after — and it is deliberately
-          the smallest version of it we could build and still learn anything.
+          There is no identifier attached to any of it, no cookie, and no record of an individual transfer. A
+          file&rsquo;s size is added into a sum that already holds everyone else&rsquo;s and is never kept on its
+          own, so what survives is &ldquo;this much has moved in total&rdquo; and nothing that could be taken apart
+          again. No filename ever reaches us, because no file ever does.
+        </p>
+        <p>
+          The session count is the one measured in your browser rather than on our side, using a flag that lives in
+          the tab and disappears when you close it. It is not an identifier and it never leaves the browser.
+        </p>
+        <p>
+          These totals are written to a single small file on the server so they survive a restart — that is the only
+          thing we write down, and there is nothing in it about anyone. We keep them because a relayed transfer is
+          the one thing that costs us real money to carry, and because a service that claims to store nothing should
+          be willing to publish the number that would give it away.
+        </p>
+        <p>
+          This is the analytics this page promised to tell you about before adding rather than after — and it is
+          deliberately the smallest version of it we could build and still learn anything.
         </p>
       </>
     ),
