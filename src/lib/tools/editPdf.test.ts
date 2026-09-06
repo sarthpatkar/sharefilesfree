@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { unzlibSync } from "fflate";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, degrees } from "pdf-lib";
-import { editPdf, screenFrame, unwritableCharacters, type Annotation, type ImageSource } from "./editPdf";
+import { LINE_HEIGHT, editPdf, markSegment, screenDown, screenFrame, unwritableCharacters, type Annotation, type ImageSource } from "./editPdf";
 
 async function pdfFile(build: (doc: PDFDocument) => void, name = "test.pdf"): Promise<File> {
   const doc = await PDFDocument.create();
@@ -59,6 +59,18 @@ async function distinctImages(file: File, pageIndex = 0): Promise<number> {
   const xObjects = resources && doc.context.lookup(resources.get(PDFName.of("XObject")));
   if (!(xObjects instanceof PDFDict)) return 0;
   return new Set(xObjects.entries().map(([, value]) => value.toString())).size;
+}
+
+/**
+ * The baseline origin of every text run in a content stream.
+ *
+ * Read out of the `a b c d e f Tm` matrices rather than matched with a literal
+ * regex, because a rotation of 90 degrees is written as cos(90) — an epsilon
+ * around 6.1e-17, not a clean zero.
+ */
+function textOrigins(content: string): { x: number; y: number }[] {
+  const matrix = /(-?[\d.e-]+) (-?[\d.e-]+) (-?[\d.e-]+) (-?[\d.e-]+) (-?[\d.e-]+) (-?[\d.e-]+) Tm/g;
+  return [...content.matchAll(matrix)].map((m) => ({ x: Number(m[5]), y: Number(m[6]) }));
 }
 
 const TEXT: Annotation = {
@@ -157,7 +169,7 @@ describe("editPdf", () => {
 
   it("draws an outline-only rectangle without filling it", async () => {
     const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const shape: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, color: "#d50000", fill: null, thickness: 2, opacity: 1 };
+    const shape: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, stroke: "#d50000", fill: null, thickness: 2, opacity: 1 };
     const content = await contentOf((await editPdf(input, [shape])).file);
     // "S" strokes the path; "f" or "B" would mean pdf-lib had filled it too.
     expect(content).toMatch(/\bS\b/);
@@ -166,14 +178,14 @@ describe("editPdf", () => {
 
   it("fills a rectangle when a fill colour is set", async () => {
     const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const shape: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, color: "#d50000", fill: "#ffffff", thickness: 2, opacity: 1 };
+    const shape: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, stroke: "#d50000", fill: "#ffffff", thickness: 2, opacity: 1 };
     const content = await contentOf((await editPdf(input, [shape])).file);
     expect(content).toMatch(/\bB\b/);
   });
 
   it("accepts corner points in either order", async () => {
     const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const forwards: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, color: "#000000", fill: null, thickness: 2, opacity: 1 };
+    const forwards: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 140, y: 200 }, stroke: "#000000", fill: null, thickness: 2, opacity: 1 };
     const backwards: Annotation = { ...forwards, from: { x: 140, y: 200 }, to: { x: 40, y: 60 } };
     const a = await contentOf((await editPdf(input, [forwards])).file);
     const b = await contentOf((await editPdf(input, [backwards])).file);
@@ -182,7 +194,7 @@ describe("editPdf", () => {
 
   it("skips a shape too small to see rather than writing a degenerate path", async () => {
     const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const speck: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 40.1, y: 60.1 }, color: "#000000", fill: null, thickness: 2, opacity: 1 };
+    const speck: Annotation = { id: "r1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 40.1, y: 60.1 }, stroke: "#000000", fill: null, thickness: 2, opacity: 1 };
     await expect(editPdf(input, [speck])).resolves.toBeTruthy();
     const content = await contentOf((await editPdf(input, [speck])).file);
     expect(content.trim()).toBe("");
@@ -202,7 +214,6 @@ describe("editPdf", () => {
       color: "#1a1a1a",
       thickness: 2,
       opacity: 1,
-      highlighter: false,
     };
     const content = await contentOf((await editPdf(input, [stroke])).file);
     // One move-to for the whole stroke, then a line-to for each point after the first.
@@ -212,23 +223,11 @@ describe("editPdf", () => {
 
   it("still leaves a dot when the pen was tapped rather than dragged", async () => {
     const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const dot: Annotation = { id: "i1", page: 1, kind: "ink", points: [{ x: 10, y: 10 }], color: "#1a1a1a", thickness: 4, opacity: 1, highlighter: false };
+    const dot: Annotation = { id: "i1", page: 1, kind: "ink", points: [{ x: 10, y: 10 }], color: "#1a1a1a", thickness: 4, opacity: 1 };
     const content = await contentOf((await editPdf(input, [dot])).file);
     // A zero-length line with a round cap is exactly a dot.
     expect(content).toMatch(/\bm\b/);
     expect(content).toMatch(/\bl\b/);
-  });
-
-  it("gives highlighter strokes a multiply blend so the words underneath survive", async () => {
-    const input = await pdfFile((doc) => void doc.addPage([600, 800]));
-    const base: Annotation = { id: "i1", page: 1, kind: "ink", points: [{ x: 10, y: 10 }, { x: 90, y: 10 }], color: "#ffe600", thickness: 14, opacity: 0.4, highlighter: true };
-    const highlighted = await editPdf(input, [base]);
-    const plain = await editPdf(input, [{ ...base, id: "i2", highlighter: false }]);
-    const doc = await PDFDocument.load(await highlighted.file.arrayBuffer());
-    // The blend mode lives in an ExtGState in the page's resources.
-    expect(JSON.stringify(doc.context.enumerateIndirectObjects().map(([, o]) => o.toString()))).toContain("Multiply");
-    const plainDoc = await PDFDocument.load(await plain.file.arrayBuffer());
-    expect(JSON.stringify(plainDoc.context.enumerateIndirectObjects().map(([, o]) => o.toString()))).not.toContain("Multiply");
   });
 
   it("embeds a picture once however many times it is placed", async () => {
@@ -290,5 +289,186 @@ describe("unwritableCharacters", () => {
     // Curly quotes, an em dash and an ellipsis are all in WinAnsi, so pasting
     // from a word processor works rather than failing at the save step.
     expect(unwritableCharacters("“It’s fine” — really…")).toEqual([]);
+  });
+});
+
+describe("multi-line text", () => {
+  // pdf-lib can break lines itself, but its line breaking ignores the `rotate`
+  // option — a two-line note on a rotated page would stack sideways. So lines
+  // are placed one at a time, down whichever direction the viewer calls down.
+  it("stacks lines downward on an unrotated page", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    const input = new File([(await doc.save()) as BlobPart], "t.pdf");
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false };
+    const content = await contentOf((await editPdf(input, [note])).file);
+    const baselines = textOrigins(content);
+    expect(baselines).toHaveLength(2);
+    expect(baselines[0]).toEqual({ x: 100, y: 700 });
+    expect(baselines[1].x).toBe(100);
+    expect(baselines[1].y).toBeCloseTo(700 - 10 * LINE_HEIGHT, 6);
+  });
+
+  it("stacks lines along the page's own idea of down when it is rotated", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]).setRotation(degrees(90));
+    const input = new File([(await doc.save()) as BlobPart], "t.pdf");
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\ntwo", size: 10, color: "#000000", font: "sans", bold: false };
+    const content = await contentOf((await editPdf(input, [note])).file);
+    const baselines = textOrigins(content);
+    // Down on a /Rotate 90 page is +x, so the second line steps across, not down.
+    expect(baselines[0]).toEqual({ x: 100, y: 700 });
+    expect(baselines[1].y).toBe(700);
+    expect(baselines[1].x).toBeCloseTo(100 + 10 * LINE_HEIGHT, 6);
+  });
+
+  it("skips blank lines rather than emitting an empty text run", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    const input = new File([(await doc.save()) as BlobPart], "t.pdf");
+    const note: Annotation = { id: "t1", page: 1, kind: "text", at: { x: 100, y: 700 }, text: "one\n\nthree", size: 10, color: "#000000", font: "sans", bold: false };
+    const content = await contentOf((await editPdf(input, [note])).file);
+    expect(content.match(/\bTm\b/g) ?? []).toHaveLength(2);
+  });
+});
+
+describe("lines and arrows", () => {
+  const shaft: Annotation = { id: "l1", page: 1, kind: "line", from: { x: 100, y: 100 }, to: { x: 300, y: 100 }, color: "#d50000", thickness: 2, opacity: 1, arrow: false };
+
+  async function blank() {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    return new File([(await doc.save()) as BlobPart], "t.pdf");
+  }
+
+  it("draws a plain line as a single subpath", async () => {
+    const content = await contentOf((await editPdf(await blank(), [shaft])).file);
+    expect(content.match(/\bm\b/g) ?? []).toHaveLength(1);
+    expect(content.match(/\bl\b/g) ?? []).toHaveLength(1);
+  });
+
+  it("adds two barbs, and only at the far end", async () => {
+    const content = await contentOf((await editPdf(await blank(), [{ ...shaft, arrow: true }])).file);
+    // Shaft plus one subpath per barb.
+    expect(content.match(/\bm\b/g) ?? []).toHaveLength(3);
+    expect(content.match(/\bl\b/g) ?? []).toHaveLength(3);
+    // Both barbs converge on the arrow's tip, never on its tail.
+    expect(content.match(/300 -100 l/g) ?? []).toHaveLength(3);
+  });
+
+  it("keeps the barbs inside a very short arrow instead of overshooting the tail", async () => {
+    const stubby: Annotation = { ...shaft, arrow: true, to: { x: 104, y: 100 }, thickness: 6 };
+    const content = await contentOf((await editPdf(await blank(), [stubby])).file);
+    const xs = [...content.matchAll(/(-?\d+(?:\.\d+)?) -100 [ml]/g)].map((m) => Number(m[1]));
+    // Unclamped, 6pt thickness would put the barbs 24pt back from a 4pt line.
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(100);
+  });
+
+  it("ignores a line with no length", async () => {
+    const content = await contentOf((await editPdf(await blank(), [{ ...shaft, to: { x: 100, y: 100 } }])).file);
+    expect(content.trim()).toBe("");
+  });
+});
+
+describe("text mark-up", () => {
+  const box = { from: { x: 100, y: 500 }, to: { x: 260, y: 512 } };
+
+  async function blank(rotation = 0) {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 800]);
+    if (rotation) page.setRotation(degrees(rotation));
+    return new File([(await doc.save()) as BlobPart], "t.pdf");
+  }
+
+  it("fills one rectangle per line, multiplied so the words show through", async () => {
+    const mark: Annotation = { id: "m1", page: 1, kind: "mark", style: "highlight", boxes: [box, { from: { x: 100, y: 486 }, to: { x: 200, y: 498 } }], color: "#ffe600", opacity: 0.45 };
+    const { file } = await editPdf(await blank(), [mark]);
+    const content = await contentOf(file);
+    // pdf-lib builds rectangles as an explicit closed path rather than with
+    // the `re` operator, so closepath is what there is one of per box.
+    expect(content.match(/\bh\b/g) ?? []).toHaveLength(2);
+    const doc = await PDFDocument.load(await file.arrayBuffer());
+    expect(JSON.stringify(doc.context.enumerateIndirectObjects().map(([, o]) => o.toString()))).toContain("Multiply");
+  });
+
+  it("draws underline and strikethrough at different heights in the same box", async () => {
+    const under = await contentOf((await editPdf(await blank(), [{ id: "m1", page: 1, kind: "mark", style: "underline", boxes: [box], color: "#d50000", opacity: 1 }])).file);
+    const strike = await contentOf((await editPdf(await blank(), [{ id: "m1", page: 1, kind: "mark", style: "strike", boxes: [box], color: "#d50000", opacity: 1 }])).file);
+    const heightOf = (content: string) => Number(/100 (-?\d+(?:\.\d+)?) m/.exec(content)![1]);
+    // The underline sits lower on the page than the strikethrough.
+    expect(heightOf(under)).toBeLessThan(heightOf(strike));
+  });
+
+  it("skips a box too small to be a line of text", async () => {
+    const content = await contentOf((await editPdf(await blank(), [{ id: "m1", page: 1, kind: "mark", style: "highlight", boxes: [{ from: { x: 10, y: 10 }, to: { x: 10.2, y: 10.2 } }], color: "#ffe600", opacity: 0.4 }])).file);
+    expect(content.trim()).toBe("");
+  });
+});
+
+describe("whiteout", () => {
+  it("fills without an outline, so nothing frames the patch", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    const input = new File([(await doc.save()) as BlobPart], "t.pdf");
+    const patch: Annotation = { id: "w1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 200, y: 90 }, stroke: null, fill: "#ffffff", thickness: 0, opacity: 1 };
+    const content = await contentOf((await editPdf(input, [patch])).file);
+    expect(content).toMatch(/\bf\b/);
+    expect(content).not.toMatch(/\bS\b/);
+    expect(content).not.toMatch(/\bB\b/);
+  });
+
+  it("draws nothing at all when neither a fill nor an outline is set", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([600, 800]);
+    const input = new File([(await doc.save()) as BlobPart], "t.pdf");
+    const empty: Annotation = { id: "s1", page: 1, kind: "rect", from: { x: 40, y: 60 }, to: { x: 200, y: 90 }, stroke: null, fill: null, thickness: 2, opacity: 1 };
+    const content = await contentOf((await editPdf(input, [empty])).file);
+    expect(content.trim()).toBe("");
+  });
+});
+
+describe("screenDown", () => {
+  it("points down the page when nothing is rotated", () => {
+    expect(screenDown(0)).toEqual({ x: 0, y: -1 });
+  });
+
+  it("follows the viewer round each quarter turn", () => {
+    expect(screenDown(90)).toEqual({ x: 1, y: 0 });
+    expect(screenDown(180)).toEqual({ x: 0, y: 1 });
+    expect(screenDown(270)).toEqual({ x: -1, y: 0 });
+  });
+
+  it("normalises angles given the long way round, or backwards", () => {
+    expect(screenDown(450)).toEqual(screenDown(90));
+    expect(screenDown(-90)).toEqual(screenDown(270));
+  });
+});
+
+describe("markSegment", () => {
+  const from = { x: 100, y: 500 };
+  const to = { x: 300, y: 520 };
+
+  it("runs across the box, at the requested depth from the top", () => {
+    expect(markSegment(from, to, 0, 0.5)).toEqual([{ x: 100, y: 510 }, { x: 300, y: 510 }]);
+  });
+
+  it("measures depth from whichever edge the viewer shows as the top", () => {
+    // Unrotated, deeper means further down the page; at 180 the page is upside
+    // down, so deeper means further UP it.
+    const [a] = markSegment(from, to, 0, 0.9);
+    const [b] = markSegment(from, to, 180, 0.9);
+    expect(a.y).toBeLessThan(510);
+    expect(b.y).toBeGreaterThan(510);
+  });
+
+  it("runs the other way across the box on a quarter-turned page", () => {
+    const [start, end] = markSegment(from, to, 90, 0.5);
+    expect(start.x).toBe(200);
+    expect(end.x).toBe(200);
+    expect([start.y, end.y]).toEqual([500, 520]);
+  });
+
+  it("does not care which corner it was handed first", () => {
+    expect(markSegment(to, from, 0, 0.5)).toEqual(markSegment(from, to, 0, 0.5));
   });
 });

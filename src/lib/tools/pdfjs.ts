@@ -71,6 +71,70 @@ export async function renderPageToBlob(pdf: pdfjsLib.PDFDocumentProxy, pageNumbe
   return { blob, width: viewport.width, height: viewport.height };
 }
 
+/**
+ * Where each run of text sits on the page, for snapping mark-up to it.
+ *
+ * `transform` is the run's text matrix in PDF user space and `width` its
+ * advance in the same units — both straight from pdf.js. They are kept raw
+ * rather than converted, because the on-screen box depends on the viewport and
+ * the viewport changes every time somebody zooms.
+ */
+export interface PageTextRun {
+  transform: number[];
+  width: number;
+  str: string;
+}
+
+export async function extractPageTextRuns(pdf: pdfjsLib.PDFDocumentProxy, pageNumber: number): Promise<PageTextRun[]> {
+  const page = await pdf.getPage(pageNumber);
+  const content = await page.getTextContent();
+  const runs: PageTextRun[] = [];
+  for (const item of content.items) {
+    // Whitespace-only runs would stretch a highlight into the margin.
+    if (!("str" in item) || !item.str.trim()) continue;
+    runs.push({ transform: item.transform, width: item.width, str: item.str });
+  }
+  return runs;
+}
+
+/** A text run's box in viewport (CSS pixel) coordinates, plus its baseline. */
+export interface TextRunBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  baseline: number;
+}
+
+/**
+ * Projects a text run onto the screen through the current viewport.
+ *
+ * The viewport's transform already folds in the scale and the page's own
+ * /Rotate, so composing it with the run's text matrix gives the run's position
+ * as drawn — no separate rotation case to get wrong. Returns null for text that
+ * is not horizontal on screen (a rotated watermark, a sideways table header),
+ * which a rectangular highlight cannot honestly represent.
+ */
+export function textRunBox(run: PageTextRun, viewport: pdfjsLib.PageViewport): TextRunBox | null {
+  const [a, b, c, d, e, f] = viewport.transform;
+  const [a2, b2, c2, d2, e2, f2] = run.transform;
+  // The 2x3 affine product, spelled out rather than pulled from pdf.js's
+  // internal Util so this keeps working if that export moves.
+  const m = [a * a2 + c * b2, b * a2 + d * b2, a * c2 + c * d2, b * c2 + d * d2, a * e2 + c * f2 + e, b * e2 + d * f2 + f];
+
+  const height = Math.hypot(m[2], m[3]);
+  if (!(height > 0)) return null;
+  if (Math.abs(m[1]) > Math.abs(m[0]) * 0.25) return null;
+
+  const width = run.width * viewport.scale;
+  // Text running right-to-left on screen (a page turned 180) starts at the
+  // right-hand edge of its own box.
+  const x = m[0] < 0 ? m[4] - width : m[4];
+  // Ascent above the baseline, descent below — the proportions a highlighter
+  // covers, rather than the em box, which sits noticeably high.
+  return { x, y: m[5] - height * 0.8, width, height: height * 1.0, baseline: m[5] };
+}
+
 export interface PageTextLine {
   text: string;
   fontSize: number;
