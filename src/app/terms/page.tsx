@@ -10,6 +10,9 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = "August 29, 2026";
 
+// Operator note, not for the page: this is a general-purpose starting
+// template, not a substitute for advice from a qualified lawyer — worth a
+// proper legal review once the service carries real traffic or revenue.
 const SECTIONS: LegalSection[] = [
   {
     heading: "The service",
@@ -120,7 +123,6 @@ export default function TermsPage() {
         </p>
       }
       sections={SECTIONS}
-      footnote="This is a general-purpose starting template, not a substitute for advice from a qualified lawyer — worth a proper legal review once the service carries real traffic or revenue."
     />
   );
 }

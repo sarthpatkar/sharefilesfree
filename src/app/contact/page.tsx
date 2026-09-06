@@ -22,6 +22,10 @@ const LAST_UPDATED = "September 5, 2026";
  * legal@, privacy@ or a misspelling of any of them still arrives. That matters
  * more than usual here: a complaint bouncing because someone typed "grievence@"
  * is the one delivery failure that can't be afforded.
+ *
+ * Operator note, not for the page: this address must actually be live and
+ * read before the site is promoted anywhere — an unmonitored grievance
+ * contact is the same as not having one.
  */
 const CONTACT_EMAIL = "contact@sharefilesfree.com";
 
@@ -137,7 +141,6 @@ export default function ContactPage() {
         </p>
       }
       sections={SECTIONS}
-      footnote="This address must be live and read before the site is promoted — an unmonitored grievance contact is the same as not having one."
     />
   );
 }
