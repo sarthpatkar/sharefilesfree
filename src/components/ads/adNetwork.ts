@@ -22,13 +22,27 @@
  * Nothing in this file enforces that geographically — there is no geo check
  * here, and setting the publisher id below turns ads on for everyone. So the
  * commitment currently lives in a promise rather than in code, which is only
- * acceptable while the answer is "no ads anywhere". The moment that changes,
- * one of two things has to happen first: a certified CMP, or a country gate
- * (Cloudflare passes CF-IPCountry on every request, which is the cheap way to
- * build one).
+ * acceptable while the answer is "no ads anywhere".
  *
- * Turning ads on without doing either would make a written privacy commitment
- * false, which is a worse problem than having no ads.
+ * DO NOT SOLVE THIS BY BLOCKING EUROPE. That was the first instinct and it is
+ * the wrong one — the UK and EEA are among the highest-paying ad markets there
+ * are, and turning them off to stay compliant would cost far more revenue than
+ * the rest of the site earns.
+ *
+ * The correct fix is a consent banner, and Google gives one away: AdSense has a
+ * built-in, Google-certified GDPR message (Privacy & messaging -> GDPR) that
+ * shows a consent prompt to EEA and UK visitors and records the result. It costs
+ * nothing and needs no code here.
+ *
+ * It is also not optional in practice. Google's own EU user consent policy
+ * requires a certified CMP for that traffic, and without one Google restricts
+ * what it will serve there anyway. So the choice is not "ads in Europe or
+ * compliance" — it is "a consent banner, or no European revenue".
+ *
+ * Order of operations when ads go live: enable the GDPR message in AdSense
+ * first, then set the publisher id, then reword the privacy commitment above to
+ * describe the banner that now exists. Setting the id first would make a written
+ * privacy commitment false, which is a worse problem than having no ads.
  */
 
 /** Set to an AdSense publisher id (ca-pub-...) to serve real ads. */

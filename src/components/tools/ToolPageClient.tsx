@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getToolBySlug, TOOLS } from "./registry";
+import { TOOL_CONTENT } from "./toolContent";
 import { setHandoffFile } from "@/lib/handoff";
 import { IconArrowLeft } from "../icons";
 import { AdSlot } from "../ads/AdSlot";
@@ -19,6 +20,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
     router.push("/#send");
   }
 
+  const content = TOOL_CONTENT[slug];
   const related = TOOLS.filter((t) => t.slug !== slug && t.group === tool!.group).slice(0, 5);
   const others = TOOLS.filter((t) => t.slug !== slug && t.group !== tool!.group).slice(0, 6 - related.length);
   const suggestions = [...related, ...others];
@@ -72,6 +74,62 @@ export function ToolPageClient({ slug }: { slug: string }) {
       <div className="bg-yellow px-5 pb-12 sm:px-8">
         <AdSlot slotId="tool-page" format="leaderboard" />
       </div>
+
+      {content && (
+        // The part a search engine and a first-time visitor both need, and the
+        // part that was missing: what this does, how to drive it, and what it
+        // will not do. The limitations are deliberately not buried — they are
+        // the most useful thing on the page and the reason to trust the rest.
+        <section className="bg-y-pale">
+          <div className="mx-auto grid w-full max-w-[1400px] gap-x-14 gap-y-12 px-5 py-16 sm:px-8 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <h2 className="font-display text-[clamp(1.5rem,2.6vw,2rem)] leading-[1.12] text-red">
+                About {tool.title}
+              </h2>
+              {content.intro.map((paragraph) => (
+                <p key={paragraph} className="mt-5 max-w-2xl text-[16px] leading-[1.7] text-black">
+                  {paragraph}
+                </p>
+              ))}
+
+              <h3 className="mt-12 text-[11px] font-bold uppercase tracking-[0.18em] text-red">How to use it</h3>
+              <ol className="mt-5 flex flex-col border-t border-rule">
+                {content.steps.map((step, i) => (
+                  <li key={step} className="flex gap-5 border-b border-rule py-4">
+                    <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-red">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-[15px] leading-[1.6] text-black">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="lg:col-span-5">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">What it will not do</h3>
+              <ul className="mt-5 flex flex-col gap-4">
+                {content.limits.map((limit) => (
+                  <li key={limit} className="bg-y-max px-5 py-4 text-[14px] font-medium leading-[1.6] text-black">
+                    {limit}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lg:col-span-12">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">Questions</h3>
+              <dl className="mt-5 flex flex-col border-t border-rule">
+                {content.faqs.map((faq) => (
+                  <div key={faq.q} className="border-b border-rule py-5">
+                    <dt className="text-[16px] font-bold leading-[1.4] text-black">{faq.q}</dt>
+                    <dd className="mt-2 max-w-3xl text-[15px] leading-[1.65] text-black opacity-80">{faq.a}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="bg-lime-4">
         <div className="mx-auto w-full max-w-[1400px] px-5 py-14 sm:px-8">
