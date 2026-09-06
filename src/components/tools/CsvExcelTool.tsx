@@ -22,6 +22,37 @@ const DELIMITERS: { value: Delimiter; label: string }[] = [
 
 const DEFAULTS: Options = { mode: "csv-to-excel", delimiter: ",", sheetName: "", allSheets: false };
 
+/** Which mode a file's own extension implies — null when it doesn't say either way, so an unrecognised name never overrides what's already selected. */
+function modeFor(file: File): Mode | null {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".csv") || file.type === "text/csv") return "csv-to-excel";
+  if (name.endsWith(".xlsx") || name.endsWith(".xls") || file.type.includes("spreadsheet") || file.type.includes("ms-excel")) return "excel-to-csv";
+  return null;
+}
+
+/**
+ * The tool's own "How to use it" copy promises the direction is detected from
+ * what you gave it — true for a file chosen through the native picker, since
+ * `accept` there is filtered to the current mode, but drag-and-drop never
+ * consults `accept` at all. Without this, dropping an .xlsx straight onto the
+ * page while still in the default CSV mode fed the binary file to a
+ * text-mode CSV parser as raw text, corrupted beyond anything a clearer error
+ * would fix. Re-detects on every new file selection, so it never fights a
+ * mode the user picked by hand and then kept using.
+ */
+function ModeAutoDetect({ files, value, set }: { files: File[]; value: Options; set: (o: Options) => void }) {
+  useEffect(() => {
+    const detected = files[0] && modeFor(files[0]);
+    if (detected && detected !== value.mode) set({ ...value, mode: detected });
+    // Only re-run when a new file arrives — `value`/`set` are read from the
+    // closure at that moment rather than watched, or every option tweak
+    // afterwards (delimiter, sheet choice) would re-fire this and stomp
+    // whatever the user picks by hand once the file's own mode is settled.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
+  return null;
+}
+
 function ExcelToCsvExtraOptions({ value, set, files }: { value: Options; set: (o: Options) => void; files: File[] }) {
   const [sheetNames, setSheetNames] = useState<string[]>([]);
 
@@ -102,6 +133,7 @@ export function CsvExcelTool({ onSend }: { onSend?: (file: File) => void }) {
       onSend={onSend}
       renderOptions={(value, set, files) => (
         <div className="flex flex-col gap-3 text-sm text-muted">
+          <ModeAutoDetect files={files} value={value} set={set} />
           <fieldset className="flex gap-4">
             <label className="flex items-center gap-1.5">
               <input type="radio" checked={value.mode === "csv-to-excel"} onChange={() => set({ ...value, mode: "csv-to-excel" })} className="accent-accent" />

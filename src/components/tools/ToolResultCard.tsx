@@ -35,6 +35,11 @@ export function ToolResultCard({
   }, [file]);
 
   const savedPct = originalSize ? Math.round((1 - file.size / originalSize) * 100) : null;
+  // A QR code, a resized photo, a HEIC conversion — anything whose whole point
+  // is what it looks like shouldn't have to be downloaded and reopened just to
+  // find out it worked. Text/PDF/spreadsheet outputs skip this; there's
+  // nothing to look at until you open them in the program that reads them.
+  const isImage = file.type.startsWith("image/");
 
   return (
     // Ruled block, not a bordered card — this already sits inside a section, and
@@ -49,6 +54,16 @@ export function ToolResultCard({
           {savedPct !== null && savedPct > 0 && <span className="ml-2 text-accent">−{savedPct}%</span>}
         </p>
       </div>
+
+      {isImage && url && (
+        // Previewing a just-created local blob, not a page asset Next's optimizer can reach.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={`Preview of ${file.name}`}
+          className="max-h-96 w-auto self-start border border-ink bg-paper object-contain"
+        />
+      )}
 
       {/* Some inputs (already-compressed JPEGs, high-noise images, flat-colour
           graphics better suited to PNG) genuinely don't shrink under lossy
