@@ -6,7 +6,7 @@ import { TOOLS, TOOL_GROUPS } from "./tools/registry";
 /* Each group takes a different field, so the palette organises the index.
    Flat fields, no shadow — the colour change is the only boundary a tile
    needs, and the hard offset was making a 19-item grid read as clutter. */
-const GROUP_FIELDS: Record<string, string> = {
+export const GROUP_FIELDS: Record<string, string> = {
   "PDF pages": "bg-field-1",
   "Convert to PDF": "bg-field-2",
   "Convert from PDF": "bg-field-3",
