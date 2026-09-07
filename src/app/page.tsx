@@ -44,12 +44,34 @@ function OrgJsonLd() {
     url: "https://sharefilesfree.com",
     description:
       "Free peer-to-peer file transfer with no account and no size limit, plus browser-based file tools. Files pass directly between devices and are never stored.",
+    // Ties the two profiles below to this entity for Google/Bing's knowledge
+    // graph — add more here as new official profiles go live, never a
+    // placeholder or a profile that isn't actually ShareFilesFree's own.
+    sameAs: ["https://x.com/sharefilesfree", "https://www.instagram.com/sharefilesfree/"],
     contactPoint: {
       "@type": "ContactPoint",
       email: "contact@sharefilesfree.com",
       contactType: "customer support",
       availableLanguage: ["English"],
     },
+  };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;
+}
+
+/**
+ * WebSite data. Distinct from the Organization block above — this is what
+ * ties the domain itself to the brand name for query matching, and is a
+ * prerequisite Google checks for (though never guarantees) the sitelinks
+ * search box on a brand query.
+ */
+function WebsiteJsonLd() {
+  const json = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "ShareFilesFree",
+    alternateName: "Share Files Free",
+    url: "https://sharefilesfree.com",
+    description: "Share files free with anyone, on any device, with a short code — no account, no size limit.",
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;
 }
@@ -75,6 +97,7 @@ export default function Page() {
       <FaqJsonLd />
       <AppJsonLd />
       <OrgJsonLd />
+      <WebsiteJsonLd />
       <SiteHeader />
       <main className="flex flex-1 flex-col">
         <Hero />

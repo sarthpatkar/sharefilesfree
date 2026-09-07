@@ -31,8 +31,11 @@ const outfit = Outfit({
 });
 
 const title = "ShareFilesFree — Share Files Free, No Sign-Up, No Size Limit";
+// Kept to 120-160 characters on purpose — Google truncates past ~160, and a
+// meta description over that (as this used to be, at 227) just wastes the
+// part that never gets read. The target keyword still leads the sentence.
 const description =
-  "Share files free with anyone, on any device, with a short code — no account, no app, and no size limit at all, because your file never touches our servers. Free file sharing, plus 24 more free tools that run on your own device.";
+  "Share files free with anyone, on any device — no account, no size limit. Plus 24 free tools: merge, split and compress PDFs, convert images, and more.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sharefilesfree.com"),

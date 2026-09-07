@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { TOOLS } from "./tools/registry";
 import { DonateLink } from "./DonateLink";
-import { IconHeart, IconSend } from "./icons";
+import { IconHeart, IconInstagram, IconSend, IconX } from "./icons";
+
+const SOCIAL_LINKS = [
+  { label: "X", href: "https://x.com/sharefilesfree", icon: IconX },
+  { label: "Instagram", href: "https://www.instagram.com/sharefilesfree/", icon: IconInstagram },
+];
 
 /**
  * Shared footer, on a mid-yellow field. Also does real work for search: it links
@@ -23,8 +28,22 @@ export function SiteFooter() {
               <span className="font-display text-[19px] leading-none text-red">ShareFilesFree</span>
             </div>
             <p className="max-w-xs text-[15px] font-medium leading-[1.6] text-black">
-              Free file sharing with six digits, not an upload. No account, no app, no size limit.
+              Share files free with six digits, not an upload. No account, no app, no size limit.
             </p>
+            <div className="flex items-center gap-4">
+              {SOCIAL_LINKS.map(({ label, href, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="sff-nudge text-black"
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="sr-only">ShareFilesFree on {label}</span>
+                </a>
+              ))}
+            </div>
           </div>
 
           <nav className="flex flex-col gap-2.5 lg:col-span-2" aria-labelledby="footer-transfer">

@@ -51,6 +51,10 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is ShareFilesFree actually a free file-sharing website, or is there a catch?",
-    a: "It's what the name says: a free file-sharing website, not a free trial of a paid one. There's no storage limit to hit, no watermark waiting to appear, and no upgrade screen behind the transfer or the tools. Share a file the same way tomorrow, next year, or a hundred times today — the free version is the only version.",
+    a: "It's what the name says: a place to share files free, not a free trial of a paid one. There's no storage limit to hit, no watermark waiting to appear, and no upgrade screen behind the transfer or the tools. Share a file the same way tomorrow, next year, or a hundred times today — the free version is the only version.",
+  },
+  {
+    q: "What's the best way to share files free with someone on a different device?",
+    a: "A six-digit code, read out or texted over, is enough — no email attachment size limit to hit and no drive link to set sharing permissions on. Open ShareFilesFree on both devices, drop the file on one, type the code on the other, and it moves straight across. Phone to laptop, Windows to Mac, Android to iPhone: nothing to install, nothing to sign into, and no cap on how large the file is.",
   },
 ];
