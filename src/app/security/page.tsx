@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, type LegalSection } from "@/components/LegalPage";
+import { TOOLS } from "@/components/tools/registry";
 
 export const metadata: Metadata = {
-  title: "Security — what protects you, and what doesn't — ShareFilesFree",
+  title: "Is it safe? — How ShareFilesFree protects your files",
   description:
-    "How ShareFilesFree keeps a file transfer safe: nothing stored, encrypted browser to browser, filenames that cannot lie about themselves. Including the things it deliberately cannot do.",
+    "Your file goes straight to the person you send it to. We never store it, never see it, and tell you if something you receive could harm your device. Plus the things we honestly can't do.",
   alternates: { canonical: "/security" },
 };
 
@@ -13,177 +14,140 @@ const LAST_UPDATED = "September 7, 2026";
 
 const SECTIONS: LegalSection[] = [
   {
-    heading: "Your file never reaches us, so there is nothing here to steal",
+    heading: "Your file goes to them, not to us",
     body: (
       <>
         <p>
-          Most services that promise security are describing how well they guard the copy of your file they are
-          holding. We are not holding one. The bytes go from your device to theirs over a direct connection, and this
-          service runs no file storage at all — not a bucket with a short retention window, none.
+          When you send a file here, it travels straight from your device to theirs. It does not stop on our
+          computers along the way, because we do not run anywhere for it to stop.
         </p>
         <p>
-          That is worth being precise about, because it changes what a breach here could even mean. If someone
-          compromised our server tomorrow, there would be no files on it. There is no archive to leak, nothing to sell,
-          and nothing for anyone to compel us to hand over. The strongest security property on this page is the one we
-          got by not building something.
+          That one fact does most of the work on this page. There is no copy of your file here to be stolen, sold,
+          leaked, or handed to anyone who asks. If someone broke into our servers today, they would find no files,
+          because there have never been any.
         </p>
       </>
     ),
   },
   {
-    heading: "It is encrypted the whole way — and not because we say so",
+    heading: "Nobody can read it on the way — not even us",
     body: (
       <>
         <p>
-          The connection between the two browsers is encrypted by the browsers themselves, using the same mechanism
-          video calls use. It is not a feature we implemented and could get wrong: a browser will not open an
-          unencrypted channel of this kind at all. There is no setting for it and no way for us to turn it off.
+          Your file is scrambled the moment it leaves your device and only unscrambled on theirs. Your browser does
+          this itself. It is not something we built, so it is not something we can switch off, and there is no
+          setting that turns it off by accident.
         </p>
         <p>
-          When a direct connection cannot be made — strict office or mobile networks, roughly a fifth of the time — the
-          data is bounced through a relay. The relay moves sealed traffic it cannot read. It sees that two devices are
-          talking, not what they are saying.
+          Sometimes two devices cannot reach each other directly, usually on office or mobile networks. The file
+          then takes a longer route, still sealed the whole way. Whatever passes it along can see that two devices
+          are talking. It cannot see what they are saying.
         </p>
       </>
     ),
   },
   {
-    heading: "A file cannot lie to you about what it is",
+    heading: "We tell you when a file could harm your device",
     body: (
       <>
         <p>
-          There is an old trick where a file is named so that it <em>displays</em> backwards from a certain point. A
-          program called <code>invoice&#8230;exe</code> can be made to appear on screen as <code>invoice&#8230;png</code>,
-          in this site, in your downloads list, and in your file manager. You think you saved a picture and you run a
-          program. It has been used in real attacks for over a decade.
+          Some files are documents and photos. Others are programs, and opening one lets it do things to your
+          computer. When something arrives that can run — an app, an installer, a script, a document that carries
+          hidden instructions — we say so clearly, right next to it, before you save it.
         </p>
         <p>
-          Filenames arriving here are stripped of the characters that make that possible, along with anything that
-          could steer a file out of the folder you chose. If an arriving file is the kind that can run — an installer,
-          a script, a document with macros — the page says so plainly next to it, before you save it.
-        </p>
-        <p>
-          A received file is also handed to your browser in a form that cannot execute as a web page on this site.
-          That closes a route where someone sends you a file that quietly becomes a convincing fake of this page, on
-          the real address, with the real padlock.
+          We also make sure a file cannot lie about what it is. There is a long-running trick that makes a program
+          appear on screen with a photo&rsquo;s name, so you open it believing it is a picture. Files arriving here
+          cannot do that. What you read is what you are actually saving.
         </p>
       </>
     ),
   },
   {
-    heading: "The short code is small on purpose, so guessing is made expensive",
+    heading: "Only your code opens your transfer",
     body: (
       <>
         <p>
-          A six-digit code is short because it has to be readable down a phone. That means it is guessable in
-          principle, so the guessing is what gets restricted: wrong codes are rate-limited per network and in total,
-          codes expire, and a code that has been claimed cannot be claimed again.
+          Your six-digit code works once, expires on its own, and stops working the moment the right person has
+          used it. Someone typing in random numbers hoping to find a live transfer gets shut out quickly.
         </p>
         <p>
-          A code that lives longer than the ten-minute default is a different problem, and gets a different answer. It
-          carries a 128-bit secret alongside it — travelling inside the link or QR code you share, never read aloud —
-          which is not guessable by any practical means. A wrong secret is answered exactly like a wrong code, so
-          nobody can learn they found a real transfer and only need the key.
+          If you need longer than a few minutes, you get a link or a QR code instead. Those carry a much longer key
+          inside them — far too long to guess, which is why it travels in the link rather than being read out loud.
         </p>
       </>
     ),
   },
   {
-    heading: "This page can only run its own code",
+    heading: "The tools never take your file either",
     body: (
       <>
         <p>
-          The site tells your browser to refuse any script that did not come from this domain. If someone found a way
-          to inject something into this page, it could not fetch its payload from elsewhere, could not send what it
-          found anywhere but back here, and could not put this site inside a frame on another one.
-        </p>
-        <p>
-          That rule is only as good as the code we do load, so the tools were changed to stop borrowing any. Text
-          recognition previously downloaded its engine from a public code-hosting network the moment you used it —
-          working code, arriving from a third party, into a page holding your documents. It is served from here now.
-        </p>
-        <p>
-          The site is reachable over an encrypted connection only, and browsers are told to remember that, so a
-          network you do not trust cannot quietly downgrade you to an unencrypted one.
-        </p>
-      </>
-    ),
-  },
-  {
-    heading: "The tools never upload anything either",
-    body: (
-      <>
-        <p>
-          Every one of the{" "}
+          All {TOOLS.length} of the{" "}
           <Link href="/tools" className="link">
             free tools
           </Link>{" "}
-          — merging, splitting, compressing, converting, recognising text — runs on your own machine. The contract you
-          are merging, the passport photo you are compressing, and the spreadsheet you are converting do not travel
-          anywhere. There is no queue on a server because there is no server doing the work.
+          work inside your own browser. The contract you are merging, the ID photo you are shrinking, the
+          spreadsheet you are converting — none of it is uploaded anywhere. There is no waiting for a server,
+          because no server is doing the work.
         </p>
       </>
     ),
   },
   {
-    heading: "No account means nothing about you to lose",
+    heading: "No account means nothing of yours to lose",
     body: (
       <>
         <p>
-          There is no sign-up, so there is no password of yours here to leak, no email address on a list, and no
-          history with your name attached. We keep counts — how many transfers, how many bytes — and nothing that
-          describes a person. What is never collected cannot go missing.
+          There is no sign-up here. No password of yours for anyone to steal, no email address on a list, no
+          history with your name on it. We count how many files move through, and nothing about who moved them.
         </p>
       </>
     ),
   },
   {
-    heading: "What this cannot do, stated plainly",
+    heading: "What we cannot do for you",
     body: (
       <>
         <p>
-          <strong>We cannot check a file for viruses.</strong> Not &ldquo;we have chosen not to&rdquo; — we cannot. The file goes
-          straight from their device to yours and is never present on anything we run, so there is nothing for us to
-          scan even in principle. That is the direct cost of the privacy on the rest of this page, and it is the
-          honest reason to treat a file from someone you were not expecting exactly as you would treat an unexpected
-          email attachment.
+          <strong>We cannot check files for viruses.</strong> Not a choice we made — the file never reaches us, so
+          there is nothing on our side to check. That is the flip side of everything above. Treat a file from
+          someone you were not expecting the same way you would treat a surprise email attachment: if you are not
+          sure who sent it, do not open it.
         </p>
         <p>
-          <strong>A direct connection means each side can see the other&rsquo;s network address.</strong> That is what
-          &ldquo;direct&rdquo; means — the two devices must know where to find each other. Anyone you send a file to could, with
-          effort, learn roughly where you are connecting from, as you could of them. When the transfer is relayed
-          instead, the relay&rsquo;s address stands in place of yours.
+          <strong>The other person can see roughly where you are connecting from.</strong> That is what a direct
+          connection means — the two devices have to find each other. They cannot see your name or your files list,
+          only the general location your internet connection reports, in the same way any website you visit can.
         </p>
         <p>
-          <strong>Our server introduces the two devices, and you are trusting it to introduce them honestly.</strong>{" "}
-          The encryption is between the two browsers, but the details they use to recognise each other pass through
-          us. A service that chose to tamper with that step could place itself in the middle of a transfer. We do not,
-          and the design keeps us out of the file itself — but a promise is what that is, and you should know which
-          parts of this page are promises and which are structural. Every other item here is structural. This one is
-          not, and we would rather say so than let it read as though it were.
+          <strong>You both need to be online at the same time.</strong> Nothing sits on a server waiting to be
+          collected later, because nothing is stored. If the other person cannot be there now, send a link that
+          lasts up to two hours and keep your tab open.
         </p>
         <p>
-          <strong>Both devices have to be open at the same time.</strong> Nothing waits on a server for later
-          collection, because there is no server holding it.
+          <strong>One part of this asks you to trust us.</strong> Your two devices are introduced to each other
+          through us, even though what you send is sealed between them. We do not interfere with that step, and
+          everything else on this page is true because of how the service is built rather than because we say so.
+          This one is different, and we would rather tell you than let it read like a guarantee.
         </p>
       </>
     ),
   },
   {
-    heading: "Found something? Tell us",
+    heading: "Found a problem? Please tell us",
     body: (
       <>
         <p>
-          If you have found a security problem, we want to hear about it before anyone else does. Write to{" "}
+          If you find something wrong, we would much rather hear it from you first. Write to{" "}
           <a href="mailto:contact@sharefilesfree.com" className="link">
             contact@sharefilesfree.com
           </a>{" "}
-          with enough detail to reproduce it. You will get a reply from a person, and you are welcome to say publicly
-          that you reported it once it is fixed.
+          and describe what you found. A person will read it and reply.
         </p>
         <p>
-          Please do not test against other people&rsquo;s transfers. If you need a target, run both ends yourself —
-          two tabs is enough to exercise everything described on this page.
+          Please do not test on other people&rsquo;s transfers. Open the site in two tabs and send a file to
+          yourself — that is enough to try anything described here.
         </p>
       </>
     ),
@@ -193,35 +157,33 @@ const SECTIONS: LegalSection[] = [
 export default function SecurityPage() {
   return (
     <LegalPage
-      kicker="Security"
-      title="What actually protects you here."
+      kicker="Is it safe?"
+      title="Nobody sees your file. Not even us."
       lastUpdated={LAST_UPDATED}
       intro={
         <>
           <p>
-            Everyone in this business writes &ldquo;bank-level encryption&rdquo; and moves on. This page is the
-            specific version: what protects a file moving through here, how it works, and — at the bottom, not buried
-            — the things this design cannot do for you.
+            Plenty of sites say &ldquo;secure&rdquo; and leave it there. Here is the plain version: what happens to
+            your file, what we can see, and what we cannot do for you.
           </p>
           <p>
-            The distinction that matters throughout is between a property and a promise. Most of what follows is
-            structural: true because of how the thing is built, and it would take a rewrite rather than a change of
-            heart to make it untrue. Where something rests on us behaving well instead, it is marked as such.
+            The last part matters as much as the rest. Anything on this page that sounds like a promise is one we
+            can keep because of the way the service works, not because we are asking you to take our word for it.
           </p>
         </>
       }
       sections={SECTIONS}
       footnote={
         <>
-          Want the shorter version of who we are and why this is free?{" "}
+          More on who builds this and how it stays free is on the{" "}
           <Link href="/about" className="link">
-            Read the about page
+            about page
           </Link>
-          , or the{" "}
+          . What we do and do not collect is in the{" "}
           <Link href="/privacy" className="link">
             privacy policy
-          </Link>{" "}
-          for exactly what is and isn&rsquo;t collected.
+          </Link>
+          .
         </>
       }
     />

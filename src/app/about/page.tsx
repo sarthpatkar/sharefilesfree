@@ -5,7 +5,7 @@ import { LegalPage, type LegalSection } from "@/components/LegalPage";
 export const metadata: Metadata = {
   title: "About ShareFilesFree — who runs it and how it works",
   description:
-    "ShareFilesFree sends files straight between two browsers, with no account and no size limit. Who builds it, how it stays free, and what it deliberately does not do.",
+    "ShareFilesFree sends files straight between two browsers, with no account and no size limit. Who builds it, how it stays free, and what it does not do.",
   alternates: { canonical: "/about" },
 };
 

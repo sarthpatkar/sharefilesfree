@@ -19,7 +19,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Do both devices need to be open at the same time?",
-    a: "Yes, and this is the one real cost of how it works, so it is worth being straight about rather than burying it. Your file goes directly from your device to theirs — it is never parked on a server in between, because there is no server holding files. That means both pages have to be open while it travels, the way a phone call needs both people on the line. Everything people like about this follows from the same fact: no size limit, no account, no waiting in a queue, nothing kept afterwards, and nothing that can leak later because nothing is stored. If the other person genuinely cannot be there, pick a longer code, send them the link, and leave your tab open — they can collect any time in the next two hours.",
+    a: "Yes, and this is the one real cost of how it works, so it is worth being straight about rather than burying it. Your file goes directly from your device to theirs — it is never parked on a server in between, because there is no server holding files. That means both pages have to be open while it travels, the way a phone call needs both people on the line. Everything people like about this follows from the same fact: no size limit, no account, no waiting, nothing kept afterwards, and nothing that can leak later because nothing is stored. If the other person genuinely cannot be there, pick a longer code, send them the link, and leave your tab open — they can collect any time in the next two hours.",
   },
   {
     q: "How do you make money if everything is free?",
@@ -27,7 +27,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is there a file size limit?",
-    a: "None at all. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. This isn't generosity, it's arithmetic: a transfer that never touches our machines costs us nothing however big it is, so there is no number we'd gain anything by capping it at.",
+    a: "None at all. Your file goes straight from your device to theirs, so we aren't paying for the megabytes and have no reason to count them — nothing in the way counts them either. The only ceiling is the free space on the device receiving it. A transfer that never touches our machines costs us nothing however big it is, so there's no number we'd gain anything by capping it at.",
   },
   {
     q: "Do I really not need an account?",
@@ -35,7 +35,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "What if the person I'm sending to isn't online right now?",
-    a: "Choose a longer code when you create it — ten minutes by default, up to two hours — and leave the tab open. They can pick it up whenever they get to it, and the file waits on your own device rather than ours. For anything longer than ten minutes you get a link and a QR code instead of digits to read out: something that stays open for hours needs a key too long to say aloud, or it could simply be guessed. What we can't do is hold the file after you close the page. That's the honest cost of never storing anything: if you can't both be online within two hours, use something that keeps a copy — and know that it's keeping one.",
+    a: "Choose a longer code when you create it — ten minutes by default, up to two hours — and leave the tab open. They can pick it up whenever they get to it, and the file waits on your own device rather than ours. For anything longer than ten minutes you get a link and a QR code instead of digits to read out: something that stays open for hours needs a key too long to say aloud, or it could simply be guessed. What we can't do is hold the file after you close the page. That's the one thing we give up by never storing anything: if you can't both be online within two hours, use something that keeps a copy — and know that it's keeping one.",
   },
   {
     q: "Does the other person need the same browser or an app?",
@@ -43,11 +43,15 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Are the PDF and image tools really free with no watermark?",
-    a: "Yes, and for a structural reason rather than a promotional one: every tool does its work on your own device, so each use costs us nothing. No queue, no watermark, no daily limit — and your file never leaves your machine to be processed in the first place.",
+    a: "Yes. Every tool does its work on your own device, so each use costs us nothing to run — which is why there is no watermark, no daily limit, and nothing to wait for. Your file is never uploaded to be processed in the first place.",
   },
   {
-    q: "What stops people abusing an anonymous file service?",
-    a: "Honestly: very little, and by design. Files pass directly between two browsers and never reach us, so there is nothing for us to scan even if we wanted to. What we do have are limits on how many transfers one connection can start, codes that expire and can't be guessed, and no storage at all — nothing can sit here waiting to be found by anyone. That's a genuine trade-off of the private route, and we'd rather name it than pretend it isn't there.",
+    q: "Is it safe to receive a file from someone?",
+    a: "Mostly it comes down to who sent it, and we help you judge that. If a file can run on your device — an app, an installer, a script, a document carrying hidden instructions — we say so clearly before you save it. We also make sure a file can't disguise what it is: there is a known trick that makes a program appear with a photo's name, and files arriving here can't use it. What we can't do is check the contents for viruses, because the file goes straight from their device to yours and never reaches us. So treat anything unexpected the way you'd treat a surprise email attachment: if you're not sure who sent it, don't open it.",
+  },
+  {
+    q: "What stops people misusing an anonymous file service?",
+    a: "Codes expire on their own and stop working once the right person has used them, guessing at codes gets shut out quickly, and nothing is ever stored here — so there is no pile of files sitting around to be found later, and no link that keeps working after a transfer is done. What we can't do is inspect what's inside a file, because it never reaches us. That's the honest trade of a service that doesn't keep your files: we can't read yours, so we can't read anyone else's either.",
   },
   {
     q: "Is ShareFilesFree actually a free file-sharing website, or is there a catch?",

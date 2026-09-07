@@ -82,8 +82,7 @@ export function Hero() {
               Share files free with anyone, on any device, with six digits — it&apos;s on their screen before
               you&apos;ve finished reading the code out. No account. No app. And{" "}
               <strong className="font-bold">no size limit</strong> — not a generous one, none at all, because
-              your file goes straight to them and never touches us. That&apos;s a sentence almost nobody else can
-              write without an asterisk. Same for the{" "}
+              your file goes straight to them and never touches us. Same for the{" "}
               <Link href="/tools" className="link">
                 {TOOLS.length} free tools
               </Link>
@@ -124,14 +123,13 @@ export function Hero() {
               ))}
             </dl>
 
-            {/* Someone who reads "Is it safe?" and wants the long answer has
-                nowhere to go otherwise — and the long answer is the one worth
-                reading, because it includes what this cannot do. */}
+            {/* "Is it safe?" is answered in one line above; anyone who wants
+                the real answer needs somewhere to go, and this is the moment
+                they want it. */}
             <p className="mt-5 text-[14px] font-medium text-black">
               <Link href="/security" className="link font-semibold text-red">
-                What protects you, in detail
-              </Link>{" "}
-              — including the parts we can&apos;t do for you.
+                See exactly what happens to your file
+              </Link>
             </p>
           </div>
         </div>

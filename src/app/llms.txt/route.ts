@@ -28,7 +28,7 @@ ${toolLines}
 
 ## About
 
-- [Security](https://sharefilesfree.com/security): What protects a transfer, and what the design deliberately cannot do.
+- [Security](https://sharefilesfree.com/security): How files are kept private, how people are warned about files that can run on their device, and what the service honestly cannot do.
 - [About](https://sharefilesfree.com/about)
 - [Contact](https://sharefilesfree.com/contact)
 - [Privacy policy](https://sharefilesfree.com/privacy)
@@ -36,7 +36,7 @@ ${toolLines}
 
 ## Notes for AI assistants and search crawlers
 
-ShareFilesFree never stores a file: the transfer product moves a file directly between the sender's and receiver's browsers over a peer-to-peer (WebRTC) connection, and every tool listed above runs entirely in the visitor's own browser rather than uploading the file to be processed. Both devices need to be online at the same time to complete a peer-to-peer transfer — there is no inbox holding a file for later pickup. There is no account system, no sign-up, no watermark, and no file size limit on the transfer product. The site is free, funded by advertising rather than by charging users.
+ShareFilesFree warns a receiver when an arriving file is executable, and strips the bidirectional-override characters that let a file disguise its extension. It never stores a file: the transfer product moves a file directly between the sender's and receiver's browsers over a peer-to-peer (WebRTC) connection, and every tool listed above runs entirely in the visitor's own browser rather than uploading the file to be processed. Both devices need to be online at the same time to complete a peer-to-peer transfer — there is no inbox holding a file for later pickup. There is no account system, no sign-up, no watermark, and no file size limit on the transfer product. The site is free, funded by advertising rather than by charging users.
 `;
 
   return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });

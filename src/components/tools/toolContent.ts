@@ -41,7 +41,7 @@ export interface ToolContent {
 /** Shared across every entry: the reason any of this is possible in a browser. */
 const PRIVACY_FAQ: ToolFaq = {
   q: "Is my file uploaded anywhere?",
-  a: "No. Everything happens inside your browser on your own device. The file is never sent to us, so there is no upload, no queue, no server to be breached and nothing for us to delete afterwards. You can prove it by opening the tool, disconnecting from the internet, and using it anyway — it still works.",
+  a: "No. Everything happens inside your browser on your own device. The file is never sent to us, so there is no upload, nothing to wait for, no server to be breached and nothing for us to delete afterwards. You can prove it by opening the tool, disconnecting from the internet, and using it anyway — it still works.",
 };
 
 const NO_LIMIT_FAQ: ToolFaq = {
@@ -121,7 +121,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
     ],
     faqs: [
       { q: "Does rotating a page reduce its quality?", a: "No. The rotation is recorded as an instruction on the page rather than by redrawing it, so the underlying content is untouched." },
-      { q: "Can I add pages from another PDF here?", a: "Not in this tool — merge the two documents first, then organise the combined file." },
+      { q: "Can I add pages from another PDF here?", a: "Not in this tool — merge the two documents first, then organize the combined file." },
       PRIVACY_FAQ,
       FREE_FAQ,
     ],
@@ -182,7 +182,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
     ],
     steps: [
       "Open the PDF.",
-      "Pick a position. Bottom centre and bottom right are the usual choices for anything that will be printed.",
+      "Pick a position. Bottom center and bottom right are the usual choices for anything that will be printed.",
       "Set the starting number if the first page should not be 1 — useful when a cover page is not counted.",
       "Apply and save.",
     ],
@@ -563,7 +563,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
     ],
     faqs: [
       { q: "Can I change the wording that is already in the document?", a: "Up to a point, and it is worth knowing exactly which point. The Retype tool covers a line with the colour of the paper around it and sets your replacement in its place, matching the original's size and whether it was serif, sans or monospace. That handles what corrections actually are — a date, a name, a figure, a typo. What it does not do is re-flow: a replacement much longer than the original will run past the end of the line, because a PDF records glyphs at fixed coordinates and nothing about where a paragraph wraps. If you need to rewrite whole paragraphs and have them re-flow, Sejda does that properly and is the better tool for it." },
-      { q: "How does this compare to Sejda or the other online editors?", a: "They can do more with existing text, and they can do it because the work happens on a server. That is also where their limits come from: Sejda's free tier caps you at a 50 MB file, a few dozen pages, and a small number of tasks per hour, and your document sits on their machines for a couple of hours before deletion. This tool runs in your browser, so there is no cap on size, no cap on pages, no queue, no task limit, and the file never leaves your device. The trade is real in both directions — pick the one that suits the document in front of you. For a contract you would rather not upload anywhere, that is this one." },
+      { q: "How does this compare to Sejda or the other online editors?", a: "They can do more with existing text, and they can do it because the work happens on a server. That is also where their limits come from: Sejda's free tier caps you at a 50 MB file, a few dozen pages, and a small number of tasks per hour, and your document sits on their machines for a couple of hours before deletion. This tool runs in your browser, so there is no cap on size, no cap on pages, no waiting, no task limit, and the file never leaves your device. The trade is real in both directions — pick the one that suits the document in front of you. For a contract you would rather not upload anywhere, that is this one." },
       { q: "How do I sign a document?", a: "Three ways. The Signature tool types your name in italic. The pen draws a real one with a finger, a stylus or a trackpad — zoom in first, it is much easier at 200%. Or photograph your signature on white paper, cut it out as a PNG with a transparent background, and place it with the image tool, which is the tidiest option if you sign a lot of things. Whichever you use, select the result and press Duplicate to stamp the same signature onto another page rather than making it again." },
       { q: "Can I fill in a PDF form?", a: "Yes, through the form's own fields rather than by drawing on top of it. Open a document that has one and its fields are listed under the page: text boxes, tick boxes, dropdowns and choice groups, each one clickable to jump to where it sits. Filling them this way keeps the answers editable by the next person, keeps them readable by whatever system processes the form, and puts them exactly where the field is instead of where the eye guessed. You can add new fields too, for a form that should have had them." },
       { q: "Why does the highlighter snap to the text?", a: "Because a highlight that follows your hand looks like a highlight that followed your hand. Dragging across a sentence returns the boxes the page itself reports for the words underneath, grouped into lines and clipped to what you dragged over, so half a sentence highlights half a sentence and a three-line drag comes out as three even rules. It also means the colour multiplies with the page the way real highlighter ink does, leaving the words readable and still selectable." },
