@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/security" },
 };
 
-const LAST_UPDATED = "September 7, 2026";
+const LAST_UPDATED = "September 8, 2026";
 
 const SECTIONS: LegalSection[] = [
   {
@@ -42,6 +42,22 @@ const SECTIONS: LegalSection[] = [
           Sometimes two devices cannot reach each other directly, usually on office or mobile networks. The file
           then takes a longer route, still sealed the whole way. Whatever passes it along can see that two devices
           are talking. It cannot see what they are saying.
+        </p>
+      </>
+    ),
+  },
+  {
+    heading: "You can check the connection yourself",
+    body: (
+      <>
+        <p>
+          Your two devices have to be introduced to each other, and that introduction happens through us. So we
+          give you a way to confirm it went to the right person without taking our word for anything.
+        </p>
+        <p>
+          Once a transfer connects, both screens show a short code. When nobody is in between, both show the same
+          one. Read it to each other and you have checked it yourself. Most people never will, and that is fine —
+          it is there for the times it matters.
         </p>
       </>
     ),
@@ -125,12 +141,6 @@ const SECTIONS: LegalSection[] = [
           collected later, because nothing is stored. If the other person cannot be there now, send a link that
           lasts up to two hours and keep your tab open.
         </p>
-        <p>
-          <strong>One part of this asks you to trust us.</strong> Your two devices are introduced to each other
-          through us, even though what you send is sealed between them. We do not interfere with that step, and
-          everything else on this page is true because of how the service is built rather than because we say so.
-          This one is different, and we would rather tell you than let it read like a guarantee.
-        </p>
       </>
     ),
   },
@@ -167,8 +177,8 @@ export default function SecurityPage() {
             your file, what we can see, and what we cannot do for you.
           </p>
           <p>
-            The last part matters as much as the rest. Anything on this page that sounds like a promise is one we
-            can keep because of the way the service works, not because we are asking you to take our word for it.
+            The last part matters as much as the rest. Nothing here asks you to simply trust us — where something
+            could come down to that, we give you a way to check it instead.
           </p>
         </>
       }

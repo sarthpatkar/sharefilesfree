@@ -47,7 +47,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is it safe to receive a file from someone?",
-    a: "Mostly it comes down to who sent it, and we help you judge that. If a file can run on your device — an app, an installer, a script, a document carrying hidden instructions — we say so clearly before you save it. We also make sure a file can't disguise what it is: there is a known trick that makes a program appear with a photo's name, and files arriving here can't use it. What we can't do is check the contents for viruses, because the file goes straight from their device to yours and never reaches us. So treat anything unexpected the way you'd treat a surprise email attachment: if you're not sure who sent it, don't open it.",
+    a: "Mostly it comes down to who sent it, and we help you judge that. If a file can run on your device — an app, an installer, a script, a document carrying hidden instructions — we say so clearly before you save it. We also make sure a file can't disguise what it is: there is a known trick that makes a program appear with a photo's name, and files arriving here can't use it. What we can't do is check the contents for viruses, because the file goes straight from their device to yours and never reaches us. So treat anything unexpected the way you'd treat a surprise email attachment: if you're not sure who sent it, don't open it. Once a transfer connects, both of you also see the same short code on screen — reading it to each other is a quick way to be sure the file is coming from the person you think it is.",
   },
   {
     q: "What stops people misusing an anonymous file service?",
