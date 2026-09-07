@@ -6,6 +6,7 @@ import { formatBytes, formatDuration, formatRate } from "@/lib/format";
 import { executableExtensionOf } from "@/lib/sanitize";
 import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
+import { VerificationCode } from "./VerificationCode";
 import { Button } from "./Button";
 import { AdGate } from "./ads/AdGate";
 import { AdSlot } from "./ads/AdSlot";
@@ -49,6 +50,7 @@ export function ReceivePanel() {
   const [progress, setProgress] = useState<FileProgress | null>(null);
   const [received, setReceived] = useState<IncomingFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [verification, setVerification] = useState<string | null>(null);
   /** A warning that isn't a failure — see onNotice. */
   const [notice, setNotice] = useState<string | null>(null);
   const transferRef = useRef<PeerTransfer | null>(null);
@@ -238,6 +240,7 @@ export function ReceivePanel() {
         setReceived((prev) => [...prev, file]);
       },
       onError: setError,
+      onVerificationCode: setVerification,
       onNotice: setNotice,
     });
     transfer.setSaveDirectory(saveDirRef.current);
@@ -386,6 +389,10 @@ export function ReceivePanel() {
           </div>
           <ProgressBar fraction={progress.size ? progress.sent / progress.size : 0} />
         </div>
+      )}
+
+      {verification && (status === "transferring" || status === "connected" || status === "done") && (
+        <VerificationCode code={verification} role="receiver" />
       )}
 
       {/* Receiving is a wait the user is already sitting through — the same

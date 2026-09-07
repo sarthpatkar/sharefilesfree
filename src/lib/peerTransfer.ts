@@ -55,6 +55,12 @@ export interface PeerTransferCallbacks {
   onFileReceived?: (file: IncomingFile) => void;
   onError?: (message: string) => void;
   /**
+   * The short code both devices derive from the two connection keys, once
+   * they are connected. Identical on both ends when nobody is in the middle,
+   * different when somebody is — see verificationCode.ts.
+   */
+  onVerificationCode?: (code: string) => void;
+  /**
    * Something worth telling the user that is not a failure — currently the
    * storage-headroom warning. It needs its own channel: routing it through
    * onStatus meant the message rode along as a detail on a non-error status,
@@ -138,6 +144,7 @@ const DISCONNECT_GRACE_MS = 10 * 1000;
 const COALESCE_BYTES = 8 * 1024 * 1024;
 
 import { sanitizeFilename } from "./sanitize";
+import { deriveVerificationCode, fingerprintFromSdp } from "./verificationCode";
 import { countMetric, countTransfer } from "./metrics";
 import { formatBytes } from "./format";
 
@@ -272,6 +279,8 @@ export class PeerTransfer {
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** Guards against counting one connection's path more than once. */
   private pathReported = false;
+  /** The verification code is announced once per connection, not per state change. */
+  private verificationSent = false;
   /** Running totals for the batch currently arriving — reported once at batch-end. */
   private batchFiles = 0;
   private batchBytes = 0;
@@ -480,6 +489,11 @@ export class PeerTransfer {
 
     this.pc.onconnectionstatechange = () => {
       const state = this.pc?.connectionState;
+
+      // Derived the moment the connection is actually up, which is the first
+      // point both descriptions are settled and therefore the first point the
+      // two sides would agree on an answer.
+      if (state === "connected") void this.emitVerificationCode();
 
       // "failed" is terminal. "disconnected" is NOT, and treating it as one was
       // wrong: the spec describes it as transient, and ICE routinely recovers
@@ -838,6 +852,26 @@ export class PeerTransfer {
    * The OPFS sink, started on first use. Returns null where the platform can't
    * support it, and the caller falls back to assembling in memory.
    */
+  /**
+   * Works out the code both people can read to each other, and hands it up
+   * once.
+   *
+   * Fires only when both fingerprints are actually readable. Showing a code
+   * derived from partial information would be worse than showing none: the two
+   * sides could disagree for an innocent reason, and a verification step that
+   * cries wolf is one people learn to wave through — which is exactly the
+   * habit an attacker needs.
+   */
+  private async emitVerificationCode() {
+    if (this.verificationSent || !this.pc) return;
+    const local = fingerprintFromSdp(this.pc.localDescription?.sdp);
+    const remote = fingerprintFromSdp(this.pc.remoteDescription?.sdp);
+    const code = await deriveVerificationCode(local, remote);
+    if (!code || this.verificationSent) return;
+    this.verificationSent = true;
+    this.callbacks.onVerificationCode?.(code);
+  }
+
   private ensureSink(): Worker | null {
     if (this.sink) return this.sink;
     if (typeof Worker === "undefined" || !navigator.storage?.getDirectory) return null;

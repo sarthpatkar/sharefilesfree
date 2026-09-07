@@ -12,6 +12,7 @@ import {
 } from "@/lib/ads";
 import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
+import { VerificationCode } from "./VerificationCode";
 import { CodeDisplay } from "./CodeDisplay";
 import { Button } from "./Button";
 import { AdGate } from "./ads/AdGate";
@@ -56,6 +57,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
   const [roomMinutes, setRoomMinutes] = useState<number>(DEFAULT_ROOM_DURATION);
   const [progress, setProgress] = useState<Map<string, FileProgress>>(new Map());
   const [error, setError] = useState<string | null>(null);
+  const [verification, setVerification] = useState<string | null>(null);
   // Which action is currently waiting behind an ad. The gate renders where the
   // result would have appeared, so the user is never covered by an overlay.
   const [gate, setGate] = useState<null | "code">(null);
@@ -95,6 +97,7 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
       },
       onProgress: (p) => setProgress((prev) => new Map(prev).set(p.id, p)),
       onError: setError,
+      onVerificationCode: setVerification,
     });
     transferRef.current = transfer;
     transfer.connectAsSender(minutes);
@@ -231,6 +234,14 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
             {formatRate(totalSize, finishedAt - startedAt)}
           </p>
         )}
+        {/* Kept on this screen too, and not only while the bytes are moving.
+            The code cannot exist until both devices are connected, and by that
+            moment the file is already on its way — so for a sender the check is
+            necessarily something they do alongside or just after the transfer,
+            not a gate before it. Removing it the instant the transfer finished
+            took it away at the one point a sender actually has time to read it
+            out. */}
+        {verification && <VerificationCode code={verification} role="sender" />}
         <Button onClick={reset}>Send more files</Button>
       </div>
     );
@@ -247,6 +258,9 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
         </p>
       )}
       {code && (status === "waiting-for-peer" || status === "negotiating") && <CodeDisplay code={code} expiresAt={expiresAt} secret={secret} />}
+      {verification && (status === "transferring" || status === "connected") && (
+        <VerificationCode code={verification} role="sender" />
+      )}
       {(status === "transferring" || status === "connected") && (
         <div className="w-full max-w-md">
           <ProgressBar fraction={totalSize ? totalSent / totalSize : 0} />

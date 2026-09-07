@@ -92,7 +92,7 @@ export function SiteFooter() {
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 bg-red px-6 py-5 sm:flex-row sm:items-center">
           <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-lime">
-            Your files go straight to the other person — we never keep a copy
+            Your files go straight to the person you send them to — we never keep a copy
           </p>
           <nav className="flex items-center gap-6">
             <Link href="/stats" className="sff-nudge text-[14px] font-semibold text-yellow">
