@@ -207,6 +207,34 @@ type ControlMessage =
   | { type: "file-end"; id: string }
   | { type: "batch-end" };
 
+/**
+ * The type every received file is given, regardless of what the sender called
+ * it — and the reason it is a constant rather than a variable.
+ *
+ * A received file becomes a Blob, and that Blob gets an object URL, and that
+ * URL is `blob:https://sharefilesfree.com/<uuid>` — an address on THIS
+ * origin. If the Blob carries a renderable type, anything that navigates to
+ * that URL renders sender-controlled content as this site: `text/html` runs
+ * script, and so does `image/svg+xml`, which is the one people forget. From
+ * there it can read this origin's storage, register a service worker for
+ * persistence, and put a convincing phishing page on the real domain with the
+ * real certificate.
+ *
+ * The download link sets `download`, which makes a normal click save rather
+ * than navigate — but that is one attribute standing between a stranger's
+ * HTML and this origin, and it is not a boundary worth resting on. "Copy link
+ * address" and paste is enough to defeat it, and so is any future change that
+ * previews a received file inline.
+ *
+ * So the sender's declared type is never applied. It buys nothing: the saved
+ * filename comes from the `download` attribute and the extension in it, not
+ * from the Blob's type, so a file saved as octet-stream still opens in the
+ * right application afterwards. The wire format still carries `mime` because
+ * older peers send it and a deploy leaves both versions live for a while; the
+ * receiver simply ignores it.
+ */
+const RECEIVED_BLOB_TYPE = "application/octet-stream";
+
 type SignalData =
   | { kind: "offer"; sdp: RTCSessionDescriptionInit }
   | { kind: "answer"; sdp: RTCSessionDescriptionInit }
@@ -369,7 +397,17 @@ export class PeerTransfer {
     };
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
+      // Anything arriving here came off the network. An unparseable frame is
+      // not a reason to throw out of an event handler with no catch above it —
+      // that surfaces as an unhandled rejection and leaves the transfer wedged
+      // in whatever state it was in. Ignore the frame instead.
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (!msg || typeof msg !== "object") return;
       switch (msg.type) {
         case "room-created":
           this.roomCode = msg.code;
@@ -631,7 +669,17 @@ export class PeerTransfer {
 
   private handleChannelMessage(data: string | ArrayBuffer) {
     if (typeof data === "string") {
-      const msg: ControlMessage = JSON.parse(data);
+      // The peer on the other end of this channel is a stranger, and a control
+      // frame that doesn't parse is the cheapest thing they can send. Throwing
+      // here would escape into the data channel's message handler, where
+      // nothing catches it.
+      let msg: ControlMessage;
+      try {
+        msg = JSON.parse(data) as ControlMessage;
+      } catch {
+        return;
+      }
+      if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
       if (msg.type === "file-start") {
         // Everything in this message came from the peer, so none of it is
         // trusted. The name is sanitized before it ever reaches a download
@@ -640,7 +688,8 @@ export class PeerTransfer {
         this.incoming.set(msg.id, {
           name: sanitizeFilename(String(msg.name ?? "file")),
           size: Math.max(0, Number(msg.size) || 0),
-          mime: typeof msg.mime === "string" ? msg.mime.slice(0, 255) : "application/octet-stream",
+          // Not the sender's — see RECEIVED_BLOB_TYPE.
+          mime: RECEIVED_BLOB_TYPE,
           received: 0,
           parts: [],
           pending: [],

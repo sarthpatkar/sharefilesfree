@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PeerTransfer, type FileProgress, type IncomingFile, type TransferStatus } from "@/lib/peerTransfer";
 import { formatBytes, formatDuration, formatRate } from "@/lib/format";
+import { executableExtensionOf } from "@/lib/sanitize";
 import { useKeepOpen } from "@/lib/useKeepOpen";
 import { ProgressBar } from "./ProgressBar";
 import { Button } from "./Button";
@@ -427,24 +428,43 @@ export function ReceivePanel() {
           {received.map((f, i) => (
             <li
               key={f.id}
-              className={`flex items-center justify-between gap-4 px-4 py-3 ${i % 2 === 0 ? "bg-lime-pale" : "bg-lime-4"}`}
+              className={`flex flex-col gap-2 px-4 py-3 ${i % 2 === 0 ? "bg-lime-pale" : "bg-lime-4"}`}
             >
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-black">{f.name}</span>
-              <span className="shrink-0 font-mono text-[12px] tabular-nums text-black opacity-55">
-                {formatBytes(f.size)}
-              </span>
-              {f.blob ? (
-                <a
-                  href={objectUrls.get(f.id)}
-                  download={f.name}
-                  className="sff-nudge shrink-0 bg-red px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
-                >
-                  Save
-                </a>
-              ) : (
-                <span className="shrink-0 bg-lime-3 px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-black">
-                  Saved
+              <div className="flex items-center justify-between gap-4">
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-black">{f.name}</span>
+                <span className="shrink-0 font-mono text-[12px] tabular-nums text-black opacity-55">
+                  {formatBytes(f.size)}
                 </span>
+                {f.blob ? (
+                  <a
+                    href={objectUrls.get(f.id)}
+                    download={f.name}
+                    className="sff-nudge shrink-0 bg-red px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-y-pale"
+                  >
+                    Save
+                  </a>
+                ) : (
+                  <span className="shrink-0 bg-lime-3 px-4 py-2.5 text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-black">
+                    Saved
+                  </span>
+                )}
+              </div>
+
+              {/* The one honest thing that can be said about an arriving file.
+                  Nothing here scans it — the bytes went straight from their
+                  device to this one and no server was ever in a position to
+                  look — so the alternative to naming the risk is staying quiet
+                  about it, which is how Firefox Send became a malware channel.
+                  This says what kind of file it is and leaves the decision
+                  where it belongs. Not a modal and not a blocked download:
+                  people do legitimately send installers, and a warning that
+                  cries wolf is one people learn to click past. */}
+              {executableExtensionOf(f.name) && (
+                <p className="text-[12px] font-semibold leading-[1.5] text-red">
+                  This is a .{executableExtensionOf(f.name)} file — opening it runs a program on your
+                  device. We cannot check what it does, because the file never reaches us. Open it only
+                  if you know who sent it and you were expecting it.
+                </p>
               )}
             </li>
           ))}
