@@ -1,8 +1,20 @@
 // Single source of truth for every tool: its URL slug, SEO copy, grouping,
-// icon, and component. The /tools directory page, the landing page's tool
-// marquee, the footer link columns and the indexable /tools/[slug] pages all
-// read from this — one place to add a tool instead of wiring it into each UI
+// and icon. The /tools directory page, the landing page's tool marquee, the
+// footer link columns and the indexable /tools/[slug] pages all read from
+// this — one place to add a tool instead of wiring it into each UI
 // separately.
+//
+// Deliberately NOT here: the tool's actual processing component. That lives
+// in ./toolComponents, loaded via next/dynamic, and is looked up by slug only
+// on the one page that renders it (ToolPageClient). This file used to import
+// all 24 tool components directly and hang each one off a `Component` field,
+// which meant every page that imports TOOLS just to read a title and an icon
+// — the homepage, the footer, the tools index — shipped tesseract.js,
+// mammoth, docx, jsPDF, html2canvas, pdf-lib and xlsx to every visitor,
+// whether or not they ever opened a tool. This file is safe to import from
+// anywhere, including a Server Component, precisely because it no longer
+// carries any of that weight — plain strings, and lightweight icon
+// components, nothing else.
 import type { ComponentType, SVGProps } from "react";
 import {
   IconShrink,
@@ -20,30 +32,6 @@ import {
   IconTextScan,
   IconPen,
 } from "../icons";
-import { CompressImageTool } from "./CompressImageTool";
-import { ImagesToPdfTool } from "./ImagesToPdfTool";
-import { MergePdfsTool } from "./MergePdfsTool";
-import { SplitPdfTool } from "./SplitPdfTool";
-import { OrganizePdfTool } from "./OrganizePdfTool";
-import { CompressPdfTool } from "./CompressPdfTool";
-import { WatermarkTool } from "./WatermarkTool";
-import { PageNumbersTool } from "./PageNumbersTool";
-import { WordToPdfTool } from "./WordToPdfTool";
-import { ExcelToPdfTool } from "./ExcelToPdfTool";
-import { PdfToPowerPointTool } from "./PdfToPowerPointTool";
-import { PdfToWordTool } from "./PdfToWordTool";
-import { PdfToExcelTool } from "./PdfToExcelTool";
-import { PdfToMarkdownTool } from "./PdfToMarkdownTool";
-import { ResizeImageTool } from "./ResizeImageTool";
-import { HeicToJpgTool } from "./HeicToJpgTool";
-import { QrCodeTool } from "./QrCodeTool";
-import { CsvExcelTool } from "./CsvExcelTool";
-import { OcrTool } from "./OcrTool";
-import { TextToPdfTool } from "./TextToPdfTool";
-import { CsvToPdfTool } from "./CsvToPdfTool";
-import { RotatePdfTool } from "./RotatePdfTool";
-import { FlattenPdfTool } from "./FlattenPdfTool";
-import { EditPdfTool } from "./EditPdfTool";
 
 export interface ToolDef {
   slug: string;
@@ -59,7 +47,6 @@ export interface ToolDef {
   caveat?: string;
   /** Whether "Send this file" (handoff to the Send tab) makes sense for this tool's output. */
   canSend: boolean;
-  Component: ComponentType<{ onSend?: (file: File) => void }>;
 }
 
 export const TOOLS: ToolDef[] = [
@@ -72,7 +59,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconStack,
     canSend: true,
-    Component: MergePdfsTool,
   },
   {
     slug: "split-pdf",
@@ -83,7 +69,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconScissors,
     canSend: true,
-    Component: SplitPdfTool,
   },
   {
     slug: "organize-pdf",
@@ -94,7 +79,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconLayers,
     canSend: true,
-    Component: OrganizePdfTool,
   },
   {
     slug: "compress-pdf",
@@ -105,7 +89,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconShrink,
     canSend: true,
-    Component: CompressPdfTool,
   },
   {
     slug: "watermark-pdf",
@@ -116,7 +99,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconStamp,
     canSend: true,
-    Component: WatermarkTool,
   },
   {
     slug: "add-page-numbers",
@@ -127,7 +109,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconHash,
     canSend: true,
-    Component: PageNumbersTool,
   },
   {
     slug: "images-to-pdf",
@@ -138,7 +119,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert to PDF",
     icon: IconStack,
     canSend: true,
-    Component: ImagesToPdfTool,
   },
   {
     slug: "word-to-pdf",
@@ -149,7 +129,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert to PDF",
     icon: IconFileText,
     canSend: true,
-    Component: WordToPdfTool,
   },
   {
     slug: "excel-to-pdf",
@@ -160,7 +139,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert to PDF",
     icon: IconGrid,
     canSend: true,
-    Component: ExcelToPdfTool,
   },
   {
     slug: "pdf-to-powerpoint",
@@ -171,7 +149,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert from PDF",
     icon: IconPresentation,
     canSend: true,
-    Component: PdfToPowerPointTool,
   },
   {
     slug: "pdf-to-word",
@@ -183,7 +160,6 @@ export const TOOLS: ToolDef[] = [
     icon: IconFileText,
     caveat: "Basic",
     canSend: true,
-    Component: PdfToWordTool,
   },
   {
     slug: "pdf-to-excel",
@@ -195,7 +171,6 @@ export const TOOLS: ToolDef[] = [
     icon: IconGrid,
     caveat: "Basic",
     canSend: true,
-    Component: PdfToExcelTool,
   },
   {
     slug: "pdf-to-markdown",
@@ -207,7 +182,6 @@ export const TOOLS: ToolDef[] = [
     icon: IconMarkdown,
     caveat: "Basic",
     canSend: true,
-    Component: PdfToMarkdownTool,
   },
   {
     slug: "compress-image",
@@ -218,7 +192,6 @@ export const TOOLS: ToolDef[] = [
     group: "Images",
     icon: IconShrink,
     canSend: true,
-    Component: CompressImageTool,
   },
   {
     slug: "resize-image",
@@ -229,7 +202,6 @@ export const TOOLS: ToolDef[] = [
     group: "Images",
     icon: IconImage,
     canSend: true,
-    Component: ResizeImageTool,
   },
   {
     slug: "heic-to-jpg",
@@ -240,7 +212,6 @@ export const TOOLS: ToolDef[] = [
     group: "Images",
     icon: IconImage,
     canSend: true,
-    Component: HeicToJpgTool,
   },
   {
     slug: "qr-code-generator",
@@ -251,7 +222,6 @@ export const TOOLS: ToolDef[] = [
     group: "Utilities",
     icon: IconQrCode,
     canSend: false,
-    Component: QrCodeTool,
   },
   {
     slug: "csv-excel-converter",
@@ -262,7 +232,6 @@ export const TOOLS: ToolDef[] = [
     group: "Utilities",
     icon: IconGrid,
     canSend: true,
-    Component: CsvExcelTool,
   },
   {
     slug: "ocr-pdf",
@@ -274,7 +243,6 @@ export const TOOLS: ToolDef[] = [
     icon: IconTextScan,
     caveat: "Experimental",
     canSend: true,
-    Component: OcrTool,
   },
   {
     slug: "rotate-pdf",
@@ -285,7 +253,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconLayers,
     canSend: true,
-    Component: RotatePdfTool,
   },
   {
     slug: "edit-pdf",
@@ -296,7 +263,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconPen,
     canSend: true,
-    Component: EditPdfTool,
   },
   {
     slug: "flatten-pdf",
@@ -307,7 +273,6 @@ export const TOOLS: ToolDef[] = [
     group: "PDF pages",
     icon: IconStamp,
     canSend: true,
-    Component: FlattenPdfTool,
   },
   {
     slug: "txt-to-pdf",
@@ -318,7 +283,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert to PDF",
     icon: IconFileText,
     canSend: true,
-    Component: TextToPdfTool,
   },
   {
     slug: "csv-to-pdf",
@@ -329,7 +293,6 @@ export const TOOLS: ToolDef[] = [
     group: "Convert to PDF",
     icon: IconGrid,
     canSend: true,
-    Component: CsvToPdfTool,
   },
 ];
 

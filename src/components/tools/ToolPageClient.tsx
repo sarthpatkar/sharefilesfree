@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getToolBySlug, TOOLS } from "./registry";
+import { TOOL_COMPONENTS } from "./toolComponents";
 import { TOOL_CONTENT } from "./toolContent";
 import { setHandoffFile } from "@/lib/handoff";
 import { IconArrowLeft } from "../icons";
@@ -12,8 +13,9 @@ import { AdSlot } from "../ads/AdSlot";
 export function ToolPageClient({ slug }: { slug: string }) {
   const tool = getToolBySlug(slug);
   const router = useRouter();
+  const Component = TOOL_COMPONENTS[slug];
 
-  if (!tool) return null;
+  if (!tool || !Component) return null;
 
   function sendToTransfer(file: File) {
     setHandoffFile(file);
@@ -59,7 +61,7 @@ export function ToolPageClient({ slug }: { slug: string }) {
             </header>
 
             <div className="lg:col-span-7">
-              <tool.Component onSend={sendToTransfer} />
+              <Component onSend={sendToTransfer} />
             </div>
           </div>
         </div>
