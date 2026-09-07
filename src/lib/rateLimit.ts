@@ -91,8 +91,45 @@ export function __resetRateLimits() {
   budgets.clear();
 }
 
+/**
+ * The caller's IP, as far as it can be established — and deliberately NOT the
+ * first entry in X-Forwarded-For.
+ *
+ * This used to read `x-forwarded-for.split(",")[0]`, which is the leftmost
+ * entry, which is the one value in the whole chain that the caller writes
+ * themselves. X-Forwarded-For is append-only: every proxy adds the address it
+ * received the connection from and leaves what was already there alone. So a
+ * request that arrives carrying `X-Forwarded-For: 1.2.3.4` reaches this
+ * function as `1.2.3.4, <real client>, <edge>` — and the old code returned
+ * 1.2.3.4. Every rate limit keyed on it was therefore bypassed by sending one
+ * header and changing it each time, which defeats the limiter on this route
+ * (TURN credentials, which cost real money to relay) and the one on /api/metrics
+ * (which keeps the public counters honest).
+ *
+ * The order below is smallest-trust-first:
+ *
+ *   1. CF-Connecting-IP. Cloudflare sets this itself and overwrites any value
+ *      the client supplied, so it cannot be forged THROUGH the proxy. It can
+ *      still be forged by a caller who reaches the origin directly, which is
+ *      why the origin must only accept connections from Cloudflare's ranges —
+ *      see deploy/harden.sh. Header trust and network trust are one control,
+ *      not two; neither half works alone.
+ *   2. The RIGHTMOST X-Forwarded-For entry, which was written by the nearest
+ *      proxy rather than by the caller — the correct fallback when the chain
+ *      length isn't known.
+ *
+ * A missing IP returns a constant rather than something unique-per-request:
+ * a limiter keyed on an unknown-but-distinct value is not a limiter at all.
+ */
 export function clientIpFromHeaders(headers: Headers): string {
+  const cf = headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+
   const fwd = headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return headers.get("x-real-ip") || "unknown";
+  if (fwd) {
+    const hops = fwd.split(",").map((h) => h.trim()).filter(Boolean);
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
+  return headers.get("x-real-ip")?.trim() || "unknown";
 }

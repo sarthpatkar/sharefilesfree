@@ -220,6 +220,61 @@ async function main() {
 
   idler.close();
 
+  // --- Hardening checks -----------------------------------------------------
+
+  // A WebSocket handshake ignores the same-origin policy, so without this any
+  // page anywhere could open sockets from its visitors' browsers and spend
+  // their real IP addresses guessing codes — turning a per-IP limit into no
+  // limit at all. A browser sets Origin itself and a page cannot forge it,
+  // which is exactly the case this stops.
+  const foreign = new WebSocket(URL, { origin: "https://evil.example" });
+  const foreignRejected = await new Promise((resolve) => {
+    foreign.on("open", () => resolve(false));
+    foreign.on("error", () => resolve(true));
+  });
+  console.log("✅ a socket from an unlisted origin is refused:", foreignRejected);
+  if (!foreignRejected) throw new Error("expected a foreign Origin to be refused");
+
+  // The site's own origin must still work, or the check has broken the product.
+  const ownOrigin = new WebSocket(URL, { origin: "https://sharefilesfree.com" });
+  const ownAccepted = await new Promise((resolve) => {
+    ownOrigin.on("open", () => resolve(true));
+    ownOrigin.on("error", () => resolve(false));
+  });
+  console.log("✅ the site's own origin is still accepted:", ownAccepted);
+  if (!ownAccepted) throw new Error("the real site must still be able to connect");
+  ownOrigin.close();
+
+  // `ws` defaults to a 100 MiB frame ceiling. This server's largest honest
+  // message is a few KB of SDP, so anything approaching that is an attempt to
+  // spend the box's memory — it must be refused by the protocol layer rather
+  // than parsed.
+  const fat = connect();
+  await new Promise((r) => fat.once("open", r));
+  const fatClosed = new Promise((resolve) => fat.on("close", () => resolve(true)));
+  fat.send(JSON.stringify({ type: "keepalive", padding: "x".repeat(200 * 1024) }));
+  const oversizeRefused = await Promise.race([
+    fatClosed,
+    new Promise((r) => setTimeout(() => r(false), 2000)),
+  ]);
+  console.log("✅ an oversized frame is refused:", oversizeRefused);
+  if (!oversizeRefused) throw new Error("expected an oversized frame to close the socket");
+
+  // One socket needs one room to send and one to receive. Claiming them without
+  // limit is how a caller who knows codes takes delivery slots for transfers
+  // that were not theirs, or holds the room map open at someone else's expense.
+  const hoarder = connect();
+  await new Promise((r) => hoarder.once("open", r));
+  let refusedAt = 0;
+  for (let i = 1; i <= 8; i++) {
+    hoarder.send(JSON.stringify({ type: "create-room" }));
+    const reply = await once(hoarder, (m) => m.type === "room-created" || m.type === "error");
+    if (reply.type === "error" && !refusedAt) refusedAt = i;
+  }
+  console.log("✅ one socket cannot hold unlimited rooms, refused at:", refusedAt);
+  if (refusedAt === 0) throw new Error("expected a per-socket room ceiling");
+  hoarder.close();
+
   sender.close();
   stranger.close();
   flooder.close();

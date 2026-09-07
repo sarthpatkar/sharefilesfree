@@ -43,6 +43,68 @@ function clampRoomTtlMinutes(requested) {
 const ROOM_CREATE_LIMIT = 30;
 const ROOM_CREATE_WINDOW_MS = 60 * 1000;
 
+// A hard ceiling on rooms held at once, across everyone.
+//
+// Every other limit here is per-IP or per-window, which bounds the RATE at
+// which rooms appear but not the TOTAL, and the two are not the same thing
+// once rooms live for up to two hours: thirty a minute per address, sustained,
+// is far more than a million over a two-hour TTL. Two things break at that
+// point and both are severe — the six-digit space fills, so honest senders
+// can no longer be issued a code, and the process holds a map it cannot
+// shrink until the TTLs expire.
+//
+// Ten thousand is far above any plausible real concurrency for this service
+// and roughly one percent of the smaller code space, which keeps collisions
+// rare enough that the bounded draw above effectively never fails.
+const MAX_ROOMS = 10_000;
+
+// How many rooms one socket may hold. A socket needs exactly one to send and
+// one to receive; anything past a handful is not a use of the product.
+//
+// Without this, one connection could create rooms up to its IP's rate limit
+// forever, or — worse on the receiving side — claim room after room. A claimed
+// room is closed to the receiver it was meant for ("already claimed"), so a
+// caller who knows or guesses codes could silently take delivery slots for
+// transfers that were not theirs, one socket, no limit. Successful joins are
+// not rate limited anywhere else, on purpose: a real receiver must never be
+// throttled for typing a correct code.
+const MAX_ROOMS_PER_SOCKET = 5;
+
+// The biggest frame this server will accept.
+//
+// `ws` defaults to 100 MiB per message, which for a process whose entire
+// vocabulary is short JSON control frames is an invitation: a handful of
+// concurrent sockets each sending a maximal frame is gigabytes of buffer on a
+// 4 GB box. The largest legitimate message here is an SDP offer with a full
+// candidate list, which is single-digit kilobytes; 64 KB leaves an order of
+// magnitude of headroom and still refuses anything abusive at the protocol
+// layer, before this file's own code ever sees it.
+const MAX_PAYLOAD_BYTES = 64 * 1024;
+
+// Ceiling on relayed signaling frames per socket — see the "signal" case.
+const SIGNAL_LIMIT = 300;
+const SIGNAL_WINDOW_MS = 60 * 1000;
+
+// Origins allowed to open a signaling socket.
+//
+// A WebSocket handshake is not subject to the same-origin policy — any page on
+// any domain can open one to this server from a visitor's browser, and it will
+// carry that visitor's real IP. That turns every rate limit here from
+// "attacker needs many addresses" into "attacker needs many visitors", which
+// is a far cheaper thing to buy: one ad impression or one popular page with a
+// hidden script is thousands of real, un-throttleable addresses guessing codes
+// on their behalf.
+//
+// Checking Origin does not stop a determined attacker — a non-browser client
+// sets any header it likes — but it is precisely the control that stops the
+// browser-driven version, because a browser sets Origin itself and a page
+// cannot lie about it. It is worth having for exactly that case.
+const ALLOWED_ORIGINS = (process.env.SIGNALING_ALLOWED_ORIGINS ||
+  "https://sharefilesfree.com,https://www.sharefilesfree.com")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 // Codes are only 6 digits (1,000,000 combinations) — without a throttle here,
 // an attacker could brute-force an active stranger's room code by just
 // guessing rapidly. This limit is generous enough for a human mistyping a
@@ -164,9 +226,40 @@ const rooms = new Map();
 /** @type {Map<string, { count: number, windowStart: number }>} */
 const rateLimitBuckets = new Map();
 
+/**
+ * The connecting client's IP — and deliberately NOT the first X-Forwarded-For
+ * entry, which is the one value in the chain the client writes themselves.
+ *
+ * X-Forwarded-For is append-only: each proxy appends the address it received
+ * the connection from and leaves earlier entries untouched. A client that
+ * connects carrying `X-Forwarded-For: 1.2.3.4` therefore arrives here as
+ * `1.2.3.4, <real client>, <edge>`, and reading `[0]` — which this did — hands
+ * back the attacker's own string.
+ *
+ * Everything protective in this file is keyed on the value below. With a
+ * forgeable key, ROOM_CREATE_LIMIT and JOIN_ATTEMPT_LIMIT are both bypassed by
+ * sending one header and varying it per connection, which leaves only the
+ * global failure ceiling standing between a guesser and the six-digit code
+ * space. That is not what the arithmetic at the top of this file assumes.
+ *
+ * CF-Connecting-IP is preferred because Cloudflare writes it itself and
+ * overwrites any client-supplied copy, so it cannot be forged through the
+ * proxy. It CAN be forged by anyone who reaches this origin directly, which is
+ * why the box must refuse connections that did not come from Cloudflare — see
+ * deploy/harden.sh. The header rule and the firewall rule are one control
+ * split across two files; neither is worth anything on its own.
+ */
 function clientIp(req) {
+  const cf = req.headers["cf-connecting-ip"];
+  if (typeof cf === "string" && cf.length > 0) return cf.trim();
+
   const fwd = req.headers["x-forwarded-for"];
-  if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0].trim();
+  if (typeof fwd === "string" && fwd.length > 0) {
+    const hops = fwd.split(",").map((h) => h.trim()).filter(Boolean);
+    // Rightmost: written by the nearest proxy rather than by the caller.
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
   return req.socket.remoteAddress || "unknown";
 }
 
@@ -202,11 +295,23 @@ function isRateLimited(key, limit, windowMs) {
 function generateRoomCode(ttlMinutes) {
   const digits = ttlMinutes > SHORT_CODE_MAX_MIN ? 8 : 6;
   const ceiling = 10 ** digits;
-  let code;
-  do {
-    code = crypto.randomInt(0, ceiling).toString().padStart(digits, "0");
-  } while (rooms.has(code));
-  return code;
+
+  // Bounded, because the obvious `do { ... } while (rooms.has(code))` is an
+  // unbounded loop over a space an anonymous caller can fill. Six digits is a
+  // million codes; a caller who occupies most of them makes each new draw
+  // collide, and if the space is ever exhausted the loop never terminates at
+  // all — on a single-threaded process that is not a slow path, it is the
+  // whole server stopping, with every open transfer on it.
+  //
+  // MAX_ROOMS below is what actually prevents that state. This bound is the
+  // second line: with the map capped well under the space, twenty draws
+  // failing is statistically impossible rather than merely unlikely, so
+  // returning null here means something is wrong that retrying will not fix.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const code = crypto.randomInt(0, ceiling).toString().padStart(digits, "0");
+    if (!rooms.has(code)) return code;
+  }
+  return null;
 }
 
 /**
@@ -253,12 +358,17 @@ function cleanupRoomsFor(ws) {
   for (const [code, room] of rooms.entries()) {
     if (room.sender === ws) {
       send(room.receiver, { type: "peer-left" });
+      // The receiver's hold is released too — the room it was counted against
+      // is gone. Without this its socket keeps paying for a room that no
+      // longer exists and eventually cannot join anything.
+      if (room.receiver) room.receiver.roomsHeld = Math.max(0, (room.receiver.roomsHeld ?? 0) - 1);
       rooms.delete(code);
     } else if (room.receiver === ws) {
       send(room.sender, { type: "peer-left" });
       room.receiver = null; // let the sender's room stay open for a new receiver
     }
   }
+  ws.roomsHeld = 0;
 }
 
 // Periodic sweep of stale, never-joined rooms — and of the rate-limit
@@ -270,6 +380,9 @@ setInterval(() => {
   for (const [code, room] of rooms.entries()) {
     if (!room.receiver && now - room.createdAt > room.ttlMs) {
       send(room.sender, { type: "room-expired" });
+      // Release the sender's hold along with the room, or a long-lived socket
+      // that outlives several expiries slowly runs out of its own budget.
+      if (room.sender) room.sender.roomsHeld = Math.max(0, (room.sender.roomsHeld ?? 0) - 1);
       rooms.delete(code);
     }
   }
@@ -293,7 +406,23 @@ const httpServer = createServer((req, res) => {
   res.end();
 });
 
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({
+  server: httpServer,
+  maxPayload: MAX_PAYLOAD_BYTES,
+  verifyClient({ origin, req }, done) {
+    // No Origin header at all means a non-browser client. Those are allowed:
+    // this check exists to stop a hostile PAGE driving other people's
+    // browsers (see ALLOWED_ORIGINS), and refusing header-less clients would
+    // break curl-based health checks and the integration test without
+    // stopping anyone who can set a header.
+    if (!origin) return done(true);
+    if (ALLOWED_ORIGINS.includes(origin)) return done(true);
+    // Localhost in any port, for development against a local Next.js.
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return done(true);
+    console.warn(`Refused signaling socket from origin ${origin} (${clientIp(req)})`);
+    return done(false, 403, "Forbidden origin");
+  },
+});
 
 // Pings every socket on a fixed cadence, and reaps the ones that stopped
 // answering.
@@ -325,6 +454,15 @@ wss.on("connection", (ws, req) => {
     ws.missedPongs = 0;
   });
 
+  // How many rooms this socket currently holds, as sender or receiver — see
+  // MAX_ROOMS_PER_SOCKET.
+  ws.roomsHeld = 0;
+
+  // Per-socket key for the signal relay limiter. Keyed on the socket rather
+  // than the IP on purpose: two people behind one NAT negotiating at the same
+  // time are two independent transfers and must not share a budget.
+  ws.signalKey = crypto.randomUUID();
+
   ws.on("message", (raw) => {
     let msg;
     try {
@@ -338,14 +476,27 @@ wss.on("connection", (ws, req) => {
         if (isRateLimited(`create:${ip}`, ROOM_CREATE_LIMIT, ROOM_CREATE_WINDOW_MS)) {
           return send(ws, { type: "error", message: "Too many rooms created. Try again in a minute." });
         }
+        if (ws.roomsHeld >= MAX_ROOMS_PER_SOCKET) {
+          return send(ws, { type: "error", message: "Too many open transfers on this connection." });
+        }
+        if (rooms.size >= MAX_ROOMS) {
+          // Deliberately not an obscure failure: this is the service being
+          // full, and the sender needs to know to try again rather than sit
+          // waiting on a code that was never issued.
+          return send(ws, { type: "error", message: "The service is busy right now. Please try again in a moment." });
+        }
         const ttlMinutes = clampRoomTtlMinutes(msg.ttlMinutes);
         const code = generateRoomCode(ttlMinutes);
+        if (!code) {
+          return send(ws, { type: "error", message: "The service is busy right now. Please try again in a moment." });
+        }
         // Only long-lived rooms get one. The ten-minute default exists to be
         // read aloud, and a secret would make that impossible — see
         // generateRoomSecret for why that trade is the right way round.
         const secret = ttlMinutes > SHORT_CODE_MAX_MIN ? generateRoomSecret() : null;
         rooms.set(code, { sender: ws, receiver: null, createdAt: Date.now(), ttlMs: ttlMinutes * 60 * 1000, secret });
         ws.roomCode = code;
+        ws.roomsHeld += 1;
         send(ws, {
           type: "room-created",
           code,
@@ -384,8 +535,17 @@ wss.on("connection", (ws, req) => {
         if (room.receiver) {
           return send(ws, { type: "error", message: "That code has already been claimed." });
         }
+        // Claiming is the one privileged thing a correct code buys, and a
+        // claimed room is closed to everyone else — so the number of them one
+        // socket may hold has to be bounded even though the joins are
+        // legitimate. Nothing else limits a SUCCESSFUL join, deliberately: a
+        // real receiver typing a real code must never be throttled.
+        if (ws.roomsHeld >= MAX_ROOMS_PER_SOCKET) {
+          return send(ws, { type: "error", message: "Too many open transfers on this connection." });
+        }
         room.receiver = ws;
         ws.roomCode = code;
+        ws.roomsHeld += 1;
         send(room.sender, { type: "peer-joined" });
         send(ws, { type: "peer-joined" });
         break;
@@ -402,6 +562,20 @@ wss.on("connection", (ws, req) => {
       case "signal": {
         const room = rooms.get(ws.roomCode);
         if (!room) return;
+        // Relaying is the one thing this server does that forwards
+        // caller-controlled bytes to another person, and until now it did so
+        // without limit. Two ends of a room could therefore use it as a free
+        // general-purpose message relay — the data channel it exists to
+        // negotiate, except carried by us, at our cost, forever — and one end
+        // could flood the other with frames the browser has to parse.
+        //
+        // Real negotiation is an offer, an answer, and a burst of trickled
+        // candidates: tens of messages over a few seconds, not hundreds a
+        // minute sustained. This is set far enough above that to be invisible
+        // to an honest peer on a bad network with many candidates, and far
+        // enough below a useful relay to make the abuse pointless. Frame size
+        // is already capped by maxPayload at the protocol layer.
+        if (isRateLimited(`signal:${ws.signalKey}`, SIGNAL_LIMIT, SIGNAL_WINDOW_MS)) return;
         const other = room.sender === ws ? room.receiver : room.sender;
         send(other, { type: "signal", data: msg.data });
         break;

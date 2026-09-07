@@ -38,9 +38,35 @@ describe("isRateLimited", () => {
 });
 
 describe("clientIpFromHeaders", () => {
-  it("prefers the first entry of x-forwarded-for", () => {
+  // This used to assert the opposite — that the FIRST entry wins — and that
+  // assertion was the bug, written down and locked in. X-Forwarded-For is
+  // append-only: each proxy adds the address it saw and leaves the rest alone,
+  // so the leftmost entry is whatever the caller sent, and every limit keyed on
+  // it was bypassed by sending one header and varying it per request.
+  it("takes the rightmost x-forwarded-for entry, not the caller-supplied one", () => {
     const headers = new Headers({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" });
-    expect(clientIpFromHeaders(headers)).toBe("203.0.113.5");
+    expect(clientIpFromHeaders(headers)).toBe("10.0.0.1");
+  });
+
+  it("ignores a forged leading entry entirely", () => {
+    // What an attacker actually sends: their own value, which the proxy chain
+    // then appends the real address to.
+    const headers = new Headers({ "x-forwarded-for": "1.2.3.4, 198.51.100.7, 172.16.0.1" });
+    expect(clientIpFromHeaders(headers)).toBe("172.16.0.1");
+  });
+
+  it("prefers CF-Connecting-IP, which Cloudflare overwrites and a caller cannot forge through it", () => {
+    const headers = new Headers({
+      "cf-connecting-ip": "198.51.100.9",
+      "x-forwarded-for": "1.2.3.4, 10.0.0.1",
+    });
+    expect(clientIpFromHeaders(headers)).toBe("198.51.100.9");
+  });
+
+  it("returns a single shared key when nothing is known, never a per-request one", () => {
+    // A limiter keyed on a value that differs every request is not a limiter.
+    expect(clientIpFromHeaders(new Headers())).toBe("unknown");
+    expect(clientIpFromHeaders(new Headers())).toBe("unknown");
   });
 
   it("falls back to x-real-ip", () => {
