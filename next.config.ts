@@ -93,6 +93,25 @@ function contentSecurityPolicy(): string {
   // It is connect-src only — it cannot become script.
   const ocrLangData = "https://cdn.jsdelivr.net";
 
+  // Cloudflare's Web Analytics / Browser Insights beacon.
+  //
+  // Cloudflare's proxy injects this into HTML responses itself, and only for
+  // requests it judges to be real browsers — it is absent from the same page
+  // fetched with curl, which is exactly why a header-level check does not
+  // reveal it and why the first CSP shipped without it silently switched the
+  // site's only analytics off. Found by driving the live site in a real
+  // browser; nothing short of that would have caught it.
+  //
+  // Allowing it grants no trust that is not already granted. Cloudflare
+  // terminates TLS for this domain: it can already read and rewrite every
+  // byte of every response, which is precisely how this script gets onto the
+  // page. Refusing its beacon while accepting its proxy would be theatre.
+  //
+  // The script comes from static.cloudflareinsights.com and reports back to
+  // cloudflareinsights.com, so the two hosts differ and both are needed.
+  const cfInsightsScript = "https://static.cloudflareinsights.com";
+  const cfInsightsBeacon = "https://cloudflareinsights.com";
+
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
 
@@ -102,7 +121,7 @@ function contentSecurityPolicy(): string {
     // which is the worst possible time to find out. It permits WASM
     // compilation ONLY — it does not restore eval() or new Function(), which
     // is exactly the narrow hole wanted here.
-    "script-src": ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", ...adScript],
+    "script-src": ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", cfInsightsScript, ...adScript],
 
     // Tailwind's generated styles and this app's inline style attributes (the
     // animation custom properties) both land as inline styles.
@@ -122,7 +141,7 @@ function contentSecurityPolicy(): string {
     // destination the product cannot work without. WebRTC's own STUN/TURN
     // traffic is not governed by connect-src in any current browser, so the
     // relay needs no entry here.
-    "connect-src": ["'self'", signalingOrigin, ocrLangData, ...adConnect],
+    "connect-src": ["'self'", signalingOrigin, ocrLangData, cfInsightsBeacon, ...adConnect],
 
     // The file-sink worker is same-origin; tesseract.js spawns its workers
     // from blob URLs.
