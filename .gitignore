@@ -51,4 +51,7 @@ Screenshot*.png
 next-env.d.ts
 
 # pdf.js worker — copied from node_modules by postinstall (scripts/copy-pdf-worker.mjs)
+# Vendor runtime assets, reproduced from node_modules by
+# scripts/copy-vendor-assets.mjs on every install. Generated, never committed.
 public/pdf.worker.min.mjs
+public/tesseract/

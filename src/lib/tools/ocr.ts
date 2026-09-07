@@ -32,6 +32,24 @@ export async function runOcr(file: File, language: string, onProgress?: (current
   let pageIndex = 0;
   let pageCount = 1;
   const worker = await createWorker(language, 1, {
+    // Served from this origin, not from jsDelivr.
+    //
+    // Left unset, tesseract.js fetches both of these from cdn.jsdelivr.net the
+    // first time anyone runs OCR — its worker script and a ~4MB WebAssembly
+    // core, both of which are EXECUTABLE CODE running on this origin, in a
+    // page whose whole promise is that files never leave the device. A
+    // compromised CDN or a hijacked package would have run as us, next to a
+    // transfer. Both files are copied into /public at install time instead
+    // (scripts/copy-vendor-assets.mjs), which is what lets the CSP refuse
+    // off-origin scripts outright.
+    //
+    // langPath is deliberately still the default CDN. Language data is a
+    // trained model consumed by the WASM, not code that executes, so it is a
+    // materially smaller risk — and self-hosting it would mean vendoring all
+    // thirteen languages offered above, most of which most visitors never
+    // touch. Worth revisiting, but not at the same priority.
+    workerPath: "/tesseract/worker.min.js",
+    corePath: "/tesseract",
     logger: (m) => {
       if (m.status === "recognizing text") {
         const overall = ((pageIndex + m.progress) / pageCount) * 100;
