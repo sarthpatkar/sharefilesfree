@@ -119,7 +119,16 @@ scope.onmessage = (event: MessageEvent<Incoming>) => {
       const dir = await root();
       // The name on disk is ours, not the sender's: it is an internal handle,
       // and the real filename is applied when the user saves.
-      const fileName = `${PREFIX}${msg.id}`;
+      //
+      // The id still comes off the wire though — it is whatever the peer put
+      // in its file-start message, not something generated here — so it is
+      // reduced to characters that cannot mean anything to a filesystem
+      // before being concatenated into a name. The OPFS API rejects
+      // separators on its own account, so this is a second lock on a door
+      // that is already locked; the reason to fit it is that the first lock
+      // belongs to somebody else's code and this one does not.
+      const safeId = String(msg.id).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64) || "unnamed";
+      const fileName = `${PREFIX}${safeId}`;
       const handle = await dir.getFileHandle(fileName, { create: true });
       const access = await handle.createSyncAccessHandle();
       access.truncate(0);

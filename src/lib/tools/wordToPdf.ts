@@ -15,6 +15,7 @@
 // real text) is the same trade-off the old code's own comment already claimed
 // to be making — it just wasn't actually making it.
 import mammoth from "mammoth";
+import { sanitizeDocumentHtml } from "./sanitizeHtml";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -41,7 +42,12 @@ export async function wordToPdf(file: File, options: WordToPdfOptions = { pageSi
 
   const container = document.createElement("div");
   container.style.cssText = `width: ${RENDER_WIDTH_PX}px; padding: ${MARGIN_Y_PT}px ${MARGIN_X_PT}px; font-family: 'Times New Roman', serif; font-size: ${options.fontSize}px; line-height: 1.5; color: #000; background: #fff; position: absolute; top: 0; left: -99999px;`;
-  container.innerHTML = html || "<p></p>";
+  // The .docx came from outside, so the HTML mammoth derived from it did too.
+  // This container is appended to the live document (html2canvas can only
+  // photograph laid-out nodes), and script-src carries 'unsafe-inline', so an
+  // event handler reaching this DOM would actually run. Sanitised first —
+  // see sanitizeHtml.ts.
+  container.innerHTML = sanitizeDocumentHtml(html || "") || "<p></p>";
   document.body.appendChild(container);
 
   try {

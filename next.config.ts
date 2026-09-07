@@ -193,6 +193,29 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: contentSecurityPolicy() },
+          // Tells the browser to refuse plain HTTP for this domain from now on.
+          //
+          // Without it, the very first request a person makes — typing
+          // "sharefilesfree.com" into the bar, which is http:// by default —
+          // is a plaintext round trip that anyone on the same café wifi can
+          // intercept and answer themselves, keeping the victim on http and
+          // proxying the site. The 301 to https that exists today only helps
+          // if that first response is not tampered with, and on a hostile
+          // network it is precisely what gets tampered with.
+          //
+          // includeSubDomains covers signal.sharefilesfree.com, which carries
+          // the signaling socket, and is safe because nothing here is served
+          // over plain HTTP at any name.
+          //
+          // Deliberately no `preload`. That ships the domain into a list baked
+          // into browser binaries, and removal takes months — it is a one-way
+          // door that should be walked through on purpose, not acquired as a
+          // side effect of a security pass. A year of max-age gets the
+          // protection for everyone who has visited once.
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
           // Stops the browser from guessing content types (e.g. treating an
           // uploaded file as executable HTML/JS if a mime type is wrong).
           { key: "X-Content-Type-Options", value: "nosniff" },
