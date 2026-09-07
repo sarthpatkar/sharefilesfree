@@ -69,16 +69,21 @@ export function SiteHeader() {
     <>
       <header className="sticky top-0 z-50 bg-red">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
-          <Link href="/" className="sff-nudge flex items-center gap-3" aria-label="ShareFilesFree home">
+          {/* Tighter gap and a slightly smaller wordmark on the narrowest
+              phones. At 320px the full-size lockup plus the search and menu
+              buttons came to ~15px more than the bar could hold. */}
+          <Link href="/" className="sff-nudge flex items-center gap-2 min-[360px]:gap-3" aria-label="ShareFilesFree home">
             <span className="flex h-9 w-9 items-center justify-center bg-y-max text-black">
               <IconSend className="h-5 w-5" />
             </span>
-            <span className="font-display text-[19px] leading-none text-yellow">ShareFilesFree</span>
+            <span className="font-display text-[17px] leading-none text-yellow min-[360px]:text-[19px]">
+              ShareFilesFree
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Main">
             {NAV.map((item) => (
-              <Link key={item.href} href={item.href} className="sff-nudge text-[15px] font-semibold text-yellow">
+              <Link key={item.href} href={item.href} className="sff-nudge py-1 text-[15px] font-semibold text-yellow">
                 {item.label}
               </Link>
             ))}
@@ -86,7 +91,7 @@ export function SiteHeader() {
 
           <div className="flex items-center gap-3">
             <SearchOverlay />
-            <Link href="/receive" className="sff-nudge hidden text-[15px] font-semibold text-yellow sm:block">
+            <Link href="/receive" className="sff-nudge hidden py-1 text-[15px] font-semibold text-yellow sm:block">
               Receive
             </Link>
             <Link

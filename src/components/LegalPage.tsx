@@ -43,13 +43,26 @@ export function LegalPage({
           </div>
 
           <div className="grid gap-x-16 py-16 sm:py-20 lg:grid-cols-12">
-            <header className="lg:col-span-4">
-              <h1 className="font-display text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] tracking-[-0.015em] text-red lg:sticky lg:top-28">
+            {/* Five columns until xl, not four.
+                At exactly the lg breakpoint the twelve-column grid turns on
+                while the viewport is still narrow, and 64px of gap between
+                each column leaves a four-column header only ~277px wide. The
+                display face is wide, so "ShareFilesFree" — one word, nothing
+                to break on — measured ~293px there and hung out of its column.
+                A fifth column covers the awkward 1024-1280 band and hands the
+                fourth back once there is room, which fixes the layout rather
+                than shrinking the type everywhere to suit one width.
+
+                break-words is the backstop for whatever long title comes next:
+                it only engages when a word genuinely cannot fit, so it costs
+                nothing until it is needed. */}
+            <header className="lg:col-span-5 xl:col-span-4">
+              <h1 className="font-display text-[clamp(1.9rem,3.8vw,2.8rem)] leading-[1.06] tracking-[-0.015em] text-red break-words lg:sticky lg:top-28">
                 {title}
               </h1>
             </header>
 
-            <div className="mt-10 lg:col-span-8 lg:mt-0">
+            <div className="mt-10 lg:col-span-7 lg:mt-0 xl:col-span-8">
               <div className="max-w-2xl text-[16px] leading-[1.75] text-black">{intro}</div>
 
               <div className="mt-12">
@@ -72,7 +85,7 @@ export function LegalPage({
 
               {footnote && <p className="mt-8 max-w-2xl-2-strong pl-5 text-sm leading-[1.7] text-black">{footnote}</p>}
 
-              <Link href="/" className="link mt-12 inline-block text-sm font-medium text-red">
+              <Link href="/" className="link mt-12 inline-block py-1 text-sm font-medium text-red">
                 Back to ShareFilesFree
               </Link>
             </div>

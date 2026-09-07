@@ -30,14 +30,14 @@ export function SiteFooter() {
             <p className="max-w-xs text-[15px] font-medium leading-[1.6] text-black">
               Share files free with six digits, not an upload. No account, no app, no size limit.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="-ml-2.5 flex items-center">
               {SOCIAL_LINKS.map(({ label, href, icon: Icon }) => (
                 <a
                   key={label}
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="sff-nudge text-black"
+                  className="sff-nudge inline-flex h-10 w-10 items-center justify-center text-black"
                 >
                   <Icon className="h-5 w-5" />
                   <span className="sr-only">ShareFilesFree on {label}</span>
@@ -50,16 +50,16 @@ export function SiteFooter() {
             <h2 id="footer-transfer" className="text-[11px] font-bold uppercase tracking-[0.18em] text-black opacity-55">
               Transfer
             </h2>
-            <Link href="/#send" className="sff-nudge w-fit text-[15px] font-semibold text-black">
+            <Link href="/#send" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               Send a file
             </Link>
-            <Link href="/receive" className="sff-nudge w-fit text-[15px] font-semibold text-black">
+            <Link href="/receive" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               Receive a file
             </Link>
-            <Link href="/#how" className="sff-nudge w-fit text-[15px] font-semibold text-black">
+            <Link href="/#how" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               How it works
             </Link>
-            <Link href="/#faq" className="sff-nudge w-fit text-[15px] font-semibold text-black">
+            <Link href="/#faq" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               FAQ
             </Link>
           </nav>
@@ -69,7 +69,7 @@ export function SiteFooter() {
               Popular tools
             </h2>
             {featured.slice(0, 5).map((tool) => (
-              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-black">
+              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
                 {tool.title}
               </Link>
             ))}
@@ -80,11 +80,11 @@ export function SiteFooter() {
               More tools
             </h2>
             {featured.slice(5, 10).map((tool) => (
-              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit text-[15px] font-semibold text-black">
+              <Link key={tool.slug} href={`/tools/${tool.slug}`} className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
                 {tool.title}
               </Link>
             ))}
-            <Link href="/tools" className="link mt-1 w-fit text-[15px] text-red">
+            <Link href="/tools" className="link mt-1 w-fit py-1 text-[15px] text-red">
               All {TOOLS.length} tools
             </Link>
           </nav>
@@ -94,23 +94,26 @@ export function SiteFooter() {
           <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-lime">
             Your files go straight to the person you send them to — we never keep a copy
           </p>
-          <nav className="flex items-center gap-6">
-            <Link href="/stats" className="sff-nudge text-[14px] font-semibold text-yellow">
+          {/* Wraps. Seven items in a fixed row overflowed the red bar on every
+              phone width — 125px past the edge at 320px — so the links ran out
+              past the colour they sit on. Nothing here needs to be on one line. */}
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-1">
+            <Link href="/stats" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               Stats
             </Link>
-            <Link href="/about" className="sff-nudge text-[14px] font-semibold text-yellow">
+            <Link href="/about" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               About
             </Link>
-            <Link href="/contact" className="sff-nudge text-[14px] font-semibold text-yellow">
+            <Link href="/contact" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               Contact
             </Link>
-            <Link href="/security" className="sff-nudge text-[14px] font-semibold text-yellow">
+            <Link href="/security" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               Security
             </Link>
-            <Link href="/privacy" className="sff-nudge text-[14px] font-semibold text-yellow">
+            <Link href="/privacy" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               Privacy
             </Link>
-            <Link href="/terms" className="sff-nudge text-[14px] font-semibold text-yellow">
+            <Link href="/terms" className="sff-nudge py-1 text-[14px] font-semibold text-yellow">
               Terms
             </Link>
             <DonateLink />
