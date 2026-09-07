@@ -28,6 +28,7 @@ ${toolLines}
 
 ## About
 
+- [Security](https://sharefilesfree.com/security): What protects a transfer, and what the design deliberately cannot do.
 - [About](https://sharefilesfree.com/about)
 - [Contact](https://sharefilesfree.com/contact)
 - [Privacy policy](https://sharefilesfree.com/privacy)

@@ -104,6 +104,9 @@ export function SiteFooter() {
             <Link href="/contact" className="sff-nudge text-[14px] font-semibold text-yellow">
               Contact
             </Link>
+            <Link href="/security" className="sff-nudge text-[14px] font-semibold text-yellow">
+              Security
+            </Link>
             <Link href="/privacy" className="sff-nudge text-[14px] font-semibold text-yellow">
               Privacy
             </Link>

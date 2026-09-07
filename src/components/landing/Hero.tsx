@@ -123,6 +123,16 @@ export function Hero() {
                 </div>
               ))}
             </dl>
+
+            {/* Someone who reads "Is it safe?" and wants the long answer has
+                nowhere to go otherwise — and the long answer is the one worth
+                reading, because it includes what this cannot do. */}
+            <p className="mt-5 text-[14px] font-medium text-black">
+              <Link href="/security" className="link font-semibold text-red">
+                What protects you, in detail
+              </Link>{" "}
+              — including the parts we can&apos;t do for you.
+            </p>
           </div>
         </div>
       </div>
