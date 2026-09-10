@@ -17,6 +17,7 @@
  */
 export type AdPurpose =
   | "reveal-code" // sender clicks "get a code" -> short ad -> code appears
+  | "reveal-group-code" // same, for a share going to several devices at once
   | "receive-connect"; // receiver clicks connect -> short ad -> transfer starts
 
 /**
@@ -52,6 +53,15 @@ export const ROOM_DURATION_ADS: Record<number, number> = {
 /** The durations a sender may choose, shortest first. Must match the server's list. */
 export const ROOM_DURATION_CHOICES = [10, 30, 60, 120] as const;
 export const DEFAULT_ROOM_DURATION = 10;
+
+/**
+ * How many devices one group code may serve. Must match clampDeviceSlots in
+ * /server/index.js — the server is what actually enforces it, this is what the
+ * screen offers.
+ */
+export const MAX_DEVICES = 20;
+export const DEVICE_CHOICES = [2, 3, 5, 10, 20] as const;
+export const DEFAULT_DEVICES = 2;
 
 export interface AdPlan {
   purpose: AdPurpose;
@@ -106,13 +116,37 @@ export interface AdPlanInput {
   roomMinutes?: number;
   /** For "reveal-code": total bytes about to be sent, across all selected files. */
   totalBytes?: number;
+  /**
+   * For "reveal-group-code": how many devices the code will serve.
+   *
+   * This multiplies the size band rather than earning a band of its own, and
+   * that is the whole point. What costs money here is RELAYED BYTES — the
+   * argument is written out above and metrics.ts exists to measure it — and
+   * sending the same file to five devices is five times the bytes. It is the
+   * same quantity the size bands already charge for, so it belongs in the same
+   * multiplication and not in a second table that would have to be kept
+   * consistent with this one.
+   *
+   * What falls out of that is the answer to "what counts as a normal share":
+   * anything where devices x size stays under 100MB is charged the baseline
+   * five seconds, exactly as it is today. A handout going to twenty phones is
+   * 20MB and costs nothing extra; a 2GB video going to twenty devices is 40GB
+   * of real bandwidth and hits the ceiling. Nobody pays for a big number of
+   * devices, they pay for a big number of bytes.
+   */
+  deviceCount?: number;
 }
 
 export function planFor(purpose: AdPurpose, input: AdPlanInput = {}): AdPlan {
-  if (purpose !== "reveal-code") return { purpose, seconds: GATE_SECONDS, totalMs: GATE_SECONDS * 1000 };
+  if (purpose !== "reveal-code" && purpose !== "reveal-group-code") {
+    return { purpose, seconds: GATE_SECONDS, totalMs: GATE_SECONDS * 1000 };
+  }
+
+  const devices = Math.max(1, Math.floor(input.deviceCount ?? 1));
+  const effectiveBytes = (input.totalBytes ?? 0) * devices;
 
   const forDuration = input.roomMinutes ? (ROOM_DURATION_ADS[input.roomMinutes] ?? GATE_SECONDS) : GATE_SECONDS;
-  const forSize = input.totalBytes ? secondsForTransferSize(input.totalBytes) : GATE_SECONDS;
+  const forSize = effectiveBytes ? secondsForTransferSize(effectiveBytes) : GATE_SECONDS;
 
   // The larger of the two, never the sum. A sender who wants a two-hour code AND
   // is sending ten gigabytes is asking for two expensive things at once, but

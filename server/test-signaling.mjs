@@ -275,6 +275,183 @@ async function main() {
   if (refusedAt === 0) throw new Error("expected a per-socket room ceiling");
   hoarder.close();
 
+  // --- Group shares ---------------------------------------------------------
+  //
+  // A separate room type with a separate code format, so these assert it stays
+  // separate as well as correct: the 1:1 checks above must keep passing
+  // unmodified, and nothing here may reach them.
+
+  const groupSender = connect();
+  await new Promise((r) => groupSender.once("open", r));
+  groupSender.send(JSON.stringify({ type: "create-group", ttlMinutes: 10, maxDevices: 3 }));
+  const groupRoom = await once(groupSender, (m) => m.type === "group-created");
+  console.log("✅ group-created:", groupRoom.code, `for ${groupRoom.maxReceivers} devices`);
+
+  // The code format IS the security argument for admitting devices
+  // automatically — six characters over a 32-symbol alphabet is a billion
+  // combinations against the 1:1 code's million. If this ever silently became
+  // six digits again, slot-guessing would go back to being practical.
+  if (!/^[0-9A-HJ-KM-NP-TV-Z]{6}$/.test(groupRoom.code)) {
+    throw new Error(`group code is not 6 chars of the expected alphabet: ${groupRoom.code}`);
+  }
+  if (/^\d{6}$/.test(groupRoom.code)) {
+    throw new Error("group code is all digits — it would be indistinguishable from a 1:1 room code");
+  }
+  if (groupRoom.maxReceivers !== 3) throw new Error("expected the requested device count to be honoured");
+  console.log("✅ the group code is 6 alphanumeric chars and never all digits");
+
+  // A short-lived group needs no key, exactly like the read-aloud 1:1 code.
+  if (groupRoom.secret !== null) throw new Error("a 10-minute group should not need a key");
+
+  const dev1 = connect();
+  const dev2 = connect();
+  await Promise.all([
+    new Promise((r) => dev1.once("open", r)),
+    new Promise((r) => dev2.once("open", r)),
+  ]);
+  // Both listeners are registered BEFORE the join is sent. Awaiting one and
+  // then listening for the other loses the second message: the server sends
+  // them together, so by the time the first await resolves the second has
+  // already been delivered to a socket nobody was listening on.
+  const dev1JoinedPromise = once(dev1, (m) => m.type === "group-joined");
+  const senderSawDev1Promise = once(groupSender, (m) => m.type === "group-joined");
+  dev1.send(JSON.stringify({ type: "join-group", code: groupRoom.code }));
+  const [dev1Joined, senderSawDev1] = await Promise.all([dev1JoinedPromise, senderSawDev1Promise]);
+  console.log("✅ first device joined:", dev1Joined.position === 1 && senderSawDev1.joined === 1);
+  if (dev1Joined.position !== 1 || senderSawDev1.joined !== 1) {
+    throw new Error("expected both ends to be told about the first device");
+  }
+
+  // Case and the confusable characters must fold, or a code read across a room
+  // fails for a reason nobody can see.
+  dev2.send(JSON.stringify({ type: "join-group", code: groupRoom.code.toLowerCase() }));
+  const dev2Joined = await once(dev2, (m) => m.type === "group-joined");
+  console.log("✅ a lower-case code still joins:", dev2Joined.position === 2);
+  if (dev2Joined.position !== 2) throw new Error("expected a lower-case code to be folded and accepted");
+  if (dev1Joined.peerId === dev2Joined.peerId) throw new Error("two devices were given the same peer id");
+
+  // Signalling has to be addressed. Delivering one device's session description
+  // to another device is not noise — it is handing a stranger the wrong half of
+  // somebody else's connection.
+  groupSender.send(JSON.stringify({ type: "signal", peerId: dev1Joined.peerId, data: { kind: "offer", sdp: "FOR_DEV1" } }));
+  const dev1Got = await once(dev1, (m) => m.type === "signal");
+  const dev2GotStray = await Promise.race([
+    once(dev2, (m) => m.type === "signal").then(() => true),
+    new Promise((r) => setTimeout(() => r(false), 400)),
+  ]);
+  console.log("✅ an addressed signal reaches only its device:", dev1Got.data.sdp === "FOR_DEV1" && !dev2GotStray);
+  if (dev2GotStray) throw new Error("a signal addressed to one device was delivered to another");
+
+  // The reverse direction must be tagged by the SERVER, not by whatever the
+  // receiver claims about itself.
+  dev2.send(JSON.stringify({ type: "signal", peerId: "not-my-id", data: { kind: "answer", sdp: "FROM_DEV2" } }));
+  const taggedAnswer = await once(groupSender, (m) => m.type === "signal");
+  console.log("✅ a receiver's signal is tagged with the server's own peer id:", taggedAnswer.peerId === dev2Joined.peerId);
+  if (taggedAnswer.peerId !== dev2Joined.peerId) throw new Error("a receiver was able to spoof its peer id");
+
+  // The stated device count is a hard limit, and the refusal must say why —
+  // this is only reachable by someone who already holds a valid code.
+  const dev3 = connect();
+  await new Promise((r) => dev3.once("open", r));
+  dev3.send(JSON.stringify({ type: "join-group", code: groupRoom.code }));
+  await once(dev3, (m) => m.type === "group-joined");
+  const dev4 = connect();
+  await new Promise((r) => dev4.once("open", r));
+  dev4.send(JSON.stringify({ type: "join-group", code: groupRoom.code }));
+  const fullError = await once(dev4, (m) => m.type === "error");
+  console.log("✅ a full group refuses one more:", fullError.message.includes("full"));
+  if (!fullError.message.includes("full")) throw new Error("expected a full group to refuse a fourth device");
+
+  // Dropping one device must leave the others alone — that is the whole point
+  // of independent per-device connections.
+  const droppedPromise = once(dev1, (m) => m.type === "peer-left");
+  const senderSawDropPromise = once(groupSender, (m) => m.type === "peer-left" && m.peerId === dev1Joined.peerId);
+  groupSender.send(JSON.stringify({ type: "drop-device", peerId: dev1Joined.peerId }));
+  const [dropped, senderSawDrop] = await Promise.all([droppedPromise, senderSawDropPromise]);
+  console.log("✅ one device can be dropped by name:", dropped.type === "peer-left" && senderSawDrop.joined === 2);
+  if (senderSawDrop.joined !== 2) throw new Error("expected the sender to be told two devices remain");
+  groupSender.send(JSON.stringify({ type: "signal", peerId: dev2Joined.peerId, data: { kind: "offer", sdp: "STILL_HERE" } }));
+  const dev2StillWorks = await once(dev2, (m) => m.type === "signal");
+  console.log("✅ dropping one device leaves the others connected:", dev2StillWorks.data.sdp === "STILL_HERE");
+
+  // An arbitrary device count must be clamped, not honoured.
+  const greedyGroup = connect();
+  await new Promise((r) => greedyGroup.once("open", r));
+  greedyGroup.send(JSON.stringify({ type: "create-group", ttlMinutes: 10, maxDevices: 5000 }));
+  const clamped = await once(greedyGroup, (m) => m.type === "group-created");
+  console.log("✅ an oversized device count is clamped:", clamped.maxReceivers === 20);
+  if (clamped.maxReceivers !== 20) throw new Error("expected the device count to be clamped to 20");
+
+  // A long-lived group gets the same treatment as a long-lived 1:1 room: the
+  // code alone will not open it, and being refused for the wrong key is
+  // word-for-word being refused for a wrong code.
+  const longGroupSender = connect();
+  await new Promise((r) => longGroupSender.once("open", r));
+  longGroupSender.send(JSON.stringify({ type: "create-group", ttlMinutes: 120, maxDevices: 4 }));
+  const longGroup = await once(longGroupSender, (m) => m.type === "group-created");
+  console.log("✅ a long-lived group is issued a key:", typeof longGroup.secret === "string" && longGroup.secret.length >= 20);
+  if (typeof longGroup.secret !== "string" || longGroup.secret.length < 20) {
+    throw new Error("expected a long-lived group to be issued a high-entropy key");
+  }
+
+  const groupGuesser = connect();
+  await new Promise((r) => groupGuesser.once("open", r));
+  groupGuesser.send(JSON.stringify({ type: "join-group", code: longGroup.code }));
+  const groupGuessResult = await once(groupGuesser, (m) => m.type === "error" || m.type === "group-joined");
+  console.log("✅ the group code alone will not open a long-lived group:", groupGuessResult.type === "error");
+  if (groupGuessResult.type !== "error") throw new Error("a long-lived group was joinable without its key");
+
+  const unknownGroup = connect();
+  await new Promise((r) => unknownGroup.once("open", r));
+  unknownGroup.send(JSON.stringify({ type: "join-group", code: "A1B2C3" }));
+  const unknownGroupError = await once(unknownGroup, (m) => m.type === "error");
+  console.log(
+    "✅ a missing group key is indistinguishable from a wrong code:",
+    groupGuessResult.message === unknownGroupError.message,
+  );
+  if (groupGuessResult.message !== unknownGroupError.message) {
+    throw new Error("a correct group code with no key answered differently from an unknown code — that leaks");
+  }
+
+  const invited = connect();
+  await new Promise((r) => invited.once("open", r));
+  invited.send(JSON.stringify({ type: "join-group", code: longGroup.code, secret: longGroup.secret }));
+  const invitedResult = await once(invited, (m) => m.type === "group-joined" || m.type === "error");
+  console.log("✅ the code and its key open a long-lived group:", invitedResult.type === "group-joined");
+  if (invitedResult.type !== "group-joined") throw new Error("the correct group code and key were refused");
+
+  // Closing the remaining slots by hand — one of the two things a sender has
+  // when the roster shows a device they did not expect.
+  longGroupSender.send(JSON.stringify({ type: "stop-accepting" }));
+  await once(longGroupSender, (m) => m.type === "group-closed");
+  const latecomer = connect();
+  await new Promise((r) => latecomer.once("open", r));
+  latecomer.send(JSON.stringify({ type: "join-group", code: longGroup.code, secret: longGroup.secret }));
+  const latecomerError = await once(latecomer, (m) => m.type === "error");
+  console.log("✅ stop-accepting closes the remaining slots:", latecomerError.message.includes("full"));
+  if (!latecomerError.message.includes("full")) throw new Error("expected stop-accepting to refuse further devices");
+
+  // The two room types must not bleed into each other. A group code is not a
+  // room code and a room code is not a group code, whichever verb is used.
+  const crossover = connect();
+  await new Promise((r) => crossover.once("open", r));
+  crossover.send(JSON.stringify({ type: "join-room", code: groupRoom.code }));
+  const crossoverError = await once(crossover, (m) => m.type === "error");
+  console.log("✅ a group code cannot be joined as a 1:1 room:", crossoverError.type === "error");
+
+  groupSender.close();
+  dev1.close();
+  dev2.close();
+  dev3.close();
+  dev4.close();
+  greedyGroup.close();
+  longGroupSender.close();
+  groupGuesser.close();
+  unknownGroup.close();
+  invited.close();
+  latecomer.close();
+  crossover.close();
+
   sender.close();
   stranger.close();
   flooder.close();

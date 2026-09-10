@@ -105,6 +105,118 @@ const ALLOWED_ORIGINS = (process.env.SIGNALING_ALLOWED_ORIGINS ||
   .map((o) => o.trim())
   .filter(Boolean);
 
+// ---------------------------------------------------------------------------
+// Group shares
+//
+// A second, separate room type. One sender, up to MAX_DEVICES receivers, each
+// with its own peer connection and its own copy of the file. It is deliberately
+// NOT the same map, the same code format or the same code path as the 1:1 room
+// above: that flow keeps its behaviour and its guarantees exactly as they are,
+// and nothing below can change them.
+//
+// The security question this format answers
+// -----------------------------------------
+// A 1:1 room has one slot, so stealing a code is LOUD — the real receiver is
+// refused with "already claimed" and knows something is wrong. A group room has
+// up to twenty, so a guesser who lands on a live code can take a slot quietly
+// and receive the file alongside the people who were meant to get it. Nobody
+// finds out. That is a worse failure than the 1:1 case, so a group code cannot
+// simply be the 1:1 code with more slots behind it.
+//
+// So the code space grows by three orders of magnitude. Six characters drawn
+// from 32 symbols is 32^6 = 1,073,741,824 combinations against the 1:1 code's
+// 1,000,000. Running the same arithmetic as the GLOBAL_FAIL_LIMIT block below —
+// 100 failed joins per 10 seconds, globally, counting only failures:
+//
+//   1:1  10 min, 10^6          ->  6,000 guesses / 1e6    = 0.006     R
+//   1:1 120 min, 10^8          -> 72,000 guesses / 1e8    = 0.0007    R
+//   group 10 min, 1.07e9       ->  6,000 guesses / 1.07e9 = 0.0000056 R
+//   group 120 min, 1.07e9 +key -> 72,000 guesses / 1.07e9 = 0.000067  R, key required
+//
+// where R is the number of rooms open and the result is the expected number of
+// lucky guesses per room lifetime. The typed group code is ~125x harder to
+// guess than the best case this service currently ships and ~1000x harder than
+// the common one, which is what makes it safe to admit devices automatically
+// instead of asking the sender to approve each one.
+//
+// The alphabet is digits plus letters, with I, L, O and U removed — the
+// characters people misread on a screen and mishear across a room. Input is
+// folded back the other way (see normalizeGroupCode), so someone who types the
+// letter O where a zero was shown still reaches the right room.
+const GROUP_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const GROUP_CODE_LENGTH = 6;
+
+/** How many devices one group code may serve. */
+const MIN_DEVICES = 2;
+const MAX_DEVICES = 20;
+
+/**
+ * A group sender negotiates with up to MAX_DEVICES peers at once, and every one
+ * of those is an offer, an answer and a burst of trickled candidates down the
+ * same socket. SIGNAL_LIMIT was sized for a single negotiation; applied
+ * unchanged to a group sender it would throttle exactly the feature it is
+ * sitting in front of, and it would do it silently — the relay simply stops,
+ * and a device that never connects looks like a network problem. So the budget
+ * scales with the number of slots the sender actually asked for.
+ */
+const SIGNAL_BASE = 100;
+const SIGNAL_PER_PEER = 200;
+
+/** @type {Map<string, { sender: import("ws").WebSocket, receivers: Map<string, import("ws").WebSocket>, maxReceivers: number, accepting: boolean, createdAt: number, ttlMs: number, secret: string | null }>} */
+const groups = new Map();
+
+function clampDeviceSlots(requested) {
+  const n = Math.floor(Number(requested));
+  if (!Number.isFinite(n)) return MIN_DEVICES;
+  return Math.min(MAX_DEVICES, Math.max(MIN_DEVICES, n));
+}
+
+/**
+ * Six characters from GROUP_ALPHABET, never all digits.
+ *
+ * The all-digit exclusion is not cosmetic — it is what keeps the two room types
+ * telling themselves apart. A code of nothing but digits belongs to a 1:1 room
+ * and a code containing a letter belongs to a group, so the receive page can
+ * route a typed code to the right room type without asking the user which kind
+ * they were given. Drawing an all-digit code happens (10/32)^6 ≈ 0.1% of the
+ * time, so redrawing costs nothing.
+ *
+ * Bounded for the same reason generateRoomCode is: an unbounded retry loop over
+ * a space a caller can fill is a single-threaded server that stops.
+ */
+function generateGroupCode() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let code = "";
+    let hasLetter = false;
+    for (let i = 0; i < GROUP_CODE_LENGTH; i++) {
+      const symbol = GROUP_ALPHABET[crypto.randomInt(0, GROUP_ALPHABET.length)];
+      if (symbol < "0" || symbol > "9") hasLetter = true;
+      code += symbol;
+    }
+    if (hasLetter && !groups.has(code)) return code;
+  }
+  return null;
+}
+
+/**
+ * Folds what someone typed back onto the alphabet the code was drawn from.
+ *
+ * Case is ignored, and the characters left out of the alphabet are mapped to
+ * the ones they get confused with: I and L to 1, O to 0. U is not mapped — it
+ * has no digit it is mistaken for, it was excluded only because it is easy to
+ * mishear as "you". Returns null for anything that still isn't a valid code, so
+ * the caller treats it exactly like a code that does not exist.
+ */
+function normalizeGroupCode(raw) {
+  if (typeof raw !== "string") return null;
+  const folded = raw.trim().toUpperCase().replace(/[IL]/g, "1").replace(/O/g, "0");
+  if (folded.length !== GROUP_CODE_LENGTH) return null;
+  for (const ch of folded) {
+    if (!GROUP_ALPHABET.includes(ch)) return null;
+  }
+  return folded;
+}
+
 // Codes are only 6 digits (1,000,000 combinations) — without a throttle here,
 // an attacker could brute-force an active stranger's room code by just
 // guessing rapidly. This limit is generous enough for a human mistyping a
@@ -368,6 +480,28 @@ function cleanupRoomsFor(ws) {
       room.receiver = null; // let the sender's room stay open for a new receiver
     }
   }
+
+  for (const [code, group] of groups.entries()) {
+    if (group.sender === ws) {
+      // The file lived on the sender's device, so every transfer in this group
+      // ends with it. Tell all of them rather than leaving them waiting.
+      for (const receiver of group.receivers.values()) {
+        send(receiver, { type: "peer-left" });
+        receiver.roomsHeld = Math.max(0, (receiver.roomsHeld ?? 0) - 1);
+      }
+      groups.delete(code);
+      continue;
+    }
+
+    for (const [peerId, receiver] of group.receivers.entries()) {
+      if (receiver !== ws) continue;
+      group.receivers.delete(peerId);
+      // Named, so the sender tears down that one connection and leaves every
+      // other device's transfer running.
+      send(group.sender, { type: "peer-left", peerId, joined: group.receivers.size });
+    }
+  }
+
   ws.roomsHeld = 0;
 }
 
@@ -384,6 +518,25 @@ setInterval(() => {
       // that outlives several expiries slowly runs out of its own budget.
       if (room.sender) room.sender.roomsHeld = Math.max(0, (room.sender.roomsHeld ?? 0) - 1);
       rooms.delete(code);
+    }
+  }
+
+  // A group's clock runs out in two stages, because a group is still useful
+  // after its code stops being. Expiring it outright would cut off transfers
+  // that are running perfectly well to devices that joined in time — so the
+  // code stops working first, and the room itself is only dropped once there is
+  // nobody left in it.
+  for (const [code, group] of groups.entries()) {
+    const expired = now - group.createdAt > group.ttlMs;
+    if (!expired) continue;
+    if (group.accepting) {
+      group.accepting = false;
+      send(group.sender, { type: "group-closed", reason: "expired" });
+    }
+    if (group.receivers.size === 0) {
+      send(group.sender, { type: "room-expired" });
+      if (group.sender) group.sender.roomsHeld = Math.max(0, (group.sender.roomsHeld ?? 0) - 1);
+      groups.delete(code);
     }
   }
 
@@ -479,7 +632,7 @@ wss.on("connection", (ws, req) => {
         if (ws.roomsHeld >= MAX_ROOMS_PER_SOCKET) {
           return send(ws, { type: "error", message: "Too many open transfers on this connection." });
         }
-        if (rooms.size >= MAX_ROOMS) {
+        if (rooms.size + groups.size >= MAX_ROOMS) {
           // Deliberately not an obscure failure: this is the service being
           // full, and the sender needs to know to try again rather than sit
           // waiting on a code that was never issued.
@@ -551,6 +704,133 @@ wss.on("connection", (ws, req) => {
         break;
       }
 
+      case "create-group": {
+        // Group rooms are counted against exactly the same ceilings as 1:1
+        // rooms. They are a different feature, not a different budget.
+        if (isRateLimited(`create:${ip}`, ROOM_CREATE_LIMIT, ROOM_CREATE_WINDOW_MS)) {
+          return send(ws, { type: "error", message: "Too many transfers created. Try again in a minute." });
+        }
+        if (ws.roomsHeld >= MAX_ROOMS_PER_SOCKET) {
+          return send(ws, { type: "error", message: "Too many open transfers on this connection." });
+        }
+        if (rooms.size + groups.size >= MAX_ROOMS) {
+          return send(ws, { type: "error", message: "The service is busy right now. Please try again in a moment." });
+        }
+
+        const ttlMinutes = clampRoomTtlMinutes(msg.ttlMinutes);
+        const maxReceivers = clampDeviceSlots(msg.maxDevices);
+        const code = generateGroupCode();
+        if (!code) {
+          return send(ws, { type: "error", message: "The service is busy right now. Please try again in a moment." });
+        }
+
+        // Same rule as a 1:1 room, for the same reason: six characters that stay
+        // guessable for hours are not enough on their own, and the number of
+        // open rooms to guess at grows with the service. A short-lived group can
+        // be joined by reading the code out; a long-lived one can only be joined
+        // from the link or the QR, because that is where the key travels.
+        const secret = ttlMinutes > SHORT_CODE_MAX_MIN ? generateRoomSecret() : null;
+        groups.set(code, {
+          sender: ws,
+          receivers: new Map(),
+          maxReceivers,
+          accepting: true,
+          createdAt: Date.now(),
+          ttlMs: ttlMinutes * 60 * 1000,
+          secret,
+        });
+        ws.groupCode = code;
+        ws.isGroupSender = true;
+        ws.roomsHeld += 1;
+        send(ws, {
+          type: "group-created",
+          code,
+          secret,
+          maxReceivers,
+          ttlMinutes,
+          expiresAt: Date.now() + ttlMinutes * 60 * 1000,
+        });
+        break;
+      }
+
+      case "join-group": {
+        // Ordered exactly like join-room: resolve the code BEFORE consulting any
+        // limiter, so only failed attempts are ever charged and a real receiver
+        // typing a real code is never throttled.
+        const code = normalizeGroupCode(msg.code);
+        const group = code ? groups.get(code) : undefined;
+
+        // A wrong key is answered identically to a wrong code — same branch,
+        // same message, same charge. Answering them differently would tell a
+        // guesser they had found a live share and only needed the key, which is
+        // the one thing the key exists to withhold.
+        const authorised = group && (!group.secret || secretMatches(group.secret, msg.secret));
+
+        if (!authorised) {
+          const tooManyFromThisIp = isRateLimited(`join:${ip}`, JOIN_ATTEMPT_LIMIT, JOIN_ATTEMPT_WINDOW_MS);
+          const tooManyOverall = globalFailureExceeded();
+          if (tooManyFromThisIp || tooManyOverall) {
+            return send(ws, { type: "error", message: "Too many attempts. Try again in a minute." });
+          }
+          return send(ws, { type: "error", message: "That code is invalid or has expired." });
+        }
+
+        // Deliberately distinct from the "invalid or expired" wording above, and
+        // deliberately only reachable by someone who already proved they hold a
+        // valid code: it tells a legitimate person why they are being turned
+        // away, and tells a guesser nothing they did not already know.
+        if (!group.accepting || group.receivers.size >= group.maxReceivers) {
+          return send(ws, { type: "error", message: "This group share is already full." });
+        }
+        if (ws.roomsHeld >= MAX_ROOMS_PER_SOCKET) {
+          return send(ws, { type: "error", message: "Too many open transfers on this connection." });
+        }
+
+        const peerId = crypto.randomUUID();
+        group.receivers.set(peerId, ws);
+        ws.groupCode = code;
+        ws.peerId = peerId;
+        ws.roomsHeld += 1;
+        if (group.receivers.size >= group.maxReceivers) group.accepting = false;
+
+        send(group.sender, {
+          type: "group-joined",
+          peerId,
+          joined: group.receivers.size,
+          maxReceivers: group.maxReceivers,
+        });
+        send(ws, {
+          type: "group-joined",
+          peerId,
+          position: group.receivers.size,
+          maxReceivers: group.maxReceivers,
+        });
+        break;
+      }
+
+      case "stop-accepting": {
+        // The sender closing the remaining slots by hand. With devices admitted
+        // automatically, this and drop-device are what a sender has when the
+        // roster shows something they did not expect.
+        const group = groups.get(ws.groupCode);
+        if (!group || group.sender !== ws) return;
+        group.accepting = false;
+        send(ws, { type: "group-closed", reason: "sender" });
+        break;
+      }
+
+      case "drop-device": {
+        const group = groups.get(ws.groupCode);
+        if (!group || group.sender !== ws) return;
+        const target = group.receivers.get(msg.peerId);
+        if (!target) return;
+        group.receivers.delete(msg.peerId);
+        target.roomsHeld = Math.max(0, (target.roomsHeld ?? 0) - 1);
+        send(target, { type: "peer-left" });
+        send(ws, { type: "peer-left", peerId: msg.peerId, joined: group.receivers.size });
+        break;
+      }
+
       // The browser cannot see a ping frame or send one — the WebSocket API
       // deliberately hides them from page JavaScript — so a client that wants
       // to prove the link is alive has to send a real message. This is that
@@ -560,6 +840,32 @@ wss.on("connection", (ws, req) => {
         break;
 
       case "signal": {
+        // A group socket relays through its own map, addressed by peer. The 1:1
+        // path below is left exactly as it was.
+        if (ws.groupCode) {
+          const group = groups.get(ws.groupCode);
+          if (!group) return;
+
+          const isSender = group.sender === ws;
+          const limit = isSender ? SIGNAL_BASE + SIGNAL_PER_PEER * group.maxReceivers : SIGNAL_LIMIT;
+          if (isRateLimited(`signal:${ws.signalKey}`, limit, SIGNAL_WINDOW_MS)) return;
+
+          if (isSender) {
+            // Addressed, so one device's negotiation is never delivered to
+            // another's connection — which would not merely be noise, it would
+            // be one receiver's session description handed to a different
+            // receiver.
+            const target = group.receivers.get(msg.peerId);
+            if (target) send(target, { type: "signal", peerId: msg.peerId, data: msg.data });
+          } else {
+            // Tagged with the sender's own view of who this is, never with
+            // anything the receiver claims about itself.
+            if (group.receivers.get(ws.peerId) !== ws) return;
+            send(group.sender, { type: "signal", peerId: ws.peerId, data: msg.data });
+          }
+          return;
+        }
+
         const room = rooms.get(ws.roomCode);
         if (!room) return;
         // Relaying is the one thing this server does that forwards

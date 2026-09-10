@@ -12,6 +12,8 @@ interface AdGateProps {
   roomMinutes?: number;
   /** For "reveal-code": total bytes about to be sent — a bigger transfer earns a longer ad. */
   totalBytes?: number;
+  /** For "reveal-group-code": how many devices those bytes are going to. */
+  deviceCount?: number;
   /** What the user is waiting for, e.g. "Your code". Shown so the wait has a stated reason. */
   waitingFor: string;
   onPass: () => void;
@@ -43,8 +45,8 @@ interface AdGateProps {
  * here, only revenue to earn, and a server round trip to verify a five-second
  * timer would buy exactly nothing.
  */
-export function AdGate({ purpose, roomMinutes, totalBytes, waitingFor, onPass, onCancel }: AdGateProps) {
-  const plan = planFor(purpose, { roomMinutes, totalBytes });
+export function AdGate({ purpose, roomMinutes, totalBytes, deviceCount, waitingFor, onPass, onCancel }: AdGateProps) {
+  const plan = planFor(purpose, { roomMinutes, totalBytes, deviceCount });
   const [msLeft, setMsLeft] = useState(plan.totalMs);
   const [filled, setFilled] = useState<boolean | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);

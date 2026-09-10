@@ -22,6 +22,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     a: "Yes, and this is the one real cost of how it works, so it is worth being straight about rather than burying it. Your file goes directly from your device to theirs — it is never parked on a server in between, because there is no server holding files. That means both pages have to be open while it travels, the way a phone call needs both people on the line. Everything people like about this follows from the same fact: no size limit, no account, no waiting, nothing kept afterwards, and nothing that can leak later because nothing is stored. If the other person genuinely cannot be there, pick a longer code, send them the link, and leave your tab open — they can collect any time in the next two hours.",
   },
   {
+    q: "Can I send the same file to several devices at once?",
+    a: "Yes — that is what the Group share page is for. Pick a file, say how many devices should get it (up to 20), and share the code, the link or the QR. Everyone who joins gets their own copy sent straight from your device as they arrive, so somebody who joins late still gets the whole file and a slow phone never holds up anyone else. It is kept separate from the normal one-to-one send on purpose, including its code: a group code is six characters rather than six digits, which is about a billion combinations instead of a million, because a code that lets in several devices has to be far harder to stumble onto. You see every device that joins, each with its own code to compare, and you can close the remaining places or disconnect a device whenever you like.",
+  },
+  {
     q: "How do you make money if everything is free?",
     a: "Advertising on this page, once there are enough people here for it to be worth an advertiser's time. Never by charging you, never by capping your file size, never by inventing a paid tier. It works because most sends cost us nothing to run — your file doesn't pass through anything we pay for. If that ever has to change, you'll read it here first.",
   },

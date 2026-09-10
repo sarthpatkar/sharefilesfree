@@ -53,6 +53,9 @@ export function SiteFooter() {
             <Link href="/#send" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               Send a file
             </Link>
+            <Link href="/group" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
+              Group share
+            </Link>
             <Link href="/receive" className="sff-nudge w-fit py-1 text-[15px] font-semibold text-black">
               Receive a file
             </Link>

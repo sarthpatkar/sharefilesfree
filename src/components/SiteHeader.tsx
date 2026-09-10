@@ -8,6 +8,7 @@ import { SearchOverlay } from "./SearchOverlay";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
+  { href: "/group", label: "Group share" },
   { href: "/tools", label: "Tools" },
   { href: "/#why", label: "Why it's free" },
   { href: "/#faq", label: "FAQ" },

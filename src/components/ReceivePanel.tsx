@@ -13,12 +13,36 @@ import { AdSlot } from "./ads/AdSlot";
 import { zip } from "fflate";
 
 /**
- * A code is six digits, or eight when the sender asked it to keep working for
- * longer — the extra digits are what make a long-lived code safe to leave
+ * A 1:1 code is six digits, or eight when the sender asked it to keep working
+ * for longer — the extra digits are what make a long-lived code safe to leave
  * guessable (see generateRoomCode in /server).
+ *
+ * A group code is six characters from a 32-symbol alphabet and always contains
+ * at least one letter, which is deliberately what tells the two apart: all
+ * digits means a one-to-one transfer, anything with a letter means a group
+ * share. So one input serves both and nobody has to be told which kind of code
+ * they were handed (see generateGroupCode in /server).
  */
-function isCompleteCode(value: string): boolean {
+const GROUP_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** Folds what was typed onto the alphabet the code was drawn from — must match normalizeGroupCode in /server. */
+function normalizeGroupCode(value: string): string {
+  return value.trim().toUpperCase().replace(/[IL]/g, "1").replace(/O/g, "0");
+}
+
+function isGroupCode(value: string): boolean {
+  const folded = normalizeGroupCode(value);
+  if (folded.length !== 6) return false;
+  if (!/[A-Z]/.test(folded)) return false;
+  return [...folded].every((ch) => GROUP_ALPHABET.includes(ch));
+}
+
+function isRoomCode(value: string): boolean {
   return /^(\d{6}|\d{8})$/.test(value);
+}
+
+function isCompleteCode(value: string): boolean {
+  return isRoomCode(value) || isGroupCode(value);
 }
 
 /**
@@ -53,6 +77,8 @@ export function ReceivePanel() {
   const [verification, setVerification] = useState<string | null>(null);
   /** A warning that isn't a failure — see onNotice. */
   const [notice, setNotice] = useState<string | null>(null);
+  /** Set only for a group share: which device of how many this one is. */
+  const [groupPosition, setGroupPosition] = useState<{ position: number; total: number } | null>(null);
   const transferRef = useRef<PeerTransfer | null>(null);
   // Object URLs are created exactly once per received file, at receipt time —
   // not inline in JSX during render. Creating them during render (even
@@ -180,7 +206,7 @@ export function ReceivePanel() {
    */
   async function connectWithDestination() {
     if (!isCompleteCode(code)) {
-      setError("Enter the code exactly as shown on the sender's screen — it's 6 digits.");
+      setError("Enter the code exactly as shown on the sender's screen — six digits, or six characters for a group share.");
       return;
     }
 
@@ -190,7 +216,7 @@ export function ReceivePanel() {
     // which is true, unhelpful, and looks like the sender got the code wrong.
     // The sender is no longer shown these digits at all, so reaching this is
     // unlikely; it exists because the alternative is a baffling dead end.
-    if (code.length === 8) {
+    if (isRoomCode(code) && code.length === 8) {
       setError(
         "That code needs the sender's link or QR code — the digits on their own can't open it. Ask them to send you the link they're looking at.",
       );
@@ -217,7 +243,7 @@ export function ReceivePanel() {
 
   function connect(targetCode: string, targetSecret: string | null = null) {
     if (!isCompleteCode(targetCode)) {
-      setError("Enter the code exactly as shown on the sender's screen — it's 6 digits.");
+      setError("Enter the code exactly as shown on the sender's screen — six digits, or six characters for a group share.");
       return;
     }
     setError(null);
@@ -242,10 +268,17 @@ export function ReceivePanel() {
       onError: setError,
       onVerificationCode: setVerification,
       onNotice: setNotice,
+      onGroupPosition: (position, total) => setGroupPosition({ position, total }),
     });
     transfer.setSaveDirectory(saveDirRef.current);
     transferRef.current = transfer;
-    transfer.connectAsReceiver(targetCode, targetSecret);
+    // Which room type this code belongs to is readable from the code itself —
+    // see isGroupCode. Nobody has to pick.
+    if (isGroupCode(targetCode)) {
+      transfer.connectAsGroupReceiver(normalizeGroupCode(targetCode), targetSecret);
+    } else {
+      transfer.connectAsReceiver(targetCode, targetSecret);
+    }
   }
 
   // A code arriving via a shared link (/receive#123456) is a deliberate
@@ -284,6 +317,7 @@ export function ReceivePanel() {
     setReceived([]);
     setError(null);
     setNotice(null);
+    setGroupPosition(null);
     setGateOpen(false);
     setStartedAt(null);
     setFinishedAt(null);
@@ -312,11 +346,16 @@ export function ReceivePanel() {
             most important control on the page, so it's sized like it. */}
         <input
           id="code-input"
-          inputMode="numeric"
+          inputMode="text"
+          autoCapitalize="characters"
+          spellCheck={false}
           autoComplete="one-time-code"
           maxLength={8}
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+          // Letters are allowed now, because a group code has them. Stripped of
+          // anything that is in neither alphabet so a pasted code with a stray
+          // space or dash still works.
+          onChange={(e) => setCode(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 8).toUpperCase())}
           placeholder="000000"
           className="w-full bg-lime-3 px-5 py-4 text-center text-[2.6rem] font-bold tabular-nums tracking-[0.2em] text-black outline-none placeholder:text-black/35 focus:outline-2 focus:outline-offset-2 focus:outline-red sm:text-5xl"
         />
@@ -365,6 +404,16 @@ export function ReceivePanel() {
       {notice && (
         <p className="bg-y-max px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
           {notice}
+        </p>
+      )}
+
+      {groupPosition && (
+        // A group share has no "already claimed" refusal to tell a receiver
+        // something is off, so the count is shown on this side too: it is the
+        // same number the sender is looking at.
+        <p className="bg-lime-pale px-4 py-3 text-[13px] font-semibold leading-[1.45] text-black">
+          This is a group share — you are device {groupPosition.position} of up to {groupPosition.total}. The sender is
+          sending to each device separately, so your copy arrives at whatever speed their connection can manage.
         </p>
       )}
 

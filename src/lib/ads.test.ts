@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   AD_FORMATS,
+  DEFAULT_DEVICES,
   DEFAULT_ROOM_DURATION,
+  DEVICE_CHOICES,
+  MAX_DEVICES,
   GATE_SECONDS,
   planFor,
   ROOM_DURATION_ADS,
@@ -108,5 +111,53 @@ describe("a bigger transfer earns a longer ad", () => {
 
   it("still leaves the receiver's gate alone — they did not choose the file", () => {
     expect(planFor("receive-connect", { totalBytes: 50 * GB }).seconds).toBe(GATE_SECONDS);
+  });
+});
+
+describe("group shares", () => {
+  const MB = 1024 * 1024;
+  const GB = 1024 * MB;
+
+  it("charges a group share for the bytes it actually moves, not for the device count", () => {
+    // Five devices x 50MB is 250MB of real bandwidth, which is the second band.
+    expect(planFor("reveal-group-code", { totalBytes: 50 * MB, deviceCount: 5 }).seconds).toBe(
+      secondsForTransferSize(250 * MB),
+    );
+  });
+
+  it("leaves the everyday share at the baseline", () => {
+    // The case this has to get right: a few devices and an ordinary file is
+    // what most group shares are, and it must cost exactly what it costs today.
+    expect(planFor("reveal-group-code", { totalBytes: 30 * MB, deviceCount: 3 }).seconds).toBe(GATE_SECONDS);
+    // And a small file to a whole room of devices is genuinely cheap bandwidth,
+    // so it is genuinely charged nothing extra.
+    expect(planFor("reveal-group-code", { totalBytes: MB, deviceCount: MAX_DEVICES }).seconds).toBe(GATE_SECONDS);
+  });
+
+  it("keeps the same ceiling however many devices are asked for", () => {
+    const ceiling = Math.max(...Object.values(ROOM_DURATION_ADS));
+    expect(planFor("reveal-group-code", { totalBytes: 2 * GB, deviceCount: MAX_DEVICES }).seconds).toBe(ceiling);
+    expect(
+      planFor("reveal-group-code", { totalBytes: Number.MAX_SAFE_INTEGER, deviceCount: MAX_DEVICES, roomMinutes: 120 })
+        .seconds,
+    ).toBeLessThanOrEqual(ceiling);
+  });
+
+  it("does not change what a one-to-one transfer is charged", () => {
+    // The guard against this leaking into the existing flow: no device count,
+    // or a count of one, must be byte-identical to the old behaviour.
+    for (const bytes of [0, 10 * MB, 500 * MB, 5 * GB, 50 * GB]) {
+      const before = planFor("reveal-code", { totalBytes: bytes });
+      expect(planFor("reveal-code", { totalBytes: bytes, deviceCount: 1 })).toEqual(before);
+      expect(before.seconds).toBe(bytes ? secondsForTransferSize(bytes) : GATE_SECONDS);
+    }
+  });
+
+  it("offers only device counts the server will accept", () => {
+    expect(DEVICE_CHOICES).toContain(DEFAULT_DEVICES);
+    expect(Math.max(...DEVICE_CHOICES)).toBe(MAX_DEVICES);
+    // Two is the smallest thing that is a group at all — one device is the
+    // one-to-one flow, which is a different feature and a different page.
+    expect(Math.min(...DEVICE_CHOICES)).toBe(2);
   });
 });

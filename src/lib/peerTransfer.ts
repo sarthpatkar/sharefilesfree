@@ -1,4 +1,4 @@
-// Core P2P file-transfer engine.
+// One-to-one P2P file transfer.
 //
 // Flow: both sides open a WebSocket to the signaling server (see /server) to
 // exchange a short room code and then WebRTC offer/answer/ICE messages. Once
@@ -6,6 +6,11 @@
 // longer involved — file bytes stream directly between browsers (or through
 // a TURN relay if a direct path can't be established), never touching our
 // servers.
+//
+// The connection itself lives in peerLink.ts, which this drives exactly one of.
+// Group sharing (groupTransfer.ts) drives many of the same thing; everything in
+// this file is about the room and about turning arriving chunks back into
+// files, which is the half that does not generalise.
 //
 // This file intentionally has no React/UI code in it, so the transfer logic
 // can be unit-tested and reused independent of how it's rendered.
@@ -34,12 +39,7 @@ export interface IncomingFile {
   savedTo?: string;
 }
 
-export interface FileProgress {
-  id: string;
-  name: string;
-  size: number;
-  sent: number;
-}
+export type { FileProgress } from "./peerLink";
 
 export interface PeerTransferCallbacks {
   onStatus?: (status: TransferStatus, detail?: string) => void;
@@ -68,41 +68,9 @@ export interface PeerTransferCallbacks {
    * silently dropped every time.
    */
   onNotice?: (message: string) => void;
+  /** Group receivers only: which device of how many this one is. */
+  onGroupPosition?: (position: number, maxReceivers: number) => void;
 }
-
-// Chunk size is negotiated, not guessed. SCTP tells us the real per-message
-// ceiling for this pair via pc.sctp.maxMessageSize (Chrome reports 256KB,
-// Firefox far more); 16KB was the safe floor for browsers that don't. Sending
-// 16KB messages when 256KB are allowed costs 16x the message count, and each
-// message carries its own SCTP overhead and event-loop turn — which is most of
-// why a 29MB file crawled.
-const CHUNK_FLOOR = 16 * 1024;
-const CHUNK_CEILING = 256 * 1024;
-
-// The file is read in slices this large and then sent as chunks carved out of
-// that one buffer. Previously every single 16KB chunk cost its own
-// Blob.slice().arrayBuffer() — roughly 1,850 async disk reads for a 29MB file,
-// which dominated the transfer time. Now that's 8 reads.
-const READ_SLICE_SIZE = 4 * 1024 * 1024;
-
-// Stop reading more chunks once the channel's send buffer backs up past
-// this many bytes, and resume once it drains below it. Without this a fast
-// sender can balloon browser memory / overwhelm a TURN relay.
-const BUFFERED_AMOUNT_HIGH_WATERMARK = 8 * 1024 * 1024; // 8MB
-const BUFFERED_AMOUNT_LOW_WATERMARK = 2 * 1024 * 1024; // 2MB
-
-// Chrome's data channel has a hard send-queue ceiling of 16MB, and send()
-// THROWS once buffered data passes it — "RTCDataChannel send queue is full",
-// reproduced while benchmarking watermarks. The watermarks above stay well
-// under it, but "well under" is an argument, not a guarantee: a stalled
-// bufferedamountlow event would walk us into an exception that aborts a
-// transfer mid-file. This is the guarantee.
-const BUFFERED_AMOUNT_HARD_CEILING = 12 * 1024 * 1024;
-
-// Progress used to fire once per chunk — ~1,850 React state updates for a
-// 29MB file, each one a re-render competing with the transfer for the main
-// thread. The UI cannot show more than a few updates a second anyway.
-const PROGRESS_INTERVAL_MS = 60;
 
 // How long the signaling socket is kept open after the data channel opens, so
 // ICE can finish trickling and upgrade off the relay if a direct path exists.
@@ -123,14 +91,6 @@ const SIGNALING_GRACE_MS = 15 * 1000;
 // which is exactly the window the sender is told to leave the tab open for.
 const KEEPALIVE_INTERVAL_MS = 30 * 1000;
 
-// How long a "disconnected" peer connection is given to recover before the user
-// is told anything. The state is transient by specification — ICE re-checks
-// paths and frequently recovers — so announcing it immediately turned an
-// ordinary wifi wobble into a failure message over a transfer that was still
-// running. Ten seconds is well past a normal recovery and well short of a user
-// concluding the page has hung.
-const DISCONNECT_GRACE_MS = 10 * 1000;
-
 // Received chunks are sealed into a Blob segment every time this much has piled
 // up. Previously every chunk of a file was held as an ArrayBuffer until the
 // file completed, so peak JS heap was the entire file — and then Blob
@@ -143,10 +103,21 @@ const DISCONNECT_GRACE_MS = 10 * 1000;
 // at this constant regardless of file size.
 const COALESCE_BYTES = 8 * 1024 * 1024;
 
+// How often arriving-file progress may reach the UI. Matches the sending side's
+// interval in peerLink.ts — the UI cannot show more than a few updates a second
+// either way, and every one of them is a re-render competing with the transfer.
+const RECEIVE_PROGRESS_INTERVAL_MS = 60;
+
 import { sanitizeFilename } from "./sanitize";
-import { deriveVerificationCode, fingerprintFromSdp } from "./verificationCode";
-import { countMetric, countTransfer } from "./metrics";
+import { countTransfer } from "./metrics";
 import { formatBytes } from "./format";
+import {
+  PeerLink,
+  createIceServerProvider,
+  type ControlMessage,
+  type FileProgress,
+  type SignalData,
+} from "./peerLink";
 
 /**
  * Finds a name not already taken in the folder. Overwriting a file the user
@@ -172,47 +143,9 @@ async function uniqueNameIn(dir: SffDirectoryHandle, name: string): Promise<stri
   return `${stem} (${Date.now()})${ext}`;
 }
 
-// TURN credentials are fetched fresh per session from our own API rather
-// than baked into the client bundle — see /api/turn-credentials for why a
-// hardcoded NEXT_PUBLIC_ credential would be an open invitation to abuse.
-const FALLBACK_STUN: RTCIceServer[] = [
-  { urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"] },
-];
-
-/**
- * Never allowed to block a connection for long.
- *
- * This runs before `new RTCPeerConnection()` exists, so however long it takes is
- * added to every transfer on both sides. The server-side route caches its
- * upstream call now, but a hung request here — a dead origin, a captive portal,
- * a phone losing signal mid-fetch — would still stall the whole transfer with
- * no timeout of its own. STUN-only connects the large majority of peers, so
- * giving up quickly is strictly better than waiting.
- */
-const ICE_SERVERS_TIMEOUT_MS = 3000;
-
-async function fetchIceServers(): Promise<RTCIceServer[]> {
-  try {
-    const res = await fetch("/api/turn-credentials", { signal: AbortSignal.timeout(ICE_SERVERS_TIMEOUT_MS) });
-    const data = await res.json();
-    // Cloudflare's response already includes its own STUN servers alongside
-    // the TURN ones, so when it's configured we don't need the fallback list too.
-    if (data.turnConfigured) return data.iceServers as RTCIceServer[];
-  } catch {
-    // TURN is a reliability enhancement, not a hard requirement — fall back to STUN-only
-    // (works fine for most home networks; only strict corporate NATs really need TURN).
-  }
-  return FALLBACK_STUN;
-}
-
-function signalingUrl(): string {
+export function signalingUrl(): string {
   return process.env.NEXT_PUBLIC_SIGNALING_URL || "ws://localhost:8080";
 }
-
-type ControlMessage =
-  | { type: "file-start"; id: string; name: string; size: number; mime: string }
-  | { type: "file-end"; id: string }
-  | { type: "batch-end" };
 
 /**
  * The type every received file is given, regardless of what the sender called
@@ -240,12 +173,7 @@ type ControlMessage =
  * older peers send it and a deploy leaves both versions live for a while; the
  * receiver simply ignores it.
  */
-const RECEIVED_BLOB_TYPE = "application/octet-stream";
-
-type SignalData =
-  | { kind: "offer"; sdp: RTCSessionDescriptionInit }
-  | { kind: "answer"; sdp: RTCSessionDescriptionInit }
-  | { kind: "candidate"; candidate: RTCIceCandidateInit };
+export const RECEIVED_BLOB_TYPE = "application/octet-stream";
 
 // A transient blip while opening the signaling connection (flaky wifi, a
 // server restart) shouldn't force the user to manually retry — quietly retry
@@ -258,29 +186,16 @@ const RETRY_BASE_DELAY_MS = 1000;
 
 export class PeerTransfer {
   private ws: WebSocket | null = null;
-  private pc: RTCPeerConnection | null = null;
-  private pcReady: Promise<void> | null = null;
-  private channel: RTCDataChannel | null = null;
+  private link: PeerLink | null = null;
+  private readonly iceServers = createIceServerProvider();
   private readonly role: "sender" | "receiver";
   private readonly callbacks: PeerTransferCallbacks;
   private roomCode: string | null = null;
   private connectAttempt = 0;
   private closedByUser = false;
-  /** Timestamp of the last progress callback — see emitProgress. */
-  private lastProgressAt = 0;
   private signalingCloseTimer: ReturnType<typeof setTimeout> | null = null;
   /** Keeps an idle signaling socket from being closed by a proxy — see KEEPALIVE_INTERVAL_MS. */
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
-  /** Serialises signal handling so messages apply in arrival order — see enqueueSignal. */
-  private signalChain: Promise<void> = Promise.resolve();
-  /** ICE candidates that arrived before there was a remote description to attach them to. */
-  private pendingCandidates: RTCIceCandidateInit[] = [];
-  /** Pending "did this recover?" check — see the disconnected branch in createPeerConnection. */
-  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Guards against counting one connection's path more than once. */
-  private pathReported = false;
-  /** The verification code is announced once per connection, not per state change. */
-  private verificationSent = false;
   /** Running totals for the batch currently arriving — reported once at batch-end. */
   private batchFiles = 0;
   private batchBytes = 0;
@@ -306,6 +221,8 @@ export class PeerTransfer {
    * and the sender was told the connection died right after it succeeded.
    */
   private signalingClosedByUs = false;
+  /** Timestamp of the last progress callback — see emitProgress. */
+  private lastProgressAt = 0;
 
   // Receiver-side reassembly state, keyed by file id.
   private incoming = new Map<
@@ -367,6 +284,20 @@ export class PeerTransfer {
     this.openSocket(() => this.send({ type: "join-room", code, secret: secret ?? undefined }));
   }
 
+  /**
+   * Receiver: join a group share instead of a 1:1 room.
+   *
+   * Receiving is the same job either way — one connection to one sender, and
+   * every byte arrives down it identically — so this reuses everything below
+   * rather than duplicating it. All that differs is the verb, which room map
+   * the server looks in, and that the sender is talking to other devices at the
+   * same time, which is their problem and not this one's.
+   */
+  connectAsGroupReceiver(code: string, secret?: string | null) {
+    this.callbacks.onStatus?.("connecting-signal");
+    this.openSocket(() => this.send({ type: "join-group", code, secret: secret ?? undefined }));
+  }
+
   private openSocket(onOpen: () => void) {
     const ws = new WebSocket(signalingUrl());
     this.ws = ws;
@@ -383,7 +314,7 @@ export class PeerTransfer {
       this.stopKeepalive();
       if (this.closedByUser || this.signalingClosedByUs) return;
       if (opened) {
-        if (this.channel?.readyState !== "open") {
+        if (!this.link?.isOpen) {
           // Reported as a status change, not just an error line, because the
           // room died with the socket: the server drops it on close, so the
           // code on screen is already meaningless. Leaving the UI on the
@@ -425,10 +356,18 @@ export class PeerTransfer {
           break;
         case "peer-joined":
           this.callbacks.onStatus?.("negotiating");
-          this.ensurePeerConnection();
+          void this.ensureLink().ensureConnection();
+          break;
+        case "group-joined":
+          // Same moment as "peer-joined", plus where this device sits in the
+          // group. Worth showing: it is the receiver's own answer to "did the
+          // right number of people get this?", from the one source that knows.
+          this.callbacks.onGroupPosition?.(Number(msg.position) || 1, Number(msg.maxReceivers) || 1);
+          this.callbacks.onStatus?.("negotiating");
+          void this.ensureLink().ensureConnection();
           break;
         case "signal":
-          this.enqueueSignal(msg.data);
+          this.ensureLink().enqueueSignal(msg.data as SignalData);
           break;
         case "peer-left":
           // The peer connection was left open here. It could never connect
@@ -449,6 +388,37 @@ export class PeerTransfer {
     };
   }
 
+  /** Idempotent — safe to call from both the "peer-joined" handler and a racing "signal" message. */
+  private ensureLink(): PeerLink {
+    if (this.link) return this.link;
+    this.link = new PeerLink(this.role, this.iceServers, {
+      onSignal: (data) => this.send({ type: "signal", data }),
+      onOpen: () => {
+        this.callbacks.onStatus?.("connected");
+        // Signaling is NOT closed here, though it used to be.
+        //
+        // ICE keeps trickling candidates after the channel opens, and the first
+        // pair to succeed is very often the TURN relay — relay allocation
+        // typically beats hole-punching. Closing the socket at this moment threw
+        // away every candidate still in flight, so a connection that could have
+        // upgraded to a direct path stayed on the relay for the whole transfer,
+        // paying relay latency and Cloudflare bandwidth for files that never
+        // needed either.
+        //
+        // So the socket stays open until ICE has actually settled, and is closed
+        // by a hard deadline regardless so it never lingers.
+        this.scheduleSignalingClose();
+      },
+      onClose: () => this.callbacks.onStatus?.("done"),
+      onData: (data) => this.handleChannelMessage(data),
+      onProgress: (p) => this.callbacks.onProgress?.(p),
+      onError: (message) => this.callbacks.onError?.(message),
+      onVerificationCode: (code) => this.callbacks.onVerificationCode?.(code),
+      onIceSettled: () => this.closeSignalingNow(),
+    });
+    return this.link;
+  }
+
   private startKeepalive() {
     this.stopKeepalive();
     this.keepaliveTimer = setInterval(() => {
@@ -465,220 +435,6 @@ export class PeerTransfer {
 
   private send(message: unknown) {
     this.ws?.send(JSON.stringify(message));
-  }
-
-  private sendSignal(data: unknown) {
-    this.send({ type: "signal", data });
-  }
-
-  /** Idempotent — safe to call from both the "peer-joined" handler and a racing "signal" message. */
-  private ensurePeerConnection(): Promise<void> {
-    if (!this.pcReady) this.pcReady = this.createPeerConnection();
-    return this.pcReady;
-  }
-
-  private async createPeerConnection() {
-    const iceServers = await fetchIceServers();
-    this.pc = new RTCPeerConnection({ iceServers });
-
-    this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.sendSignal({ kind: "candidate", candidate: event.candidate.toJSON() });
-      }
-    };
-
-    this.pc.onconnectionstatechange = () => {
-      const state = this.pc?.connectionState;
-
-      // Derived the moment the connection is actually up, which is the first
-      // point both descriptions are settled and therefore the first point the
-      // two sides would agree on an answer.
-      if (state === "connected") void this.emitVerificationCode();
-
-      // "failed" is terminal. "disconnected" is NOT, and treating it as one was
-      // wrong: the spec describes it as transient, and ICE routinely recovers
-      // from it after a short burst of packet loss. On a phone changing cells or
-      // wifi wobbling it happens mid-transfer regularly — and never once on
-      // loopback, which is why it looked fine in development. The old code
-      // announced "Peer connection lost." over transfers that then completed
-      // perfectly well.
-      if (state === "failed") {
-        if (!this.pathReported) {
-          this.pathReported = true;
-          countMetric("connection-failed");
-        }
-        this.callbacks.onError?.("Peer connection lost.");
-        return;
-      }
-
-      if (state === "disconnected") {
-        // Say nothing yet. Give ICE the chance to do its job first.
-        if (this.disconnectTimer !== null) clearTimeout(this.disconnectTimer);
-        this.disconnectTimer = setTimeout(() => {
-          if (this.pc?.connectionState === "disconnected") {
-            this.callbacks.onError?.("The connection dropped and could not recover. Try again.");
-          }
-        }, DISCONNECT_GRACE_MS);
-        return;
-      }
-
-      if (state === "connected" && this.disconnectTimer !== null) {
-        clearTimeout(this.disconnectTimer);
-        this.disconnectTimer = null;
-      }
-    };
-
-    // Which path the connection actually took. Relay bandwidth is the dominant
-    // running cost of this service, so the direct-vs-relay ratio is the single
-    // most valuable number to know about it — and nothing measured it until now.
-    this.pc.addEventListener("iceconnectionstatechange", () => {
-      const ice = this.pc?.iceConnectionState;
-      if (ice === "connected" || ice === "completed") void this.reportConnectionPath();
-    });
-
-    if (this.role === "sender") {
-      const channel = this.pc.createDataChannel("file-transfer", { ordered: true });
-      this.setupChannel(channel);
-      const offer = await this.pc.createOffer();
-      await this.pc.setLocalDescription(offer);
-      this.sendSignal({ kind: "offer", sdp: this.pc.localDescription! });
-    } else {
-      this.pc.ondatachannel = (event) => this.setupChannel(event.channel);
-    }
-  }
-
-  /**
-   * Applies signals strictly one at a time, in arrival order.
-   *
-   * They used to run concurrently: `ws.onmessage` called an async handler
-   * without awaiting it, so an offer and the candidates trailing it were all in
-   * flight together. Two things went wrong with that, and the second cost real
-   * money.
-   *
-   * Ordering was never guaranteed — two `setRemoteDescription` calls could
-   * interleave. And a candidate arriving while the offer was still being applied
-   * hit `addIceCandidate` with no remote description set, which throws
-   * `InvalidStateError`. That was caught and discarded as "benign in rare
-   * orderings". It is neither rare nor benign: the sender emits its host
-   * candidates a millisecond or two after `setLocalDescription`, so they land
-   * reliably inside the window where `setRemoteDescription` is still resolving,
-   * and every one of them was thrown away permanently.
-   *
-   * A discarded candidate is a network path that never gets tried. Fewer paths
-   * means more connections falling back to the TURN relay, and relay bandwidth
-   * is the overwhelming majority of what this service costs to run — so silently
-   * dropping candidates was both a reliability bug and the largest line on the
-   * bill.
-   */
-  private enqueueSignal(data: SignalData) {
-    this.signalChain = this.signalChain.then(() => this.handleSignal(data)).catch(() => {});
-  }
-
-  private async handleSignal(data: SignalData) {
-    await this.ensurePeerConnection();
-    const pc = this.pc;
-    if (!pc) return;
-
-    if (data.kind === "offer") {
-      await pc.setRemoteDescription(data.sdp);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      this.sendSignal({ kind: "answer", sdp: pc.localDescription });
-      await this.flushPendingCandidates();
-    } else if (data.kind === "answer") {
-      await pc.setRemoteDescription(data.sdp);
-      await this.flushPendingCandidates();
-    } else if (data.kind === "candidate") {
-      // Held, not dropped, until there is a remote description to attach them
-      // to. This is the whole fix — see enqueueSignal.
-      if (!pc.remoteDescription) {
-        this.pendingCandidates.push(data.candidate);
-        return;
-      }
-      await this.addCandidate(data.candidate);
-    }
-  }
-
-  /**
-   * Reads back which path ICE actually selected, once, per connection.
-   *
-   * A "relay" candidate on either end means the bytes are going through TURN
-   * and we are paying Cloudflare per gigabyte for them. Everything else is
-   * direct and costs nothing. This is the only place that distinction is
-   * visible, and it is the number the whole cost model rests on — see
-   * src/lib/metrics.ts.
-   */
-  private async reportConnectionPath() {
-    if (this.pathReported || !this.pc) return;
-    this.pathReported = true;
-
-    try {
-      const stats = await this.pc.getStats();
-      const pairs = new Map<string, RTCIceCandidatePairStats>();
-      const candidates = new Map<string, { candidateType?: string }>();
-
-      stats.forEach((report) => {
-        if (report.type === "candidate-pair") pairs.set(report.id, report as RTCIceCandidatePairStats);
-        if (report.type === "local-candidate" || report.type === "remote-candidate") {
-          candidates.set(report.id, report as { candidateType?: string });
-        }
-      });
-
-      const selected = [...pairs.values()].find((p) => p.state === "succeeded" && p.nominated) ??
-        [...pairs.values()].find((p) => p.state === "succeeded");
-      if (!selected) return;
-
-      const localType = candidates.get(selected.localCandidateId ?? "")?.candidateType;
-      const remoteType = candidates.get(selected.remoteCandidateId ?? "")?.candidateType;
-      const relayed = localType === "relay" || remoteType === "relay";
-      countMetric(relayed ? "connection-relay" : "connection-direct");
-    } catch {
-      // getStats is best-effort and shapes differ between browsers. A missing
-      // measurement must never affect a transfer.
-    }
-  }
-
-  private async flushPendingCandidates() {
-    if (this.pendingCandidates.length === 0) return;
-    const queued = this.pendingCandidates;
-    this.pendingCandidates = [];
-    for (const candidate of queued) await this.addCandidate(candidate);
-  }
-
-  private async addCandidate(candidate: RTCIceCandidateInit) {
-    try {
-      await this.pc?.addIceCandidate(candidate);
-    } catch {
-      // With ordering now guaranteed, the only way to land here is a genuinely
-      // malformed candidate from the peer. Skipping one bad candidate is right;
-      // skipping every early one was not.
-    }
-  }
-
-  private setupChannel(channel: RTCDataChannel) {
-    this.channel = channel;
-    channel.binaryType = "arraybuffer";
-    channel.bufferedAmountLowThreshold = BUFFERED_AMOUNT_LOW_WATERMARK;
-
-    channel.onopen = () => {
-      this.callbacks.onStatus?.("connected");
-      // Signaling is NOT closed here, though it used to be.
-      //
-      // ICE keeps trickling candidates after the channel opens, and the first
-      // pair to succeed is very often the TURN relay — relay allocation
-      // typically beats hole-punching. Closing the socket at this moment threw
-      // away every candidate still in flight, so a connection that could have
-      // upgraded to a direct path stayed on the relay for the whole transfer,
-      // paying relay latency and Cloudflare bandwidth for files that never
-      // needed either.
-      //
-      // So the socket stays open until ICE has actually settled, and is closed
-      // by a hard deadline regardless so it never lingers.
-      this.scheduleSignalingClose();
-    };
-
-    channel.onmessage = (event) => this.handleChannelMessage(event.data);
-    channel.onclose = () => this.callbacks.onStatus?.("done");
   }
 
   private handleChannelMessage(data: string | ArrayBuffer) {
@@ -849,29 +605,26 @@ export class PeerTransfer {
   }
 
   /**
+   * Progress is throttled rather than emitted per chunk. Every call here is a
+   * React state update on the other side of the callback; at one per 16KB chunk
+   * a 29MB file queued ~1,850 re-renders that competed with the transfer itself
+   * for the main thread. Always emits the final value so the bar lands on 100%.
+   *
+   * The sending side has its own copy of this inside PeerLink, for the same
+   * reason and with the same interval. This one covers the receiving side,
+   * where the chunks arrive rather than leave.
+   */
+  private emitProgress(progress: FileProgress, force = false) {
+    const now = Date.now();
+    if (!force && now - this.lastProgressAt < RECEIVE_PROGRESS_INTERVAL_MS) return;
+    this.lastProgressAt = now;
+    this.callbacks.onProgress?.(progress);
+  }
+
+  /**
    * The OPFS sink, started on first use. Returns null where the platform can't
    * support it, and the caller falls back to assembling in memory.
    */
-  /**
-   * Works out the code both people can read to each other, and hands it up
-   * once.
-   *
-   * Fires only when both fingerprints are actually readable. Showing a code
-   * derived from partial information would be worse than showing none: the two
-   * sides could disagree for an innocent reason, and a verification step that
-   * cries wolf is one people learn to wave through — which is exactly the
-   * habit an attacker needs.
-   */
-  private async emitVerificationCode() {
-    if (this.verificationSent || !this.pc) return;
-    const local = fingerprintFromSdp(this.pc.localDescription?.sdp);
-    const remote = fingerprintFromSdp(this.pc.remoteDescription?.sdp);
-    const code = await deriveVerificationCode(local, remote);
-    if (!code || this.verificationSent) return;
-    this.verificationSent = true;
-    this.callbacks.onVerificationCode?.(code);
-  }
-
   private ensureSink(): Worker | null {
     if (this.sink) return this.sink;
     if (typeof Worker === "undefined" || !navigator.storage?.getDirectory) return null;
@@ -930,102 +683,13 @@ export class PeerTransfer {
     }
   }
 
-  /**
-   * Progress is throttled rather than emitted per chunk. Every call here is a
-   * React state update on the other side of the callback; at one per 16KB chunk
-   * a 29MB file queued ~1,850 re-renders that competed with the transfer itself
-   * for the main thread. Always emits the final value so the bar lands on 100%.
-   */
-  private emitProgress(progress: FileProgress, force = false) {
-    const now = Date.now();
-    if (!force && now - this.lastProgressAt < PROGRESS_INTERVAL_MS) return;
-    this.lastProgressAt = now;
-    this.callbacks.onProgress?.(progress);
-  }
-
   /** Sender: stream one or more files over the open data channel, one at a time. */
   async sendFiles(files: File[]) {
-    if (!this.channel || this.channel.readyState !== "open") {
-      throw new Error("Data channel is not open yet.");
-    }
+    const link = this.link;
+    if (!link || !link.isOpen) throw new Error("Data channel is not open yet.");
     this.callbacks.onStatus?.("transferring");
-
-    for (const file of files) {
-      const id = crypto.randomUUID();
-      this.channel.send(
-        JSON.stringify({ type: "file-start", id, name: file.name, size: file.size, mime: file.type } satisfies ControlMessage),
-      );
-
-      const chunkSize = this.chunkSize();
-      let offset = 0;
-      while (offset < file.size) {
-        // One read per 4MB, not one per chunk. The chunks below are views into
-        // this buffer rather than copies of it, so carving it up costs nothing.
-        const sliceEnd = Math.min(offset + READ_SLICE_SIZE, file.size);
-        const buffer = await file.slice(offset, sliceEnd).arrayBuffer();
-
-        let position = 0;
-        while (position < buffer.byteLength) {
-          await this.waitForBufferedAmountLow();
-          if (this.channel.readyState !== "open") return;
-
-          // Never hand the channel more than it will hold, whatever the event
-          // did or didn't fire. Polling here rather than trusting the event is
-          // the difference between a pause and a thrown exception.
-          while (this.channel.bufferedAmount > BUFFERED_AMOUNT_HARD_CEILING) {
-            await new Promise((r) => setTimeout(r, 20));
-            if (this.channel.readyState !== "open") return;
-          }
-
-          const length = Math.min(chunkSize, buffer.byteLength - position);
-          try {
-            this.channel.send(new Uint8Array(buffer, position, length));
-          } catch (err) {
-            this.callbacks.onError?.(
-              err instanceof Error && err.message.includes("full")
-                ? "The connection couldn't keep up and the transfer stopped. Try again."
-                : "The connection dropped mid-transfer. Try again.",
-            );
-            return;
-          }
-          position += length;
-          this.emitProgress({ id, name: file.name, size: file.size, sent: offset + position });
-        }
-
-        offset = sliceEnd;
-      }
-      this.emitProgress({ id, name: file.name, size: file.size, sent: file.size }, true);
-
-      this.channel.send(JSON.stringify({ type: "file-end", id } satisfies ControlMessage));
-    }
-
-    this.channel.send(JSON.stringify({ type: "batch-end" } satisfies ControlMessage));
+    await link.sendFiles(files);
     this.callbacks.onStatus?.("done");
-  }
-
-  /**
-   * The largest message this pair actually agreed to carry. SCTP negotiates it
-   * and exposes it on pc.sctp.maxMessageSize; browsers that don't report it get
-   * the conservative 16KB floor that used to be hardcoded for everyone. Capped
-   * at 256KB because beyond that some stacks fragment anyway and a single
-   * failed send costs more than the extra throughput wins.
-   */
-  private chunkSize(): number {
-    const max = this.pc?.sctp?.maxMessageSize;
-    if (typeof max !== "number" || !Number.isFinite(max) || max <= 0) return CHUNK_FLOOR;
-    return Math.max(CHUNK_FLOOR, Math.min(CHUNK_CEILING, Math.floor(max)));
-  }
-
-  private waitForBufferedAmountLow(): Promise<void> {
-    const channel = this.channel!;
-    if (channel.bufferedAmount <= BUFFERED_AMOUNT_HIGH_WATERMARK) return Promise.resolve();
-    return new Promise((resolve) => {
-      const onLow = () => {
-        channel.removeEventListener("bufferedamountlow", onLow);
-        resolve();
-      };
-      channel.addEventListener("bufferedamountlow", onLow);
-    });
   }
 
   /**
@@ -1036,42 +700,22 @@ export class PeerTransfer {
    */
   private scheduleSignalingClose() {
     if (this.signalingCloseTimer !== null) return;
+    this.signalingCloseTimer = setTimeout(() => this.closeSignalingNow(), SIGNALING_GRACE_MS);
+  }
 
-    const closeNow = () => {
-      if (this.signalingCloseTimer !== null) {
-        clearTimeout(this.signalingCloseTimer);
-        this.signalingCloseTimer = null;
-      }
-      this.signalingClosedByUs = true;
-      this.ws?.close();
-    };
-
-    const pc = this.pc;
-    if (pc) {
-      pc.addEventListener("icegatheringstatechange", () => {
-        // Both sides done gathering means no further candidates exist to trade.
-        if (pc.iceGatheringState === "complete" && pc.iceConnectionState === "completed") closeNow();
-      });
+  private closeSignalingNow() {
+    if (this.signalingCloseTimer !== null) {
+      clearTimeout(this.signalingCloseTimer);
+      this.signalingCloseTimer = null;
     }
-
-    this.signalingCloseTimer = setTimeout(closeNow, SIGNALING_GRACE_MS);
+    this.signalingClosedByUs = true;
+    this.ws?.close();
   }
 
   /** Tears down the peer connection without marking the whole transfer closed by the user. */
   private teardownPeer() {
-    this.channel?.close();
-    this.pc?.close();
-    this.channel = null;
-    this.pc = null;
-    this.pcReady = null;
-    // Candidates queued for a connection that no longer exists would otherwise
-    // be flushed into the next one, where they mean nothing.
-    this.pendingCandidates = [];
-    this.signalChain = Promise.resolve();
-    if (this.disconnectTimer !== null) {
-      clearTimeout(this.disconnectTimer);
-      this.disconnectTimer = null;
-    }
+    this.link?.close();
+    this.link = null;
   }
 
   close() {
@@ -1080,16 +724,12 @@ export class PeerTransfer {
       this.signalingCloseTimer = null;
     }
     this.stopKeepalive();
-    if (this.disconnectTimer !== null) {
-      clearTimeout(this.disconnectTimer);
-      this.disconnectTimer = null;
-    }
     this.signalingClosedByUs = true;
     this.closedByUser = true;
     this.sink?.terminate();
     this.sink = null; // suppress any in-flight retry from firing after a deliberate close
-    this.channel?.close();
-    this.pc?.close();
+    this.link?.close();
+    this.link = null;
     this.ws?.close();
   }
 }

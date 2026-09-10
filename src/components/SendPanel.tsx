@@ -210,6 +210,18 @@ export function SendPanel({ initialFile }: { initialFile?: File | null } = {}) {
                 <Button onClick={() => setGate("code")} className="self-start">
                   Get a code to share
                 </Button>
+
+                {/* The one pointer across to group sharing. It is a separate
+                    feature on a separate page with its own code format, so it
+                    gets a link rather than an option here — this flow stays
+                    exactly what it was. */}
+                <p className="text-[13px] font-medium leading-[1.5] text-black opacity-55">
+                  Sending to more than one device?{" "}
+                  <a href="/group" className="link font-medium text-red">
+                    Share with a group
+                  </a>{" "}
+                  — one code, up to 20 devices, each getting its own copy.
+                </p>
               </div>
             )}
           </div>

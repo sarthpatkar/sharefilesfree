@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly" as const,
       priority: 0.8,
     })),
+    { url: "https://sharefilesfree.com/group", changeFrequency: "monthly", priority: 0.7 },
     { url: "https://sharefilesfree.com/receive", changeFrequency: "monthly", priority: 0.5 },
     { url: "https://sharefilesfree.com/stats", changeFrequency: "daily", priority: 0.4 },
     { url: "https://sharefilesfree.com/security", changeFrequency: "monthly", priority: 0.6 },

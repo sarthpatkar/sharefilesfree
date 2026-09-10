@@ -95,6 +95,41 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    heading: "A group share uses a much harder code",
+    body: (
+      <>
+        <p>
+          Sending to{" "}
+          <Link href="/group" className="link">
+            several devices at once
+          </Link>{" "}
+          changes one thing that matters, so it gets its own kind of code. With a normal transfer, someone who
+          stumbled onto your code would be caught immediately: the person you meant to send to would be turned away,
+          and you would both know. A group share has room for several devices, so an extra one could slip in without
+          anyone noticing.
+        </p>
+        <p>
+          The answer is a code that is far harder to stumble onto in the first place. A group code is six characters
+          rather than six digits — a little over a billion combinations instead of a million, and the letters that
+          are easy to misread or mishear are left out so it can still be read across a room. Leave the share open
+          longer than ten minutes and the code alone stops being enough: it travels as a link or a QR carrying a key
+          nobody can guess.
+        </p>
+        <p>
+          You also see the whole thing happen. Every device that joins is listed as it arrives, with its own code to
+          compare against that device&rsquo;s screen, counted against the number you asked for. You can close the
+          remaining places at any point, or disconnect a device.
+        </p>
+        <p>
+          The honest limit: anyone the link reaches can join until the places are full. A group share admits devices
+          automatically, so a link passed on to somebody you did not intend is a real recipient — the list is what
+          shows you it happened. Share the code with the people you mean to, ask for only as many devices as you
+          need, and close the remaining places once everyone is in.
+        </p>
+      </>
+    ),
+  },
+  {
     heading: "The tools never take your file either",
     body: (
       <>

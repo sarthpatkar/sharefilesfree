@@ -13,11 +13,18 @@ export function CodeDisplay({
   code,
   expiresAt,
   secret,
+  group = false,
 }: {
   code: string;
   expiresAt?: number | null;
   /** Present for long-lived rooms, which cannot be joined by code alone. */
   secret?: string | null;
+  /**
+   * A group share rather than a one-to-one transfer. Only the wording changes:
+   * a group code is six characters rather than six digits, and it is being read
+   * to a room rather than to one person.
+   */
+  group?: boolean;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -51,17 +58,25 @@ export function CodeDisplay({
     <div className="flex w-full flex-col items-center gap-7">
       <div className="flex flex-col items-center gap-2">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-red">
-          {secret ? "Send the link or the QR" : "Read this out, or send the link"}
+          {secret
+            ? "Send the link or the QR"
+            : group
+              ? "Read this out to the room, or share the link"
+              : "Read this out, or send the link"}
         </p>
         {/* The failure mode nobody expects the first time: the file travels
             between the two browsers, so closing this page stops the transfer
             the way unplugging a cable would. Worth saying before it happens. */}
         <p className="max-w-xs text-center text-[13px] font-medium leading-[1.5] text-black opacity-55">
           {secret
-            ? "There are no digits to read out for a code this long-lived — it has to be harder to guess than six numbers, so it travels as a link."
-            : "They type it in at sharefilesfree.com."}{" "}
-          Leave this page open until the transfer finishes — the file goes from here to them, so closing it stops
-          it.
+            ? group
+              ? "There is nothing to read out for a share left open this long — it has to be harder to guess than six characters, so it travels as a link or a QR."
+              : "There are no digits to read out for a code this long-lived — it has to be harder to guess than six numbers, so it travels as a link."
+            : group
+              ? "Everyone types it in at sharefilesfree.com, or scans the code below."
+              : "They type it in at sharefilesfree.com."}{" "}
+          Leave this page open until {group ? "every device has the file" : "the transfer finishes"} — the file goes
+          from here to them, so closing it stops it.
           {expiresAt ? ` Works until ${new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}
         </p>
       </div>
@@ -84,7 +99,9 @@ export function CodeDisplay({
           {code.split("").map((digit, i) => (
             <span
               key={i}
-              className="flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink text-[2rem] font-bold tabular-nums text-black last:border-r sm:h-20 sm:w-14 sm:text-[2.6rem]"
+              className={`flex h-[68px] w-[46px] items-center justify-center border-b-2 border-l border-ink text-[2rem] font-bold text-black last:border-r sm:h-20 sm:w-14 sm:text-[2.6rem] ${
+                group ? "font-mono" : "tabular-nums"
+              }`}
             >
               {digit}
             </span>

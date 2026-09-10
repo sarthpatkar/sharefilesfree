@@ -10,8 +10,43 @@ Fast, free, peer-to-peer file sharing in the browser. No login, no signup, no ap
 4. Files stream **directly between browsers** over a WebRTC data channel — encrypted, no server storage, no size limit.
 5. If a direct connection can't be established (strict NAT/firewall), traffic falls back to a **TURN relay** — same idea as Send Anywhere's cloud relay fallback. This uses Cloudflare's managed Realtime TURN service (free up to 1,000 GB/month) rather than self-hosting one.
 6. If the receiver isn't online yet, the code keeps working for **an hour** while the sender leaves the tab open — the file waits on the sender's own device, never on ours. There is deliberately no upload-and-share-a-link fallback; see "No storage, on purpose" below.
-7. A **Tools** section offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, conversions to/from Word/Excel/PowerPoint/Markdown, plus image tools, a QR generator, and OCR — running **entirely client-side**, no upload, no server cost. Every tool lives on its **own indexable URL** (`/tools/merge-pdf`, etc.) for real SEO, not just hidden behind an in-app tab. Most tools support batch processing (multiple files in, one zip out) with a progress bar. A result can be downloaded directly or handed straight to the Send tab.
-8. The site works **offline after a first visit** via a small hand-rolled service worker (cache-as-you-go) — the Tools are 100% client-side already, so this makes them usable with no internet at all once cached.
+7. **Group share** (`/group`) is a separate flow for sending one file to **up to 20 devices at once**. Each device that joins gets its own peer connection and its own copy, started the moment it connects, so a late joiner still gets the whole file and a slow phone never holds up anyone else. It is deliberately kept apart from the one-to-one flow — its own page, its own room type on the server, its own code format — so nothing about the 1:1 transfer changes. See "Group share security" below.
+8. A **Tools** section offers a full PDF/Office utility suite — merge, split, organize, compress, watermark, page numbers, conversions to/from Word/Excel/PowerPoint/Markdown, plus image tools, a QR generator, and OCR — running **entirely client-side**, no upload, no server cost. Every tool lives on its **own indexable URL** (`/tools/merge-pdf`, etc.) for real SEO, not just hidden behind an in-app tab. Most tools support batch processing (multiple files in, one zip out) with a progress bar. A result can be downloaded directly or handed straight to the Send tab.
+9. The site works **offline after a first visit** via a small hand-rolled service worker (cache-as-you-go) — the Tools are 100% client-side already, so this makes them usable with no internet at all once cached.
+
+## Group share security
+
+A one-to-one room has a single slot, so a stolen code is loud: the real receiver is
+refused with "already claimed" and both people notice. A group room has up to twenty
+slots and admits devices automatically, so a guesser who found a live code could take
+a slot quietly. Three things answer that, and they are why group sharing is not simply
+the 1:1 room with a bigger number in it:
+
+- **A far larger code space.** A group code is six characters from a 32-symbol alphabet
+  (`0123456789ABCDEFGHJKMNPQRSTVWXYZ` — digits and letters, with `I`, `L`, `O` and `U`
+  removed because they are the ones people misread and mishear). That is 32⁶ ≈ **1.07
+  billion** combinations against the 1:1 code's 1,000,000. Against the server's global
+  failed-join budget that works out at ~0.0000056 expected lucky guesses per room
+  lifetime, versus 0.006 for today's 10-minute 1:1 code — roughly 1,000× better. The
+  arithmetic is written out in full at the top of `server/index.js` and must be redone
+  if any of the limits change.
+- **A key for anything long-lived.** Exactly the existing rule: a share left open longer
+  than 10 minutes requires the 128-bit key that only travels in the link or QR, and a
+  wrong key is refused word-for-word identically to a wrong code so a guesser learns
+  nothing.
+- **The roster.** The sender sees every device as it joins, counted against the number
+  they asked for, each with its own verification code, and can close the remaining
+  places or disconnect a device. That is what replaces the "already claimed" signal.
+
+Generated group codes always contain at least one letter, which is what lets `/receive`
+route a typed code to the right room type without asking: all digits means a 1:1 room,
+anything with a letter means a group share.
+
+**The honest limit:** anyone the link reaches can join until the places fill. Devices are
+admitted automatically, so a forwarded link is a real recipient and the roster is what
+shows you it happened. Per-device sender approval is the control that would prevent it
+and is deliberately not built — it is the first thing to add if forwarding turns out to
+matter in practice.
 
 ## No storage, on purpose
 
@@ -161,19 +196,25 @@ Three constraints worth knowing before changing any of this:
 src/
   app/
     page.tsx                 Home (/, send tab default)
-    receive/page.tsx         /receive#123456 — deep link into the receive tab
+    group/page.tsx           /group — send one file to up to 20 devices at once
+    receive/page.tsx         /receive#123456 — deep link into the receive tab (handles group codes too)
     privacy/, terms/         Legal pages (linked in the footer + sitemap)
     not-found.tsx, error.tsx  Branded 404 / error boundaries
     icon.tsx, apple-icon.tsx, opengraph-image.tsx, manifest.ts  Generated in code — no design tool needed
     robots.ts, sitemap.ts    SEO metadata routes
     api/
       turn-credentials/      Mints short-lived TURN credentials (see comments in route.ts) — the only API route
-  components/     UI: SendPanel, ReceivePanel, CodeDisplay, ProgressBar, ToolsPanel, Button, icons.tsx, Home
+  components/     UI: SendPanel, GroupPanel, DeviceRoster, ReceivePanel, CodeDisplay, ProgressBar, ToolsPanel, Button, icons.tsx, Home
     ads/            AdSlot (reserved-space banner), AdGate (the five-second gate), adNetwork.ts (the one file that knows about AdSense)
     tools/          Per-tool UI — 14 tools, see the Tools table above; most use the shared SimpleConversionTool
                     shell (FileDropZone → options → ToolResultCard), Organize/Split have bespoke thumbnail UIs
   lib/
-    peerTransfer.ts   Core WebRTC signaling + chunked file transfer engine, with retry-with-backoff on connect (no UI deps)
+    peerLink.ts       One WebRTC connection to one peer: candidate queueing, backpressure, chunked send, verification code.
+                      Shared by both flows rather than copied, so a fix to the part that decides whether two browsers
+                      ever find each other lands in both.
+    peerTransfer.ts   One-to-one transfer: the room, and reassembling arriving chunks into files. Drives one PeerLink.
+    groupTransfer.ts  Group share (sending side): one socket, one PeerLink per device, with the send-buffer and
+                      read-slice budgets divided across them so 20 devices don't mean 160MB of buffers
     ads.ts            Ad policy: where gates appear, how long they run, banner sizes
     rateLimit.ts      In-memory per-IP throttle for the TURN-credential route
     sanitize.ts       Filename sanitization (prevents header injection in Content-Disposition)
@@ -184,7 +225,8 @@ scripts/
   copy-pdf-worker.mjs  Copies pdf.js's worker file into public/ on every install (see package.json's postinstall) —
                        a static file is more predictable across bundlers than bundler-specific worker-asset resolution
 server/
-  index.js             WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only)
+  index.js             WebSocket signaling server (pairs sender/receiver by room code, relays SDP/ICE only).
+                       Holds two separate room types: 1:1 rooms and group rooms — see "Group share security" above
   test-signaling.mjs   Integration test for the signaling protocol (run: `npm test` from /server)
 deploy/
   signaling.service  systemd unit for the signaling server
